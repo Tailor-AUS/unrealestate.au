@@ -141,6 +141,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Infrastructure (Bicep)
+        id: bicep-deploy
         uses: azure/arm-deploy@v2
         with:
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -153,6 +154,39 @@ jobs:
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
           failOnStdErr: false
+
+      - name: Show Bicep failure details
+        if: failure() && steps.bicep-deploy.conclusion == 'failure'
+        run: |
+          echo "::group::Last deployment status"
+          az deployment group show \
+            --name main \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.{state:provisioningState, error:error, correlationId:correlationId, timestamp:timestamp}" \
+            -o json || true
+          echo "::endgroup::"
+
+          echo "::group::Failed deployment operations"
+          az deployment operation group list \
+            --name main \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceName, type:properties.targetResource.resourceType, status:properties.statusCode, message:properties.statusMessage}" \
+            -o json || true
+          echo "::endgroup::"
+
+          echo "::group::Container app states (api + web)"
+          az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{state:properties.provisioningState, running:properties.runningStatus, image:properties.template.containers[0].image, command:properties.template.containers[0].command}" -o json || true
+          az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{state:properties.provisioningState, running:properties.runningStatus, image:properties.template.containers[0].image}" -o json || true
+          echo "::endgroup::"
+
+          echo "::group::Cognitive services account + deployments"
+          az cognitiveservices account show -n aigents-ai-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{state:properties.provisioningState, endpoint:properties.endpoint}" -o json || true
+          az cognitiveservices account deployment list -n aigents-ai-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[].{name:name, model:properties.model.name, version:properties.model.version, state:properties.provisioningState}" -o json || true
+          echo "::endgroup::"
 
       - name: Get Web App URL
         id: get-url
