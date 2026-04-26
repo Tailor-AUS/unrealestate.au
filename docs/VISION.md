@@ -26,7 +26,7 @@ Agents upload their photos. Our AI generates the listing copy, the valuation, th
 
 ---
 
-## The Seven Pillars
+## The Eight Pillars
 
 ### 1. Kill the Photo Tax
 Flat monthly fee replaces the $3,000–$4,000 per-listing portal fees charged by realestate.com.au and Domain. The same listing on Aigents costs the agent the GPT-4o tokens it took to generate, plus a flat margin. Nothing else.
@@ -52,9 +52,24 @@ You pay what the AI cost us, plus a flat margin. Every cent visible in the dashb
 ### 7. Open Source (Apache 2.0)
 The code is public. The costs are public. The algorithm is public. You can fork it. We bet on execution, community, and trust — not on lock-in. An open, Australian-owned platform cannot be quietly acquired and shut down by a foreign incumbent.
 
+### 8. Built on PACT — Protocol for Agent Consensus and Truth
+Aigents is built on **[PACT](https://github.com/TailorAU/pact)** — an open-source protocol for multi-agent AI consensus, developed in Australia by Tailor. Aigents is the first production application running on PACT.
+
+A real estate transaction is multi-agent by nature: a buyer-side AI, a seller-side AI, a valuation AI, an offer-analysis AI, and a human agent of record. PACT is how those agents talk to each other safely, auditably, and with the human always in charge.
+
+- **Humans always win.** Any AI decision can be overridden by the human — the agent of record, the seller, the buyer. The AI advises; humans decide.
+- **Structured negotiation, not freeform chat.** When multiple AI agents need to agree on a price guide, a counter-offer, or a comparable sale, they use PACT to declare intents, exchange positions, and reach consensus — not free-text chains that hallucinate.
+- **Event-sourced truth.** Every AI decision is logged as a PACT operation. Auditable. Reproducible. No black-box "the AI said so."
+- **Information barriers between sides.** The buyer-side AI never sees the seller's reserve. The seller-side AI never sees the buyer's maximum offer. PACT's classification framework enforces this at the protocol level.
+- **Field-level granularity.** When the AI updates a listing, it updates *the description field*, not the whole record. Audit trails are precise.
+- **Silence equals acceptance.** Proposals auto-merge after a TTL unless actively objected to — the same mechanic that makes async real estate negotiation actually work.
+- **Zero-trust agent onboarding.** Human agents onboard via invite tokens, not account-creation forms. No spam, no fake listings.
+
+PACT is the trust substrate that makes "we let AI run a real estate transaction" defensible. Without it, multi-agent AI is a liability; with it, it is auditable infrastructure.
+
 ---
 
-## Australian Sovereignty (PACT)
+## Australian Sovereignty
 
 Aigents is built in Australia, hosted in Australia, governed by Australian law, and owned by Australians.
 
@@ -62,8 +77,7 @@ Aigents is built in Australia, hosted in Australia, governed by Australian law, 
 - **Privacy Act 1988 (Cth) compliance:** Australian Privacy Principles are the default. Customers know what we collect, why, and can see or delete it on request.
 - **Australian jurisdiction:** disputes are heard in Australian courts. No US-style forced arbitration. No offshore parent company.
 - **Australian-owned:** no foreign equity holders with a controlling stake.
-
-> *Note: "PACT" in this thesis refers to the broader principle of an Australian-based platform operating under Australian law and the Privacy Act. If "PACT" refers to a specific framework or accreditation we should align to, this section will be updated to reflect it.*
+- **Australian protocol:** built on PACT, an Australian open-source standard, not a US-controlled framework.
 
 ---
 

@@ -10,7 +10,7 @@ Built with .NET 8, Aspire, Blazor, Azure AI Foundry (GPT-4o), vertical slice arc
 
 ---
 
-## ✨ The Seven Pillars
+## ✨ The Eight Pillars
 
 1. **Kill the photo tax** — flat monthly fee, no per-listing portal gouge.
 2. **AI does the agent's busywork** — listing copy, valuation, buyer chat, offer analysis.
@@ -19,6 +19,7 @@ Built with .NET 8, Aspire, Blazor, Azure AI Foundry (GPT-4o), vertical slice arc
 5. **One-click migration off REA / Domain** — agents own their photos; we just move them.
 6. **Transparent compute-cost pricing** — pay what the AI cost us, plus a flat margin.
 7. **Open source (Apache 2.0)** — the code, the costs, the algorithm, all public.
+8. **Built on [PACT](https://github.com/TailorAU/pact)** — Protocol for Agent Consensus and Truth. Australian open-source multi-agent protocol. Humans always win. Auditable, event-sourced, with information barriers between buyer and seller agents.
 
 Plus: **Australian-hosted, Australian-owned, Australian-jurisdiction**, Privacy Act 1988 compliant.
 
