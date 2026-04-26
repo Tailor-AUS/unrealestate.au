@@ -72,10 +72,13 @@ resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-10-01-prev
   }
 }
 
-// Deploy GPT-4o model
-resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-10-01-preview' = {
+// Deploy GPT-4.1 model.
+// Deployment name 'gpt-41' (not 'gpt-4o') so a new deployment is created
+// alongside any pre-existing 'gpt-4o' deployment that may be stuck on a
+// deprecated model version that Azure refuses to update in place.
+resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-10-01-preview' = {
   parent: cognitiveServices
-  name: 'gpt-4o'
+  name: 'gpt-41'
   sku: {
     name: 'Standard'
     capacity: 10 // Tokens per minute (K)
@@ -83,8 +86,8 @@ resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
-      version: '2024-11-20'
+      name: 'gpt-4.1'
+      version: '2025-04-14'
     }
     raiPolicyName: 'Microsoft.Default'
   }
@@ -267,7 +270,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'AzureAI__DeploymentName'
-              value: 'gpt-4o'
+              value: 'gpt-41'
             }
             {
               name: 'Google__ClientId'
