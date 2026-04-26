@@ -192,12 +192,19 @@ jobs:
         id: get-url
         run: |
           WEB_URL=$(az containerapp show \
-            --name aigents-web \
+            --name aigents-web-production \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)
+          API_URL=$(az containerapp show \
+            --name aigents-api-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn \
             --output tsv)
           echo "web_url=https://$WEB_URL" >> $GITHUB_OUTPUT
-          echo "🚀 Deployed to: https://$WEB_URL"
+          echo "api_url=https://$API_URL" >> $GITHUB_OUTPUT
+          echo "🚀 Web deployed to: https://$WEB_URL"
+          echo "🚀 API deployed to: https://$API_URL"
 
       - name: Deployment Summary
         run: |
@@ -232,17 +239,17 @@ jobs:
         run: |
           # Add custom domain to Container App
           az containerapp hostname add \
-            --name aigents-web \
+            --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --hostname aigents.au \
             || echo "Domain may already be configured"
-          
+
           # Bind managed certificate
           az containerapp hostname bind \
-            --name aigents-web \
+            --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --hostname aigents.au \
-            --environment aigents-env \
+            --environment aigents-env-production \
             --validation-method CNAME \
             || echo "Certificate binding may already exist"
 
