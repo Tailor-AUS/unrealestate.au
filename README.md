@@ -1,27 +1,45 @@
-# 🏠 Aigents - AI Real Estate Platform
+# 🏠 Aigents — The AI Real Estate Platform for Australian Agents
 
-**AI-powered buyer's and seller's agent for Brisbane and Gold Coast real estate.**
+**Facebook hosts our photos for free. Instagram hosts our videos for free. Marketplace lists our items for free. So why do we pay realestate.com.au and Domain $3,000–$4,000 just to list the most valuable thing we will ever sell — our home?**
 
-Built with .NET 8, Aspire, Blazor, Azure AI Foundry (GPT-4o), and vertical slice architecture.
+Aigents is the Australian-owned, open-source, AI-powered alternative for real estate agents who are done paying the photo tax to foreign-owned listing portals.
+
+Built with .NET 8, Aspire, Blazor, Azure AI Foundry (GPT-4o), vertical slice architecture, and hosted in **Australia East** under Australian law.
+
+> **Read the full thesis:** [`docs/VISION.md`](docs/VISION.md)
+
+---
+
+## ✨ The Seven Pillars
+
+1. **Kill the photo tax** — flat monthly fee, no per-listing portal gouge.
+2. **AI does the agent's busywork** — listing copy, valuation, buyer chat, offer analysis.
+3. **Buyer-side AI is the distribution** — our own buyer audience, no REA required.
+4. **Agent owns the relationship** — Aigents is the tooling, not the brokerage.
+5. **One-click migration off REA / Domain** — agents own their photos; we just move them.
+6. **Transparent compute-cost pricing** — pay what the AI cost us, plus a flat margin.
+7. **Open source (Apache 2.0)** — the code, the costs, the algorithm, all public.
+
+Plus: **Australian-hosted, Australian-owned, Australian-jurisdiction**, Privacy Act 1988 compliant.
 
 ---
 
 ## ✨ Features
 
-### 🔍 Buy Journey
+### 🔍 Buyer-Side AI (the distribution channel)
 - Chat with AI buyer's agent
 - Search on-market and off-market properties
-- Get suburb insights and valuations
+- Get suburb insights and AI-generated valuations
 - Book inspections
 
-### 📝 Sell Journey
-1. **Enter your address** → AI generates a complete listing
+### 📝 Agent Workflow (the product)
+1. **Upload photos + address** → AI generates listing copy, valuation, and buyer Q&A
 2. **Review & edit** → Customize headline, description, features
-3. **Sign agreement** → Open listing agreement (any agent can sell)
-4. **Publish** → Listing sent to all local agents as exclusive off-market opportunity
-5. **Agent who finds buyer earns commission**
+3. **Publish to Aigents** → Listing goes live, matched directly to buyers using our AI agent
+4. **Buyer chats with AI** → Qualified leads handed to you with full context
+5. **You close the deal** → You stay the agent of record, you keep the commission
 
-*Like Facebook Marketplace, but for real estate!*
+*The same listing for the cost of GPT-4o tokens, not $3,000.*
 
 ---
 
@@ -190,8 +208,8 @@ git push origin main
 
 ## 📝 License
 
-Proprietary - All rights reserved
+[Apache License 2.0](LICENSE) — Aigents is open source. The code, the costs, and the algorithms are public. Fork it, audit it, contribute back.
 
 ## 👥 Team
 
-Built by Knox & AI
+Built in Australia by Knox & AI
