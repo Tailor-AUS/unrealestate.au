@@ -182,9 +182,9 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Cognitive services account + deployments"
-          az cognitiveservices account show -n aigents-ai-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+          az cognitiveservices account show -n aigents-ai-au-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "{state:properties.provisioningState, endpoint:properties.endpoint}" -o json || true
-          az cognitiveservices account deployment list -n aigents-ai-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+          az cognitiveservices account deployment list -n aigents-ai-au-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "[].{name:name, model:properties.model.name, version:properties.model.version, state:properties.provisioningState}" -o json || true
           echo "::endgroup::"
 

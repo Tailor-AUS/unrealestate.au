@@ -10,8 +10,8 @@ param environmentName string
 @description('Azure region')
 param location string = resourceGroup().location
 
-@description('Azure AI region (supports GPT-4o)')
-param aiLocation string = 'eastus'
+@description('Azure AI region. Defaults to australiaeast for data sovereignty (see docs/VISION.md "Australian Sovereignty" section). gpt-4o:2024-11-20 is available in australiaeast for Standard regional deployment per Azure Foundry models docs.')
+param aiLocation string = 'australiaeast'
 
 @description('Azure Container Registry name')
 param acrName string
@@ -58,8 +58,13 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 // AZURE AI FOUNDRY (Azure OpenAI)
 // ───────────────────────────────────────────────────────────────
 
+// Cognitive Services account name carries an '-au-' segment so that
+// switching aiLocation from eastus -> australiaeast forces creation of
+// a NEW account (Azure resources cannot move between regions). The
+// previous 'aigents-ai-production' account in eastus is orphaned and
+// must be deleted manually via the Azure portal.
 resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
-  name: '${appName}-ai-${suffix}'
+  name: '${appName}-ai-au-${suffix}'
   location: aiLocation
   tags: tags
   kind: 'OpenAI'
@@ -67,18 +72,20 @@ resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-10-01-prev
     name: 'S0'
   }
   properties: {
-    customSubDomainName: '${appName}-ai-${suffix}'
+    customSubDomainName: '${appName}-ai-au-${suffix}'
     publicNetworkAccess: 'Enabled'
   }
 }
 
-// Deploy GPT-4.1 model.
-// Deployment name 'gpt-41' (not 'gpt-4o') so a new deployment is created
-// alongside any pre-existing 'gpt-4o' deployment that may be stuck on a
-// deprecated model version that Azure refuses to update in place.
-resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-10-01-preview' = {
+// Deploy GPT-4o model in the Australian region.
+// gpt-4.1:2025-04-14 is not available in australiaeast for Standard
+// regional deployment, so we use gpt-4o:2024-11-20 (available in AU,
+// drop-in compatible with the .NET ChatClient call surface). When this
+// version is deprecated we'll bump to the next AU-supported gpt-4o or
+// switch to gpt-5.
+resource gpt4oAuDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-10-01-preview' = {
   parent: cognitiveServices
-  name: 'gpt-41'
+  name: 'gpt-4o-au'
   sku: {
     name: 'Standard'
     capacity: 10 // Tokens per minute (K)
@@ -86,8 +93,8 @@ resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4.1'
-      version: '2025-04-14'
+      name: 'gpt-4o'
+      version: '2024-11-20'
     }
     raiPolicyName: 'Microsoft.Default'
   }
@@ -270,7 +277,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'AzureAI__DeploymentName'
-              value: 'gpt-41'
+              value: 'gpt-4o-au'
             }
             {
               name: 'Google__ClientId'
