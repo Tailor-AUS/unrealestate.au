@@ -14,10 +14,16 @@ COPY ["src/Aigents.Web/Aigents.Web.csproj", "src/Aigents.Web/"]
 COPY ["src/Aigents.ServiceDefaults/Aigents.ServiceDefaults.csproj", "src/Aigents.ServiceDefaults/"]
 RUN dotnet restore "src/Aigents.Web/Aigents.Web.csproj"
 
+# CACHE_BUST changes per commit so the layer cache for COPY . . is
+# invalidated and we don't ship stale .razor / .cs source. Without this,
+# the GitHub Actions layer cache hits on COPY . . even though the source
+# tree changed, and the published binaries are from the previous build.
+ARG CACHE_BUST=unset
+
 # Copy everything and build
 COPY . .
 WORKDIR "/src/src/Aigents.Web"
-RUN dotnet build "Aigents.Web.csproj" -c Release -o /app/build
+RUN echo "Cache bust: ${CACHE_BUST}" && dotnet build "Aigents.Web.csproj" -c Release -o /app/build
 
 FROM build AS publish
 RUN dotnet publish "Aigents.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false

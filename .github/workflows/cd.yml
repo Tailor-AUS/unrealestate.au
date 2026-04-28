@@ -107,6 +107,8 @@ jobs:
           tags: |
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.API_IMAGE }}:${{ github.sha }}
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.API_IMAGE }}:latest
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -119,6 +121,8 @@ jobs:
           tags: |
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.WEB_IMAGE }}:${{ github.sha }}
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.WEB_IMAGE }}:latest
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

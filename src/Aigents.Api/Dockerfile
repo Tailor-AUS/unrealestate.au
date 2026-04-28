@@ -16,10 +16,15 @@ COPY ["src/Aigents.Infrastructure/Aigents.Infrastructure.csproj", "src/Aigents.I
 COPY ["src/Aigents.ServiceDefaults/Aigents.ServiceDefaults.csproj", "src/Aigents.ServiceDefaults/"]
 RUN dotnet restore "src/Aigents.Api/Aigents.Api.csproj"
 
+# CACHE_BUST changes per commit so the layer cache for COPY . . is
+# invalidated and we don't ship stale source. See Web Dockerfile for the
+# same fix and the diagnostic that surfaced this.
+ARG CACHE_BUST=unset
+
 # Copy everything and build
 COPY . .
 WORKDIR "/src/src/Aigents.Api"
-RUN dotnet build "Aigents.Api.csproj" -c Release -o /app/build
+RUN echo "Cache bust: ${CACHE_BUST}" && dotnet build "Aigents.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
 RUN dotnet publish "Aigents.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
