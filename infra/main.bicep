@@ -377,6 +377,10 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
           value: googleClientSecret
         }
         {
+          name: 'sql-connection-string'
+          value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=aigentsdb;User ID=aigentsadmin;Password=P@ssw0rd${uniqueString(resourceGroup().id)}!;Encrypt=True;TrustServerCertificate=False;'
+        }
+        {
           name: 'redis-connection-string'
           value: '${redis.properties.hostName}:6380,password=${redis.listKeys().primaryKey},ssl=True,abortConnect=False'
         }
@@ -403,6 +407,14 @@ resource webApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'Google__ClientSecret'
               secretRef: 'google-client-secret'
+            }
+            // Web/Program.cs calls AddSqlServerDbContext<AigentsDbContext>("aigentsdb")
+            // and crashes the container on startup if this is missing. Without it,
+            // every Bicep-deployed web revision goes Unavailable and Container Apps
+            // falls back to whatever revision someone wired up by hand.
+            {
+              name: 'ConnectionStrings__aigentsdb'
+              secretRef: 'sql-connection-string'
             }
             {
               name: 'ConnectionStrings__redis'
