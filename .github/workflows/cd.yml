@@ -206,31 +206,37 @@ jobs:
           echo "🚀 Web deployed to: https://$WEB_URL"
           echo "🚀 API deployed to: https://$API_URL"
 
-      - name: Show container app revisions (always)
+      - name: Show container app revisions (always — emit as annotations)
         if: always()
         run: |
-          echo "::group::WEB container app — template image + revisions + traffic"
-          az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{templateImage:properties.template.containers[0].image, latestRevisionName:properties.latestRevisionName, latestReadyRevisionName:properties.latestReadyRevisionName, runningStatus:properties.runningStatus, provisioningState:properties.provisioningState}" -o json || true
+          # Emit key revision facts as ::notice:: annotations so they're
+          # visible via the unauthenticated check-runs API (the raw step
+          # output requires GitHub auth to read).
+
+          WEB_TEMPLATE_IMAGE=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "ERR")
+          WEB_LATEST_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv 2>/dev/null || echo "ERR")
+          WEB_LATEST_READY_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestReadyRevisionName" -o tsv 2>/dev/null || echo "ERR")
+          WEB_PROV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.provisioningState" -o tsv 2>/dev/null || echo "ERR")
+
+          echo "::notice title=WEB_template_image::${WEB_TEMPLATE_IMAGE}"
+          echo "::notice title=WEB_latest_revision::${WEB_LATEST_REV}"
+          echo "::notice title=WEB_latest_ready_revision::${WEB_LATEST_READY_REV}"
+          echo "::notice title=WEB_provisioning::${WEB_PROV}"
+
+          # Emit each web revision as an annotation
           az containerapp revision list -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[].{name:name, active:properties.active, healthState:properties.healthState, provisioningState:properties.provisioningState, trafficWeight:properties.trafficWeight, image:properties.template.containers[0].image, replicas:properties.replicas}" -o json || true
-          echo "::endgroup::"
+            --query "[].{n:name, a:properties.active, h:properties.healthState, p:properties.provisioningState, t:properties.trafficWeight, i:properties.template.containers[0].image, r:properties.replicas}" -o tsv 2>/dev/null \
+            | while IFS=$'\t' read -r active healthState image name provisioningState replicas trafficWeight; do
+                echo "::notice title=WEB_rev::${name} active=${active} health=${healthState} prov=${provisioningState} traffic=${trafficWeight} replicas=${replicas} image=${image}"
+              done
 
-          echo "::group::API container app — template image + revisions + traffic"
-          az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{templateImage:properties.template.containers[0].image, latestRevisionName:properties.latestRevisionName, latestReadyRevisionName:properties.latestReadyRevisionName, runningStatus:properties.runningStatus, provisioningState:properties.provisioningState}" -o json || true
-          az containerapp revision list -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[].{name:name, active:properties.active, healthState:properties.healthState, provisioningState:properties.provisioningState, trafficWeight:properties.trafficWeight, image:properties.template.containers[0].image}" -o json || true
-          echo "::endgroup::"
-
-          echo "::group::WEB container — last 80 log lines from latest revision"
-          LATEST_WEB_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.latestRevisionName -o tsv 2>/dev/null || echo "")
-          if [ -n "$LATEST_WEB_REV" ]; then
-            az containerapp logs show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --revision "$LATEST_WEB_REV" --tail 80 --type system 2>&1 || true
-            echo "--- console logs ---"
-            az containerapp logs show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --revision "$LATEST_WEB_REV" --tail 80 --type console 2>&1 || true
-          fi
-          echo "::endgroup::"
+          # Same for API
+          API_TEMPLATE_IMAGE=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "ERR")
+          API_LATEST_REV=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv 2>/dev/null || echo "ERR")
+          API_LATEST_READY_REV=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestReadyRevisionName" -o tsv 2>/dev/null || echo "ERR")
+          echo "::notice title=API_template_image::${API_TEMPLATE_IMAGE}"
+          echo "::notice title=API_latest_revision::${API_LATEST_REV}"
+          echo "::notice title=API_latest_ready_revision::${API_LATEST_READY_REV}"
 
       - name: Deployment Summary
         run: |
