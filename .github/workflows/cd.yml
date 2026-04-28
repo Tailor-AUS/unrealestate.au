@@ -206,6 +206,32 @@ jobs:
           echo "🚀 Web deployed to: https://$WEB_URL"
           echo "🚀 API deployed to: https://$API_URL"
 
+      - name: Show container app revisions (always)
+        if: always()
+        run: |
+          echo "::group::WEB container app — template image + revisions + traffic"
+          az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{templateImage:properties.template.containers[0].image, latestRevisionName:properties.latestRevisionName, latestReadyRevisionName:properties.latestReadyRevisionName, runningStatus:properties.runningStatus, provisioningState:properties.provisioningState}" -o json || true
+          az containerapp revision list -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[].{name:name, active:properties.active, healthState:properties.healthState, provisioningState:properties.provisioningState, trafficWeight:properties.trafficWeight, image:properties.template.containers[0].image, replicas:properties.replicas}" -o json || true
+          echo "::endgroup::"
+
+          echo "::group::API container app — template image + revisions + traffic"
+          az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{templateImage:properties.template.containers[0].image, latestRevisionName:properties.latestRevisionName, latestReadyRevisionName:properties.latestReadyRevisionName, runningStatus:properties.runningStatus, provisioningState:properties.provisioningState}" -o json || true
+          az containerapp revision list -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[].{name:name, active:properties.active, healthState:properties.healthState, provisioningState:properties.provisioningState, trafficWeight:properties.trafficWeight, image:properties.template.containers[0].image}" -o json || true
+          echo "::endgroup::"
+
+          echo "::group::WEB container — last 80 log lines from latest revision"
+          LATEST_WEB_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.latestRevisionName -o tsv 2>/dev/null || echo "")
+          if [ -n "$LATEST_WEB_REV" ]; then
+            az containerapp logs show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --revision "$LATEST_WEB_REV" --tail 80 --type system 2>&1 || true
+            echo "--- console logs ---"
+            az containerapp logs show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --revision "$LATEST_WEB_REV" --tail 80 --type console 2>&1 || true
+          fi
+          echo "::endgroup::"
+
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
