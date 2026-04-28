@@ -3,16 +3,16 @@
 @inject ISiteContext SiteContext
 @inject IJSRuntime JSRuntime
 
-@* ═══════════════════════════════════════════════════════════════
-   TIER 1 APPLE-STYLE HERO
-   Premium design with crystal-clear value proposition
-═══════════════════════════════════════════════════════════════ *@
+@*
+    Hero — agent-SaaS thesis.
+    See docs/VISION.md for the eight pillars and the photo-tax tagline this UI implements.
+*@
 
 <div class="hero-wrapper" @onmousemove="HandleMouseMove">
     @* Interactive ripple background *@
     <canvas id="ripple-canvas" class="ripple-canvas"></canvas>
     <div class="hero-bg"></div>
-    
+
     @* Navigation *@
     <nav class="hero-nav">
         <div class="nav-container">
@@ -22,8 +22,8 @@
             </div>
             <div class="nav-links">
                 <a href="#how-it-works" class="nav-link">How It Works</a>
-                <a href="/agents" class="nav-link agent-link">For Agents</a>
-                <button class="nav-cta" @onclick="ScrollToListing">Get Started</button>
+                <a href="/chat?mode=buy" class="nav-link">For Buyers</a>
+                <button class="nav-cta" @onclick="GoToAgentRegister">Try Free</button>
             </div>
         </div>
     </nav>
@@ -35,122 +35,123 @@
             <div class="hero-left animate-fade-up">
                 <div class="eyebrow">
                     <span class="eyebrow-icon">◆</span>
-                    <span>Global Reach Engine</span>
+                    <span>For Australian Real Estate Agents</span>
                 </div>
-                
+
                 <h1 class="hero-headline">
-                    Test the Market.<br/>
-                    <span class="headline-gradient">Risk Free.</span>
+                    Stop paying the<br/>
+                    <span class="headline-gradient">photo tax.</span>
                 </h1>
-                
+
                 <p class="hero-subheadline">
-                    Curious what your home is worth? Broadcast your listing to international markets for free.
-                    Gauge buyer interest before you commit to an agent.
+                    Facebook hosts our photos for free. Instagram hosts our videos for free.
+                    So why do agents pay realestate.com.au and Domain $3,000–$4,000 just to list
+                    the most valuable thing most Australians will ever sell — their home?
                 </p>
-                
-                @* Address Input CTA *@
+
+                @* Primary + secondary CTAs *@
                 <div class="cta-input-group">
                     <div class="input-wrapper">
-                        <AddressAutocomplete OnAddressSelected="HandleAddressSelected" 
-                                           Placeholder="Enter your property address"
-                                           Class="address-input" />
-                        <button class="input-submit" @onclick="HandleSubmit">
-                            Start Free
+                        <button class="input-submit" @onclick="GoToAgentRegister">
+                            Try free for agents
                             <span class="cta-arrow">→</span>
                         </button>
+                        <a href="/chat?mode=buy" class="address-input" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;padding:0 20px;">
+                            Looking to buy? Talk to our AI
+                        </a>
                     </div>
                 </div>
-                
+
                 @* Trust Badges *@
                 <div class="trust-badges">
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>No Upfront Cost</span>
+                        <span>Australian-owned</span>
                     </div>
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>16+ Global Markets</span>
+                        <span>Open source</span>
                     </div>
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>Let Agents Compete</span>
+                        <span>No per-listing fees</span>
                     </div>
                 </div>
             </div>
-            
-            @* Right Visual *@
+
+            @* Right Visual — agent dashboard mockup *@
             <div class="hero-right animate-fade-up delay-2">
                 <div class="mockup-container">
                     @* Phone Mockup *@
                     <div class="phone-mockup">
                         <div class="phone-screen">
                             <div class="screen-header">
-                                <span class="screen-title">Market Status</span>
-                                <span class="screen-status live">● Active</span>
+                                <span class="screen-title">Listing Drafted by AI</span>
+                                <span class="screen-status live">● Live</span>
                             </div>
                             <div class="property-card">
                                 <img src="images/property-hero.jpg" alt="67 Northview Outlook" class="property-image" />
                                 <div class="property-details">
-                                    <div class="property-address">67 Northview Outlook</div>
-                                    <div class="property-type">Global Campaign • 24h Active</div>
+                                    <div class="property-address">67 Northview Outlook, Paddington QLD</div>
+                                    <div class="property-type">Generated by gpt-4o · 0.42¢ in tokens</div>
                                 </div>
                             </div>
                             <div class="offers-section">
-                                <div class="offers-title">Global Exposure (16)</div>
+                                <div class="offers-title">Buyer matches from Aigents AI</div>
                                 <div class="offer-item">
                                     <div class="offer-left">
-                                        <div class="offer-agent">Juwai (China)</div>
-                                        <div class="offer-terms">Mandarin • WeChat Ready</div>
+                                        <div class="offer-agent">Sarah K.</div>
+                                        <div class="offer-terms">Pre-approved · 4-bed · $1.4M budget</div>
                                     </div>
                                     <div class="offer-right">
-                                        <div class="offer-price">Live</div>
-                                        <div class="offer-comm">High Interest</div>
+                                        <div class="offer-price">98%</div>
+                                        <div class="offer-comm">match</div>
                                     </div>
                                 </div>
                                 <div class="offer-item highlight">
                                     <div class="offer-left">
-                                        <div class="offer-agent">Zillow (USA)</div>
-                                        <div class="offer-terms">Premium Placement</div>
+                                        <div class="offer-agent">Mark D.</div>
+                                        <div class="offer-terms">Cash buyer · Wants Paddington/Bardon</div>
                                     </div>
                                     <div class="offer-right">
-                                        <div class="offer-price">Live</div>
-                                        <div class="offer-comm">Top 5%</div>
+                                        <div class="offer-price">94%</div>
+                                        <div class="offer-comm">match</div>
                                     </div>
                                 </div>
                                 <div class="offer-item">
                                     <div class="offer-left">
-                                        <div class="offer-agent">Rightmove (UK)</div>
-                                        <div class="offer-terms">London Focus</div>
+                                        <div class="offer-agent">Priya N.</div>
+                                        <div class="offer-terms">Renovated 4-bed · 6km radius</div>
                                     </div>
                                     <div class="offer-right">
-                                        <div class="offer-price">Live</div>
-                                        <div class="offer-comm">Active</div>
+                                        <div class="offer-price">89%</div>
+                                        <div class="offer-comm">match</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     @* Floating Badges *@
                     <div class="floating-badge badge-1">
-                        <span class="float-icon">🌏</span>
+                        <span class="float-icon">🇦🇺</span>
                         <div class="float-text">
-                            <strong>16 Markets</strong>
-                            <span>Broadcasting Live</span>
+                            <strong>Australia East</strong>
+                            <span>All inference local</span>
                         </div>
                     </div>
                     <div class="floating-badge badge-2">
-                        <span class="float-icon">📈</span>
+                        <span class="float-icon">⚡</span>
                         <div class="float-text">
-                            <strong>+450 Views</strong>
-                            <span>International Traffic</span>
+                            <strong>$0.42</strong>
+                            <span>Total AI cost so far</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
-    
+
     @* How It Works Section *@
     <section class="how-section" id="how-it-works">
         <div class="how-container">
@@ -158,18 +159,18 @@
             <div class="how-steps">
                 <div class="how-step">
                     <div class="step-num">01</div>
-                    <h3>List in 60 seconds</h3>
-                    <p>Enter your address and our AI instantly fetches property data. Go live for $0 — no credit card required.</p>
+                    <h3>Upload your photos</h3>
+                    <p>Drop in the photos you've already taken. Our AI writes the listing copy, the suburb pitch, the buyer Q&amp;A, and the valuation in under a minute.</p>
                 </div>
                 <div class="how-step">
                     <div class="step-num">02</div>
-                    <h3>Watch interest come in</h3>
-                    <p>See real-time buyer views, agent proposals, and offers from around the world on your live dashboard.</p>
+                    <h3>Buyers come to you</h3>
+                    <p>Active buyers chatting with the Aigents buyer-side AI get matched to your listing in real time. No realestate.com.au required.</p>
                 </div>
                 <div class="how-step">
                     <div class="step-num">03</div>
-                    <h3>Choose your path</h3>
-                    <p>Accept a buyer offer directly, or appoint an agent to close the sale. Your property, your choice.</p>
+                    <h3>You close the deal</h3>
+                    <p>You stay the agent of record. You keep the relationship, you keep the commission. We just bill you for the GPT tokens, plus a flat margin.</p>
                 </div>
             </div>
         </div>
@@ -181,9 +182,6 @@
     [Parameter]
     public EventCallback<string> OnGetStarted { get; set; }
 
-    private string _address = "";
-    private double _lat;
-    private double _lng;
     private bool _rippleInitialized = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -200,7 +198,6 @@
         await JSRuntime.InvokeVoidAsync("propertyViz.initRipple");
     }
 
-
     private void HandleMouseMove(MouseEventArgs e)
     {
         // Mouse tracking handled by JS
@@ -211,28 +208,8 @@
         Nav.NavigateTo("/", forceLoad: true);
     }
 
-    private void ScrollToListing()
+    private void GoToAgentRegister()
     {
-        // Scroll to the listing card - handled by anchor link in production
-    }
-
-    private async Task HandleAddressSelected(AddressAutocomplete.AddressResult result)
-    {
-        _address = result.FullAddress;
-        _lat = result.Lat;
-        _lng = result.Lng;
-        HandleSubmit();
-    }
-
-    private void HandleSubmit()
-    {
-        if (!string.IsNullOrWhiteSpace(_address))
-        {
-            var url = $"/list?address={Uri.EscapeDataString(_address)}";
-            if (_lat != 0) url += $"&lat={_lat}&lng={_lng}";
-            Nav.NavigateTo(url);
-        }
+        Nav.NavigateTo("/agents/register");
     }
 }
-
-

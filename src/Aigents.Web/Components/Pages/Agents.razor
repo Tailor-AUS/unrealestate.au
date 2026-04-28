@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Navigation
 
-<PageTitle>Aigents - Agent Portal | Sell Australian Property from Anywhere</PageTitle>
+<PageTitle>Aigents for Agents — Stop paying realestate.com.au's photo tax</PageTitle>
 
 <div class="agent-wrapper">
     @* Interactive ripple background *@
@@ -18,10 +18,10 @@
                 <span class="logo-text">aigents</span>
             </a>
             <div class="nav-links">
-                <a href="/" class="nav-link">For Sellers</a>
+                <a href="/chat?mode=buy" class="nav-link">For Buyers</a>
                 <a href="#how-it-works" class="nav-link">How It Works</a>
                 <a href="#pricing" class="nav-link">Pricing</a>
-                <button class="nav-cta">Sign In</button>
+                <button class="nav-cta" @onclick="GoToRegister">Try Free</button>
             </div>
         </div>
     </nav>
@@ -33,118 +33,110 @@
             <div class="hero-left animate-fade-up">
                 <div class="eyebrow">
                     <span class="eyebrow-icon">◆</span>
-                    <span>Agent Portal</span>
+                    <span>For Australian Real Estate Agents</span>
                 </div>
-                
+
                 <h1 class="hero-headline">
-                    Have buyers?<br/>
-                    <span class="headline-gradient">Find them a home.</span>
+                    Stop paying the<br/>
+                    <span class="headline-gradient">photo tax.</span>
                 </h1>
-                
+
                 <p class="hero-subheadline">
-                    Access our database of open listings. Submit offers on behalf 
-                    of your buyers. Compete on price, terms, and commission — 
-                    not your track record.
+                    Facebook hosts our photos for free. Instagram hosts our videos for free.
+                    So why do agents pay realestate.com.au and Domain $3,000–$4,000 just to
+                    publish a listing? Aigents is the Australian, AI-powered, open-source
+                    alternative.
                 </p>
-                
-                @* Agent Type Selection *@
+
+                @* Single primary CTA — agent register *@
                 <div class="agent-paths">
-                    <div class="agent-path" @onclick="() => SelectPath(true)">
+                    <div class="agent-path" @onclick="GoToRegister">
                         <div class="path-icon">🇦🇺</div>
                         <div class="path-content">
-                            <strong>AU Licensed Agent</strong>
-                            <span>I have an Australian real estate license</span>
-                        </div>
-                        <span class="path-arrow">→</span>
-                    </div>
-                    <div class="agent-path" @onclick="() => SelectPath(false)">
-                        <div class="path-icon">🌏</div>
-                        <div class="path-content">
-                            <strong>International Partner</strong>
-                            <span>I have overseas buyers for AU properties</span>
+                            <strong>Try Aigents free</strong>
+                            <span>For Australian-licensed real estate agents — Brisbane &amp; Gold Coast first.</span>
                         </div>
                         <span class="path-arrow">→</span>
                     </div>
                 </div>
-                
+
                 @* Trust Badges *@
                 <div class="trust-badges">
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>500+ open listings</span>
+                        <span>Australian-owned</span>
                     </div>
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>Direct to seller</span>
+                        <span>Open source</span>
                     </div>
                     <div class="trust-badge">
                         <span class="badge-check">✓</span>
-                        <span>Live offers</span>
+                        <span>No per-listing fees</span>
                     </div>
                 </div>
             </div>
             
-            @* Right Visual *@
+            @* Right Visual — agent dashboard mockup *@
             <div class="hero-right animate-fade-up delay-2">
                 <div class="mockup-container">
                     @* Dashboard Mockup *@
                     <div class="dashboard-mockup">
                         <div class="dashboard-header">
-                            <span class="dash-title">Open Listings</span>
-                            <span class="dash-count">127 available</span>
+                            <span class="dash-title">Your listings on Aigents</span>
+                            <span class="dash-count">3 active · $1.27 in AI</span>
                         </div>
-                        
-                        @* Listing Cards *@
+
                         <div class="listing-preview">
                             <div class="listing-img-placeholder"></div>
                             <div class="listing-info">
                                 <div class="listing-address">42 Ocean View Dr, Byron Bay</div>
-                                <div class="listing-meta">5 bed • Beachfront • $2.8M guide</div>
+                                <div class="listing-meta">5 bed · AI-drafted listing · 0.51¢ in tokens</div>
                                 <div class="listing-status">
                                     <span class="status-dot"></span>
-                                    2 offers pending
+                                    14 buyer matches
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="listing-preview">
                             <div class="listing-img-placeholder alt"></div>
                             <div class="listing-info">
                                 <div class="listing-address">18 Teneriffe Dr, Brisbane</div>
-                                <div class="listing-meta">3 bed • River views • $1.4M guide</div>
+                                <div class="listing-meta">3 bed · River views · 0.38¢ in tokens</div>
                                 <div class="listing-status hot">
                                     <span class="status-dot"></span>
-                                    5 offers • Hot
+                                    Pre-approved buyer · Mark D.
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="listing-preview">
                             <div class="listing-img-placeholder"></div>
                             <div class="listing-info">
-                                <div class="listing-address">67 Northview Outlook</div>
-                                <div class="listing-meta">4 bed • Family home • $1.2M guide</div>
+                                <div class="listing-address">67 Northview Outlook, Paddington</div>
+                                <div class="listing-meta">4 bed · AI valuation $1.20–1.28M · 0.42¢</div>
                                 <div class="listing-status new">
                                     <span class="status-dot"></span>
-                                    New listing
+                                    Listing draft ready
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     @* Floating Badges *@
                     <div class="floating-badge badge-1">
-                        <span class="float-icon">🔔</span>
+                        <span class="float-icon">🇦🇺</span>
                         <div class="float-text">
-                            <strong>New Listing</strong>
-                            <span>Byron Bay, 5 bed</span>
+                            <strong>Australia East</strong>
+                            <span>All inference local</span>
                         </div>
                     </div>
                     <div class="floating-badge badge-2">
-                        <span class="float-icon">💰</span>
+                        <span class="float-icon">⚡</span>
                         <div class="float-text">
-                            <strong>Offer Accepted</strong>
-                            <span>$1.18M • 1.5%</span>
+                            <strong>$1.27</strong>
+                            <span>Total AI cost so far</span>
                         </div>
                     </div>
                 </div>
@@ -156,132 +148,93 @@
     <section class="how-section" id="how-it-works">
         <div class="how-container">
             <h2 class="section-title">How it works for agents</h2>
-            <p class="section-subtitle">Stop chasing listings. Start matching buyers.</p>
-            
+            <p class="section-subtitle">Drop your photos in. We do the rest.</p>
+
             <div class="how-steps">
                 <div class="how-step">
                     <div class="step-num">01</div>
-                    <h3>Browse open listings</h3>
-                    <p>Access our database of verified open listings across Australia. Full property details, seller expectations, and competition levels.</p>
+                    <h3>Upload your photos</h3>
+                    <p>Drop in the photos and address. Our AI writes the listing copy, the suburb pitch, the buyer Q&amp;A, and a comparable-sales valuation in under a minute. All inference runs in Azure Australia East.</p>
                 </div>
                 <div class="how-step">
                     <div class="step-num">02</div>
-                    <h3>Submit offers</h3>
-                    <p>Have a buyer? Submit their offer with price, terms, settlement, and your commission. Sellers see all offers side-by-side.</p>
+                    <h3>Buyers come to you</h3>
+                    <p>Buyers chatting with the Aigents buyer-side AI get matched to your listing in real time. You see warm leads with budget, pre-approval status, and what they want — no realestate.com.au required.</p>
                 </div>
                 <div class="how-step">
                     <div class="step-num">03</div>
-                    <h3>Close the deal</h3>
-                    <p>If your offer is accepted, you become the exclusive agent for that sale. Sign Form 6 and close. It's that simple.</p>
+                    <h3>You close the deal</h3>
+                    <p>You stay the agent of record. You keep the relationship and the full commission. We just bill you for the GPT tokens we used on your behalf, plus a flat margin. Cancel anytime.</p>
                 </div>
             </div>
         </div>
     </section>
-    
-    @* International Agents Section *@
-    <section class="intl-section" id="international">
-        <div class="intl-container">
-            <div class="intl-content">
-                <div class="intl-badge">🌏 International Partners</div>
-                <h2>Sell Australian property from anywhere in the world.</h2>
-                <p>
-                    Not licensed in Australia? No problem. We handle the legal, compliance, 
-                    and paperwork. You bring the buyer, we close the deal. You earn commission.
-                </p>
-                <div class="intl-features">
-                    <div class="intl-feature">
-                        <span class="feature-icon">✓</span>
-                        <span>We provide the AU license</span>
-                    </div>
-                    <div class="intl-feature">
-                        <span class="feature-icon">✓</span>
-                        <span>We handle Form 6 & contracts</span>
-                    </div>
-                    <div class="intl-feature">
-                        <span class="feature-icon">✓</span>
-                        <span>Commission split on settlement</span>
-                    </div>
-                </div>
-                <button class="intl-cta">Learn More</button>
-            </div>
-            <div class="intl-visual">
-                <div class="globe-graphic">
-                    <div class="globe-dot dot-1">🇨🇳</div>
-                    <div class="globe-dot dot-2">🇸🇬</div>
-                    <div class="globe-dot dot-3">🇭🇰</div>
-                    <div class="globe-dot dot-4">🇬🇧</div>
-                    <div class="globe-dot dot-5">🇺🇸</div>
-                    <div class="globe-center">🇦🇺</div>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    @* Pricing Section *@
+
+    @* Pricing Section — transparent compute-cost pricing (Pillar 6) *@
     <section class="pricing-section" id="pricing">
         <div class="pricing-container">
-            <h2 class="section-title">Simple, transparent pricing</h2>
-            <p class="section-subtitle">Choose the plan that works for you.</p>
-            
+            <h2 class="section-title">Transparent compute-cost pricing</h2>
+            <p class="section-subtitle">You pay what the AI cost us, plus a flat margin. Every cent visible in your dashboard. No SaaS markup.</p>
+
             <div class="pricing-cards">
                 <div class="pricing-card">
                     <div class="price-header">
-                        <h3>Free</h3>
-                        <div class="price">$0<span>/month</span></div>
+                        <h3>Solo</h3>
+                        <div class="price">AI cost<span>+ $49/mo</span></div>
                     </div>
                     <ul class="price-features">
-                        <li>✓ Browse all listings</li>
-                        <li>✓ View listing details (limited)</li>
-                        <li>✓ Save favorites</li>
-                        <li class="disabled">✗ Submit offers</li>
-                        <li class="disabled">✗ Full property details</li>
-                        <li class="disabled">✗ Seller contact info</li>
+                        <li>✓ Unlimited AI listings</li>
+                        <li>✓ Buyer-side AI matches</li>
+                        <li>✓ Pay only for tokens used</li>
+                        <li>✓ Live cost dashboard</li>
+                        <li>✓ Apache 2.0 source code</li>
+                        <li>✓ Cancel anytime</li>
                     </ul>
-                    <button class="price-cta secondary">Get Started</button>
+                    <button class="price-cta secondary" @onclick="GoToRegister">Try free for 30 days</button>
                 </div>
-                
+
                 <div class="pricing-card featured">
                     <div class="featured-badge">Most Popular</div>
                     <div class="price-header">
-                        <h3>Pro</h3>
-                        <div class="price">$99<span>/month</span></div>
+                        <h3>Agency</h3>
+                        <div class="price">AI cost<span>+ $199/mo</span></div>
                     </div>
                     <ul class="price-features">
-                        <li>✓ Browse all listings</li>
-                        <li>✓ Full property details</li>
-                        <li>✓ Unlimited offers</li>
-                        <li>✓ Seller contact info</li>
-                        <li>✓ Priority notifications</li>
-                        <li>✓ Offer analytics</li>
+                        <li>✓ Everything in Solo</li>
+                        <li>✓ Up to 10 agents</li>
+                        <li>✓ Shared listing pool</li>
+                        <li>✓ One-click migration off REA / Domain</li>
+                        <li>✓ Team-level cost reporting</li>
+                        <li>✓ Priority support</li>
                     </ul>
-                    <button class="price-cta primary">Start Free Trial</button>
+                    <button class="price-cta primary" @onclick="GoToRegister">Try free for 30 days</button>
                 </div>
-                
+
                 <div class="pricing-card">
                     <div class="price-header">
-                        <h3>Enterprise</h3>
-                        <div class="price">Custom</div>
+                        <h3>Self-host</h3>
+                        <div class="price">$0</div>
                     </div>
                     <ul class="price-features">
-                        <li>✓ Everything in Pro</li>
-                        <li>✓ Team accounts</li>
-                        <li>✓ Agency dashboard</li>
-                        <li>✓ White-label options</li>
-                        <li>✓ API access</li>
-                        <li>✓ Dedicated support</li>
+                        <li>✓ Apache 2.0 source code</li>
+                        <li>✓ Run on your own Azure tenant</li>
+                        <li>✓ Bring your own AI key</li>
+                        <li>✓ Community support</li>
+                        <li>✓ No usage limits</li>
+                        <li>✓ Fork it</li>
                     </ul>
-                    <button class="price-cta secondary">Contact Sales</button>
+                    <a class="price-cta secondary" href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener">View on GitHub</a>
                 </div>
             </div>
         </div>
     </section>
-    
-    @* CTA Section *@
+
+    @* Final CTA *@
     <section class="final-cta">
         <div class="cta-container">
-            <h2>Ready to access open listings?</h2>
-            <p>Join hundreds of agents already using aigents to find properties for their buyers.</p>
-            <button class="mega-cta">Create Agent Account</button>
+            <h2>Ready to stop paying the photo tax?</h2>
+            <p>Join the Australian agents who refuse to pay foreign-owned portals $3,000–$4,000 just to publish a listing.</p>
+            <button class="mega-cta" @onclick="GoToRegister">Try Aigents free</button>
         </div>
     </section>
 </div>
@@ -1135,16 +1088,9 @@
 </style>
 
 @code {
-    private void SelectPath(bool isAustralian)
+    private void GoToRegister()
     {
-        if (isAustralian)
-        {
-            Navigation.NavigateTo("/agents/register?type=au");
-        }
-        else
-        {
-            Navigation.NavigateTo("/agents/register?type=international");
-        }
+        Navigation.NavigateTo("/agents/register?type=au");
     }
 }
 
