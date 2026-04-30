@@ -83,9 +83,18 @@ Aigents is built in Australia, hosted in Australia, governed by Australian law, 
 
 ## Why This Matters
 
-The Australian real estate market generates over $13B in agent commissions annually, and a substantial share of that flows to two foreign-influenced listing portals (REA Group is approximately 61% owned by News Corp; Domain is majority-owned by Nine Entertainment). Every Brisbane and Gold Coast home sale routes through a tax that did not exist 25 years ago and serves no purpose Facebook or Instagram could not serve for free.
+As of **27 August 2025**, both major Australian residential listing portals are owned by US corporations:
 
-Aigents removes that tax.
+- **REA Group** (realestate.com.au) is approximately **61% owned by News Corp** (NYSE-listed, headquartered in New York City). FY2025 trailing-twelve-month revenue: **A$1.28 billion** ([Cos Market Cap, Dec 2025](https://companiesmarketcap.com/rea-group/revenue/); [Yahoo Finance ownership](https://finance.yahoo.com/news/rea-group-limiteds-asx-rea-051815761.html)).
+- **Domain Group** (domain.com.au) was acquired in full by **CoStar Group** (NASDAQ-listed, headquartered in Arlington, Virginia) on 27 August 2025 for an enterprise value of **A$3.0 billion**. Nine Entertainment was paid ~A$1.4 billion for its 60% stake. Domain has been delisted from the ASX ([CoStar press release](https://www.costargroup.com/press-room/2025/costar-group-completes-acquisition-domain-ushering-new-era-innovation-australias); [RISMedia](https://www.rismedia.com/2025/08/27/costar-announces-completion-domain-acquisition-steps-into-australian-market/)).
+
+There is no longer an Australian-controlled major residential listing portal.
+
+In FY2024-25 there were **531,457 residential property sales** in Australia ([Cotality July 2025 chart pack](https://pages.corelogic.com/hubfs/CoreLogic%20AU/Article%20Reports/2507-Cotality-HousingChartPack-July-Report.pdf)). Combined REA + Domain revenue is approximately **A$1.7 billion per year** — roughly **A$3,200 per sale** flowing to two US-headquartered companies, just to advertise Australian homes to Australian buyers on Australian soil.
+
+That money used to recirculate in the Australian economy. Now every cent of it leaves the country.
+
+Aigents keeps it home.
 
 ---
 

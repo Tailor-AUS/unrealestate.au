@@ -143,7 +143,38 @@
             </div>
         </div>
     </section>
-    
+
+    @* Stats band — the photo tax in numbers *@
+    <section class="stats-band">
+        <div class="stats-container">
+            <div class="stats-eyebrow">The photo tax in numbers</div>
+            <div class="stats-grid">
+                <div class="stat-cell">
+                    <div class="stat-figure">A$1.7B</div>
+                    <div class="stat-label">Spent each year by Australian agents and vendors on REA + Domain listings</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-figure">2</div>
+                    <div class="stat-label">US-owned listing portals (News Corp · CoStar Group)</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-figure">531,457</div>
+                    <div class="stat-label">Australian residential sales paying the tax in FY2024-25</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-figure">Aug 2025</div>
+                    <div class="stat-label">CoStar (US) bought Domain. No Australian-owned major portal remains.</div>
+                </div>
+            </div>
+            <p class="stats-footnote">
+                Sources:
+                <a href="https://companiesmarketcap.com/rea-group/revenue/" target="_blank" rel="noopener">REA FY2025 revenue</a> ·
+                <a href="https://www.costargroup.com/press-room/2025/costar-group-completes-acquisition-domain-ushering-new-era-innovation-australias" target="_blank" rel="noopener">CoStar acquisition</a> ·
+                <a href="https://pages.corelogic.com/hubfs/CoreLogic%20AU/Article%20Reports/2507-Cotality-HousingChartPack-July-Report.pdf" target="_blank" rel="noopener">Cotality FY24-25 sales</a>
+            </p>
+        </div>
+    </section>
+
     @* How It Works Section *@
     <section class="how-section" id="how-it-works">
         <div class="how-container">
@@ -1083,6 +1114,75 @@
     .how-steps {
         grid-template-columns: 1fr;
         gap: 40px;
+    }
+}
+
+/* Stats band — the photo tax in numbers */
+.stats-band {
+    padding: 80px 24px;
+    background: linear-gradient(180deg, #0b0b1a 0%, #1a1a2e 100%);
+    color: white;
+    position: relative;
+    z-index: 2;
+}
+.stats-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+}
+.stats-eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #a78bfa;
+    margin-bottom: 40px;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    margin-bottom: 40px;
+}
+.stat-cell {
+    text-align: center;
+}
+.stat-figure {
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 14px;
+    letter-spacing: -0.02em;
+}
+.stat-label {
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.72);
+    max-width: 240px;
+    margin: 0 auto;
+}
+.stats-footnote {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.42);
+    margin-top: 32px;
+    line-height: 1.6;
+}
+.stats-footnote a {
+    color: rgba(255, 255, 255, 0.62);
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.28);
+}
+.stats-footnote a:hover {
+    color: white;
+}
+@@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 32px;
     }
 }
 </style>
