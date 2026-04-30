@@ -242,6 +242,18 @@ jobs:
           echo "::notice title=API_latest_revision::${API_LATEST_REV}"
           echo "::notice title=API_latest_ready_revision::${API_LATEST_READY_REV}"
 
+          # ─── Custom-domain verification ID ───
+          # The user (domain owner at GoDaddy) needs to add a TXT record
+          # at asuid.aigents.au with this value before Azure will bind
+          # the custom hostname. Emit as an annotation so it's readable
+          # without GitHub auth.
+          WEB_VERIFY_ID=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.customDomainVerificationId" -o tsv 2>/dev/null || echo "ERR")
+          WEB_INGRESS_FQDN=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "ERR")
+          WEB_OUTBOUND_IP=$(az containerapp env show -n aigents-env-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.staticIp" -o tsv 2>/dev/null || echo "ERR")
+          echo "::notice title=DOMAIN_verification_id_for_TXT_record_at_asuid_aigents_au::${WEB_VERIFY_ID}"
+          echo "::notice title=DOMAIN_target_for_CNAME_or_A_record_at_aigents_au::${WEB_INGRESS_FQDN}"
+          echo "::notice title=DOMAIN_static_IP_for_apex_A_record::${WEB_OUTBOUND_IP}"
+
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY

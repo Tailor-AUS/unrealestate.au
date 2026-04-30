@@ -1,170 +1,84 @@
 @using Aigents.Web.Services
+@using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Nav
 @inject ISiteContext SiteContext
 @inject IJSRuntime JSRuntime
 
 @*
-    Hero — agent-SaaS thesis.
-    See docs/VISION.md for the eight pillars and the photo-tax tagline this UI implements.
+    Aigents homepage — REA-style utility hero (search first), but
+    Australian-owned, not-for-profit, free, open source. Three audiences
+    on the same page: Sellers, Agents, Buyers. Stats band sits between
+    the search hero and the audience tabs to hammer the "why we exist"
+    message without burying the utility.
 *@
 
-<div class="hero-wrapper" @onmousemove="HandleMouseMove">
-    @* Interactive ripple background *@
-    <canvas id="ripple-canvas" class="ripple-canvas"></canvas>
-    <div class="hero-bg"></div>
-
-    @* Navigation *@
-    <nav class="hero-nav">
-        <div class="nav-container">
-            <div class="logo" @onclick="GoHome">
+<div class="rea-page">
+    @* ─── Top nav ─── *@
+    <nav class="rea-nav">
+        <div class="rea-nav-inner">
+            <a href="/" class="rea-logo" @onclick:preventDefault @onclick="GoHome">
                 <span class="logo-mark">◆</span>
-                <span class="logo-text">aigents</span>
+                <span class="logo-text">aigents<span class="logo-au">.au</span></span>
+                <span class="logo-pill">not-for-profit</span>
+            </a>
+            <div class="rea-nav-links">
+                <a href="/explore?type=buy" class="rea-nav-link">Buy</a>
+                <a href="/explore?type=rent" class="rea-nav-link">Rent</a>
+                <a href="/explore?type=sold" class="rea-nav-link">Sold</a>
+                <a href="/agents" class="rea-nav-link">Find agents</a>
+                <a href="#why-we-exist" class="rea-nav-link">Why we exist</a>
+                <a href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener" class="rea-nav-link">GitHub</a>
             </div>
-            <div class="nav-links">
-                <a href="#how-it-works" class="nav-link">How It Works</a>
-                <a href="/chat?mode=buy" class="nav-link">For Buyers</a>
-                <button class="nav-cta" @onclick="GoToAgentRegister">Try Free</button>
+            <div class="rea-nav-actions">
+                <a href="/agents/register" class="rea-btn-secondary">Sign in</a>
+                <button class="rea-btn-primary" @onclick="GoToAgentRegister">Use it free</button>
             </div>
         </div>
     </nav>
 
-    @* Hero Section - Split Layout *@
-    <section class="hero-section">
-        <div class="hero-grid">
-            @* Left Content *@
-            <div class="hero-left animate-fade-up">
-                <div class="eyebrow">
-                    <span class="eyebrow-icon">◆</span>
-                    <span>A not-for-profit by Tailor · Open source · No commercial agenda</span>
+    @* ─── Search hero ─── *@
+    <section class="rea-hero">
+        <div class="rea-hero-bg"></div>
+        <div class="rea-hero-content">
+            <h1 class="rea-hero-title">@GetHeroTitle()</h1>
+
+            <div class="rea-search-card">
+                <div class="rea-tabs">
+                    <button class="rea-tab @(_searchType == "buy" ? "active" : "")" @onclick="@(() => SetSearch("buy"))" type="button">Buy</button>
+                    <button class="rea-tab @(_searchType == "rent" ? "active" : "")" @onclick="@(() => SetSearch("rent"))" type="button">Rent</button>
+                    <button class="rea-tab @(_searchType == "sold" ? "active" : "")" @onclick="@(() => SetSearch("sold"))" type="button">Sold</button>
+                    <button class="rea-tab @(_searchType == "address" ? "active" : "")" @onclick="@(() => SetSearch("address"))" type="button">Address</button>
+                    <button class="rea-tab @(_searchType == "agents" ? "active" : "")" @onclick="@(() => SetSearch("agents"))" type="button">Agents</button>
+                    <button class="rea-tab rea-tab-ai @(_searchType == "ai" ? "active" : "")" @onclick="@(() => SetSearch("ai"))" type="button">✨ Ask AI</button>
                 </div>
-
-                <h1 class="hero-headline">
-                    A$1.7 billion.<br/>
-                    Every year.<br/>
-                    <span class="headline-gradient">Out of Australia.</span>
-                </h1>
-
-                <p class="hero-subheadline">
-                    Aigents isn't a startup. It's a not-for-profit community project by
-                    <strong>Tailor</strong> — the team behind the open Australian fuel-price
-                    app already used by <strong>50,000+ Aussies</strong> to find cheap petrol.
-                    We got fed up watching <strong>A$1.7 billion</strong> leave the country
-                    every year so US tech companies (News Corp's REA, CoStar's Domain) could
-                    profit from advertising Australian homes to Australian buyers.
-                </p>
-
-                <p class="hero-subheadline" style="margin-top:-12px;">
-                    So we built the open-source alternative. Like the fuel-price app, but for
-                    real estate. Use it free. Fork it. Help us replace the offshore middlemen.
-                </p>
-
-                @* Primary + secondary CTAs *@
-                <div class="cta-input-group">
-                    <div class="input-wrapper">
-                        <button class="input-submit" @onclick="GoToAgentRegister">
-                            Use it free
-                            <span class="cta-arrow">→</span>
-                        </button>
-                        <a href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener" class="address-input" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;padding:0 20px;">
-                            Fork on GitHub
-                        </a>
-                    </div>
-                </div>
-
-                @* Trust Badges *@
-                <div class="trust-badges">
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>Not-for-profit</span>
-                    </div>
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>Open source · Apache 2.0</span>
-                    </div>
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>By Tailor · 50,000+ users</span>
-                    </div>
+                <div class="rea-search-row">
+                    <span class="rea-search-icon">🔍</span>
+                    <input type="text"
+                           class="rea-search-input"
+                           placeholder="@GetPlaceholder()"
+                           @bind="_searchQuery"
+                           @bind:event="oninput"
+                           @onkeyup="HandleKeyup" />
+                    <button class="rea-search-filters" type="button" disabled>≡ Filters</button>
+                    <button class="rea-search-submit" @onclick="HandleSearch" type="button">Search</button>
                 </div>
             </div>
 
-            @* Right Visual — agent dashboard mockup *@
-            <div class="hero-right animate-fade-up delay-2">
-                <div class="mockup-container">
-                    @* Phone Mockup *@
-                    <div class="phone-mockup">
-                        <div class="phone-screen">
-                            <div class="screen-header">
-                                <span class="screen-title">Listing Drafted by AI</span>
-                                <span class="screen-status live">● Live</span>
-                            </div>
-                            <div class="property-card">
-                                <img src="images/property-hero.jpg" alt="67 Northview Outlook, Moorooka" class="property-image" />
-                                <div class="property-details">
-                                    <div class="property-address">67 Northview Outlook, Moorooka QLD 4105</div>
-                                    <div class="property-type">Generated by gpt-4o · 0.42¢ in tokens</div>
-                                </div>
-                            </div>
-                            <div class="offers-section">
-                                <div class="offers-title">Buyer matches from Aigents AI</div>
-                                <div class="offer-item">
-                                    <div class="offer-left">
-                                        <div class="offer-agent">Sarah K.</div>
-                                        <div class="offer-terms">Pre-approved · 4-bed · $1.4M budget</div>
-                                    </div>
-                                    <div class="offer-right">
-                                        <div class="offer-price">98%</div>
-                                        <div class="offer-comm">match</div>
-                                    </div>
-                                </div>
-                                <div class="offer-item highlight">
-                                    <div class="offer-left">
-                                        <div class="offer-agent">Mark D.</div>
-                                        <div class="offer-terms">Cash buyer · Wants Moorooka/Yeronga</div>
-                                    </div>
-                                    <div class="offer-right">
-                                        <div class="offer-price">94%</div>
-                                        <div class="offer-comm">match</div>
-                                    </div>
-                                </div>
-                                <div class="offer-item">
-                                    <div class="offer-left">
-                                        <div class="offer-agent">Priya N.</div>
-                                        <div class="offer-terms">Renovated 4-bed · 6km radius</div>
-                                    </div>
-                                    <div class="offer-right">
-                                        <div class="offer-price">89%</div>
-                                        <div class="offer-comm">match</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    @* Floating Badges *@
-                    <div class="floating-badge badge-1">
-                        <span class="float-icon">🇦🇺</span>
-                        <div class="float-text">
-                            <strong>Australia East</strong>
-                            <span>All inference local</span>
-                        </div>
-                    </div>
-                    <div class="floating-badge badge-2">
-                        <span class="float-icon">⚡</span>
-                        <div class="float-text">
-                            <strong>$0.42 · no markup</strong>
-                            <span>Not-for-profit. You pay token cost.</span>
-                        </div>
-                    </div>
-                </div>
+            @* Trust strip — woven Aussie / non-profit values *@
+            <div class="rea-trust-strip">
+                <span class="rea-trust-item">🇦🇺 Australian-owned · operated by Tailor</span>
+                <span class="rea-trust-item">💚 Not-for-profit · no margin, no equity</span>
+                <span class="rea-trust-item">📖 Open source · Apache 2.0</span>
+                <span class="rea-trust-item">🏠 Hosted in Australia · data stays here</span>
             </div>
         </div>
     </section>
 
-    @* Stats band — the photo tax in numbers *@
-    <section class="stats-band">
+    @* ─── Stats band — the photo tax in numbers ─── *@
+    <section class="stats-band" id="why-we-exist">
         <div class="stats-container">
             <div class="stats-eyebrow">Why we exist</div>
+            <h2 class="stats-headline">A$1.7 billion leaves Australia every year just to advertise Australian homes — to two American companies.</h2>
             <div class="stats-grid">
                 <div class="stat-cell">
                     <div class="stat-figure">A$1.7B</div>
@@ -192,33 +106,351 @@
         </div>
     </section>
 
-    @* How It Works Section *@
-    <section class="how-section" id="how-it-works">
-        <div class="how-container">
-            <h2 class="how-title">How it works</h2>
-            <div class="how-steps">
-                <div class="how-step">
-                    <div class="step-num">01</div>
-                    <h3>Upload your photos</h3>
-                    <p>Drop in the photos you've already taken. Our AI writes the listing copy, the suburb pitch, the buyer Q&amp;A, and the valuation in under a minute.</p>
-                </div>
-                <div class="how-step">
-                    <div class="step-num">02</div>
-                    <h3>Buyers come to you</h3>
-                    <p>Active buyers chatting with the Aigents buyer-side AI get matched to your listing in real time. No realestate.com.au required.</p>
-                </div>
-                <div class="how-step">
-                    <div class="step-num">03</div>
-                    <h3>You close the deal</h3>
-                    <p>You stay the agent of record. You keep the relationship, you keep the commission. We're not-for-profit — we just bill you for the GPT tokens we used on your behalf. No margin, no upsell, no offshore profit.</p>
-                </div>
+    @* ─── Audience tabs section: Built for Australians ─── *@
+    <section class="audience-section">
+        <div class="audience-container">
+            <h2 class="audience-title">Built for Australians, by Australians</h2>
+            <p class="audience-subtitle">Aigents serves all three sides of the housing market — for free. No subscriptions. No upsells. No offshore middlemen. We're a not-for-profit community project by <strong>Tailor</strong> — the team behind the open Australian fuel-price app already used by 50,000+ Aussies.</p>
+
+            <div class="audience-tabs">
+                <button class="audience-tab @(_audience == "sellers" ? "active" : "")" @onclick="@(() => _audience = "sellers")" type="button">Sellers</button>
+                <button class="audience-tab @(_audience == "agents" ? "active" : "")" @onclick="@(() => _audience = "agents")" type="button">Agents</button>
+                <button class="audience-tab @(_audience == "buyers" ? "active" : "")" @onclick="@(() => _audience = "buyers")" type="button">Buyers</button>
+            </div>
+
+            <div class="audience-cards">
+                @if (_audience == "sellers")
+                {
+                    <div class="audience-card">
+                        <div class="audience-card-icon">📝</div>
+                        <h3>List your home for $0</h3>
+                        <p>Upload your photos, enter your address. Our AI writes the listing copy in under a minute. No marketing tax, no Premiere upsell, no $3,000 cheque to a US company.</p>
+                        <a class="audience-card-cta" href="/list">Start a free listing →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">📊</div>
+                        <h3>Get an instant AI valuation</h3>
+                        <p>Comparable sales analysis from Australian data. Know what your home is worth before you sign anything — no agent appointment required.</p>
+                        <a class="audience-card-cta" href="/chat?mode=sell">Ask the AI →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">🤝</div>
+                        <h3>Sell direct or pick an agent</h3>
+                        <p>List on Aigents and let buyers come to you. Or use our directory to find a verified Australian agent who'll work for a flat fee, not a percentage.</p>
+                        <a class="audience-card-cta" href="/agents">Find an agent →</a>
+                    </div>
+                }
+                else if (_audience == "agents")
+                {
+                    <div class="audience-card">
+                        <div class="audience-card-icon">🚪</div>
+                        <h3>Migrate off REA / Domain in one click</h3>
+                        <p>You own your photos. You own your listing copy. We just help you move them. Cancel REA Premiere. Save thousands per listing. No lock-in.</p>
+                        <a class="audience-card-cta" href="/agents/register">Try Aigents free →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">⚡</div>
+                        <h3>Free AI listing tools</h3>
+                        <p>Listing copy, valuation, buyer Q&amp;A, offer analysis — all generated by AI in seconds. You pay only the literal token cost (no margin), itemised to the cent.</p>
+                        <a class="audience-card-cta" href="/agents#how-it-works">See how it works →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">🎯</div>
+                        <h3>Live buyer demand</h3>
+                        <p>Buyers chatting with the Aigents AI get matched to your listings in real time. No competing for clicks on a foreign-owned portal.</p>
+                        <a class="audience-card-cta" href="/agents">Read more →</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="audience-card">
+                        <div class="audience-card-icon">✨</div>
+                        <h3>Talk to our AI buyer agent</h3>
+                        <p>Tell the AI what you're looking for in plain English. Budget, suburbs, school zones, dealbreakers. It searches Australian listings and pings you when a real match appears.</p>
+                        <a class="audience-card-cta" href="/chat?mode=buy">Start chatting →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">🗺️</div>
+                        <h3>Browse Australian listings</h3>
+                        <p>On-market, off-market, and migrated-from-REA. Filter by suburb, postcode, budget, beds. No login. No ads. No US tracking pixels.</p>
+                        <a class="audience-card-cta" href="/explore?type=buy">Browse listings →</a>
+                    </div>
+                    <div class="audience-card">
+                        <div class="audience-card-icon">🏘️</div>
+                        <h3>Get suburb intel</h3>
+                        <p>Free suburb reports — schools, crime, growth, demographics. Built on open Australian government data, not paywalled comparables.</p>
+                        <a class="audience-card-cta" href="/explore?type=suburbs">Explore suburbs →</a>
+                    </div>
+                }
             </div>
         </div>
     </section>
+
+    @* ─── Footer (Aussie-ownership statement, REA-mirror) ─── *@
+    <footer class="rea-footer">
+        <div class="rea-footer-inner">
+            <div class="rea-footer-brand">
+                <div class="rea-logo">
+                    <span class="logo-mark">◆</span>
+                    <span class="logo-text">aigents<span class="logo-au">.au</span></span>
+                </div>
+                <p class="rea-footer-statement">
+                    aigents.au is owned and operated by <strong>Tailor</strong> — a not-for-profit
+                    community project run by the same team behind the open Australian fuel-price
+                    app used by 50,000+ Aussies. Source code Apache 2.0 on
+                    <a href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener">GitHub</a>.
+                    Hosted in Australia East. We charge no margin and hold no equity.
+                </p>
+            </div>
+            <div class="rea-footer-col">
+                <h4>Aigents</h4>
+                <a href="/agents/register">Use it free</a>
+                <a href="/agents">For agents</a>
+                <a href="/explore?type=buy">Browse listings</a>
+                <a href="/chat?mode=buy">AI buyer agent</a>
+            </div>
+            <div class="rea-footer-col">
+                <h4>Why we exist</h4>
+                <a href="#why-we-exist">The A$1.7B drain</a>
+                <a href="https://github.com/Tailor-AUS/aigents-dotnet/blob/main/docs/VISION.md" target="_blank" rel="noopener">Read the thesis</a>
+                <a href="https://github.com/Tailor-AUS/aigents-dotnet/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribute</a>
+            </div>
+            <div class="rea-footer-col">
+                <h4>Australian by design</h4>
+                <a href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener">Open source</a>
+                <a href="https://github.com/TailorAU/pact" target="_blank" rel="noopener">Built on PACT</a>
+                <a href="#">Tailor (parent org)</a>
+            </div>
+        </div>
+        <div class="rea-footer-bottom">
+            <p>© @DateTime.Now.Year Aigents · Apache License 2.0 · Built in Australia, hosted in Australia, governed by Australian law</p>
+        </div>
+    </footer>
 </div>
 
+
 <style>
-    /* Stats band — the photo tax in numbers */
+    /* ═══════════════════════════════════════════════════════════════
+       AIGENTS HOMEPAGE — REA-style utility, Aussie non-profit ethos
+    ═══════════════════════════════════════════════════════════════ */
+
+    .rea-page {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #1a1a2e;
+        background: white;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Nav ─── */
+    .rea-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .rea-nav-inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 32px;
+    }
+    .rea-logo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+    .rea-logo .logo-mark { font-size: 20px; color: #6366f1; }
+    .rea-logo .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    .rea-logo .logo-au { color: #6366f1; }
+    .rea-logo .logo-pill {
+        margin-left: 10px;
+        padding: 3px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #047857;
+        background: #d1fae5;
+        border-radius: 4px;
+    }
+    .rea-nav-links {
+        display: flex;
+        gap: 24px;
+        flex: 1;
+        margin-left: 8px;
+    }
+    .rea-nav-link {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a2e;
+        text-decoration: none;
+        padding: 6px 2px;
+        border-bottom: 2px solid transparent;
+        transition: border-color 0.15s;
+    }
+    .rea-nav-link:hover { border-bottom-color: #6366f1; }
+    .rea-nav-actions { display: flex; gap: 12px; align-items: center; }
+    .rea-btn-secondary {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a2e;
+        text-decoration: none;
+        padding: 8px 14px;
+    }
+    .rea-btn-primary {
+        font-size: 14px;
+        font-weight: 700;
+        color: white;
+        background: #ef4444;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+    }
+    .rea-btn-primary:hover { background: #dc2626; }
+    .rea-btn-primary:active { transform: translateY(1px); }
+
+    /* ─── Hero (search-first) ─── */
+    .rea-hero {
+        position: relative;
+        min-height: 480px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 24px;
+        overflow: hidden;
+    }
+    .rea-hero-bg {
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%),
+            url('https://images.unsplash.com/photo-1568322445389-f64ac2515099?w=1600&q=80') center/cover no-repeat;
+        z-index: 0;
+    }
+    .rea-hero-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        max-width: 880px;
+        width: 100%;
+    }
+    .rea-hero-title {
+        font-size: clamp(28px, 4vw, 40px);
+        font-weight: 800;
+        color: white;
+        margin: 0 0 32px 0;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+        letter-spacing: -0.02em;
+    }
+    .rea-search-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+        overflow: hidden;
+        text-align: left;
+    }
+    .rea-tabs {
+        display: flex;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+        background: #fafafa;
+        overflow-x: auto;
+    }
+    .rea-tab {
+        flex: 1;
+        min-width: max-content;
+        background: none;
+        border: none;
+        padding: 14px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        white-space: nowrap;
+    }
+    .rea-tab:hover { color: #1a1a2e; background: #f3f4f6; }
+    .rea-tab.active {
+        color: #ef4444;
+        border-bottom-color: #ef4444;
+        background: white;
+    }
+    .rea-tab-ai.active {
+        color: #6366f1;
+        border-bottom-color: #6366f1;
+    }
+    .rea-search-row {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    .rea-search-icon {
+        font-size: 18px;
+        margin-left: 4px;
+    }
+    .rea-search-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        padding: 14px 12px;
+        font-size: 15px;
+        font-family: inherit;
+        background: transparent;
+    }
+    .rea-search-filters {
+        background: white;
+        border: 1px solid rgba(0,0,0,0.12);
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+    }
+    .rea-search-filters:disabled { opacity: 0.5; cursor: not-allowed; }
+    .rea-search-submit {
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .rea-search-submit:hover { background: #dc2626; }
+
+    .rea-trust-strip {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        justify-content: center;
+    }
+    .rea-trust-item {
+        font-size: 13px;
+        font-weight: 600;
+        color: white;
+        background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    /* ─── Stats band ─── */
     .stats-band {
         padding: 80px 24px;
         background: linear-gradient(180deg, #0b0b1a 0%, #1a1a2e 100%);
@@ -237,7 +469,16 @@
         text-transform: uppercase;
         letter-spacing: 0.15em;
         color: #a78bfa;
-        margin-bottom: 40px;
+        margin-bottom: 16px;
+    }
+    .stats-headline {
+        font-size: clamp(20px, 2.6vw, 30px);
+        font-weight: 700;
+        line-height: 1.3;
+        max-width: 880px;
+        margin: 0 auto 40px auto;
+        color: white;
+        letter-spacing: -0.01em;
     }
     .stats-grid {
         display: grid;
@@ -245,9 +486,7 @@
         gap: 40px;
         margin-bottom: 40px;
     }
-    .stat-cell {
-        text-align: center;
-    }
+    .stat-cell { text-align: center; }
     .stat-figure {
         font-size: clamp(36px, 5vw, 56px);
         font-weight: 800;
@@ -277,14 +516,172 @@
         text-decoration: none;
         border-bottom: 1px dotted rgba(255, 255, 255, 0.28);
     }
-    .stats-footnote a:hover {
-        color: white;
+    .stats-footnote a:hover { color: white; }
+
+    /* ─── Audience section ─── */
+    .audience-section {
+        padding: 80px 24px;
+        background: #fafafa;
     }
-    @@media (max-width: 768px) {
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 32px;
-        }
+    .audience-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .audience-title {
+        font-size: clamp(28px, 3.5vw, 40px);
+        font-weight: 800;
+        text-align: center;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.02em;
+    }
+    .audience-subtitle {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #6b7280;
+        text-align: center;
+        max-width: 720px;
+        margin: 0 auto 40px auto;
+    }
+    .audience-tabs {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+    }
+    .audience-tab {
+        background: white;
+        border: 1.5px solid rgba(0,0,0,0.08);
+        border-radius: 999px;
+        padding: 12px 28px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1a1a2e;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .audience-tab:hover {
+        border-color: #6366f1;
+        color: #6366f1;
+    }
+    .audience-tab.active {
+        background: #1a1a2e;
+        color: white;
+        border-color: #1a1a2e;
+    }
+    .audience-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+    .audience-card {
+        background: white;
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 16px;
+        padding: 32px;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .audience-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+    }
+    .audience-card-icon {
+        font-size: 36px;
+        margin-bottom: 16px;
+    }
+    .audience-card h3 {
+        font-size: 19px;
+        font-weight: 800;
+        margin: 0 0 12px 0;
+        letter-spacing: -0.01em;
+    }
+    .audience-card p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #6b7280;
+        margin: 0 0 18px 0;
+    }
+    .audience-card-cta {
+        font-size: 14px;
+        font-weight: 700;
+        color: #6366f1;
+        text-decoration: none;
+    }
+    .audience-card-cta:hover {
+        color: #4f46e5;
+    }
+
+    /* ─── Footer ─── */
+    .rea-footer {
+        background: #0b0b1a;
+        color: rgba(255,255,255,0.7);
+        padding: 60px 24px 32px;
+    }
+    .rea-footer-inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 40px;
+    }
+    .rea-footer-brand .rea-logo {
+        margin-bottom: 16px;
+    }
+    .rea-footer-brand .rea-logo .logo-text { color: white; }
+    .rea-footer-brand .rea-logo .logo-au { color: #818cf8; }
+    .rea-footer-statement {
+        font-size: 13px;
+        line-height: 1.7;
+        color: rgba(255,255,255,0.65);
+        max-width: 420px;
+        margin: 0;
+    }
+    .rea-footer-statement a {
+        color: #a78bfa;
+        text-decoration: none;
+    }
+    .rea-footer-statement a:hover { color: white; }
+    .rea-footer-col h4 {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: white;
+        margin: 0 0 16px 0;
+    }
+    .rea-footer-col a {
+        display: block;
+        font-size: 14px;
+        color: rgba(255,255,255,0.65);
+        text-decoration: none;
+        padding: 4px 0;
+    }
+    .rea-footer-col a:hover { color: white; }
+    .rea-footer-bottom {
+        max-width: 1280px;
+        margin: 40px auto 0;
+        padding-top: 24px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        text-align: center;
+        font-size: 12px;
+        color: rgba(255,255,255,0.42);
+    }
+
+    /* ─── Responsive ─── */
+    @@media (max-width: 968px) {
+        .rea-nav-links { display: none; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+        .audience-cards { grid-template-columns: 1fr; }
+        .rea-footer-inner { grid-template-columns: 1fr; gap: 32px; }
+    }
+    @@media (max-width: 640px) {
+        .rea-search-row { flex-wrap: wrap; }
+        .rea-search-input { min-width: 0; width: 100%; padding: 12px; }
+        .rea-search-filters { display: none; }
+        .rea-search-submit { width: 100%; }
+        .rea-hero-title { font-size: 24px; }
+        .rea-trust-strip { gap: 8px; }
+        .rea-trust-item { font-size: 11px; padding: 6px 10px; }
     }
 </style>
 
@@ -293,25 +690,56 @@
     [Parameter]
     public EventCallback<string> OnGetStarted { get; set; }
 
-    private bool _rippleInitialized = false;
+    private string _searchType = "buy";
+    private string _searchQuery = "";
+    private string _audience = "sellers";
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private string GetHeroTitle() => _searchType switch
     {
-        if (firstRender && !_rippleInitialized)
+        "buy" => "Search Australian properties for sale",
+        "rent" => "Search Australian rentals",
+        "sold" => "Browse recently sold Australian properties",
+        "address" => "Look up any Australian address",
+        "agents" => "Find an Australian agent",
+        "ai" => "Talk to your AI buyer agent",
+        _ => "Search Australian properties"
+    };
+
+    private string GetPlaceholder() => _searchType switch
+    {
+        "buy" => "Search suburb, postcode or state",
+        "rent" => "Search rental suburb, postcode or state",
+        "sold" => "Search sold properties by suburb",
+        "address" => "Enter a full address (e.g. 67 Northview Outlook, Moorooka)",
+        "agents" => "Find an Australian agent by suburb or name",
+        "ai" => "Tell the AI what you're looking for…",
+        _ => "Search"
+    };
+
+    private void SetSearch(string type)
+    {
+        _searchType = type;
+    }
+
+    private void HandleKeyup(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
         {
-            _rippleInitialized = true;
-            await InitializeRippleEffect();
+            HandleSearch();
         }
     }
 
-    private async Task InitializeRippleEffect()
+    private void HandleSearch()
     {
-        await JSRuntime.InvokeVoidAsync("propertyViz.initRipple");
-    }
-
-    private void HandleMouseMove(MouseEventArgs e)
-    {
-        // Mouse tracking handled by JS
+        var q = Uri.EscapeDataString(_searchQuery ?? "");
+        var url = _searchType switch
+        {
+            "ai" => $"/chat?mode=buy&q={q}",
+            "agents" => $"/agents?q={q}",
+            "address" => $"/explore?type=address&q={q}",
+            _ => $"/explore?type={_searchType}&q={q}"
+        };
+        Nav.NavigateTo(url);
     }
 
     private void GoHome()
