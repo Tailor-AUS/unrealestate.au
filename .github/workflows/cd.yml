@@ -272,7 +272,7 @@ jobs:
   # CONFIGURE CUSTOM DOMAIN
   # ─────────────────────────────────────────────────────────────
   configure-domain:
-    name: Configure aigents.com.au domain
+    name: Configure aigents.au domain
     runs-on: ubuntu-latest
     needs: deploy
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -283,44 +283,42 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure custom domains (aigents.com.au + www)
+      - name: Configure custom domains (aigents.au + www)
         run: |
-          # Bind apex aigents.com.au — needs TXT asuid record + A record
+          # Bind apex aigents.au — needs TXT asuid record + A record
           # at GoDaddy pointing at the Container Apps env static IP.
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname aigents.com.au \
+            --hostname aigents.au \
             || echo "apex hostname may already be configured (or DNS not ready yet)"
 
           az containerapp hostname bind \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname aigents.com.au \
+            --hostname aigents.au \
             --environment aigents-env-production \
             --validation-method CNAME \
             || echo "apex cert binding may already exist (or DNS not ready yet)"
 
-          # www.aigents.com.au — CNAME at GoDaddy already points at our
-          # Container App FQDN; this just attaches it as a custom hostname
-          # and provisions a managed cert.
+          # www.aigents.au (optional — works if user adds a CNAME at GoDaddy)
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.aigents.com.au \
-            || echo "www hostname may already be configured"
+            --hostname www.aigents.au \
+            || echo "www hostname may already be configured (or CNAME missing at GoDaddy)"
 
           az containerapp hostname bind \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.aigents.com.au \
+            --hostname www.aigents.au \
             --environment aigents-env-production \
             --validation-method CNAME \
-            || echo "www cert binding may already exist"
+            || echo "www cert binding may already exist (or CNAME missing at GoDaddy)"
 
-      - name: Verify deployment on aigents.com.au
+      - name: Verify deployment on aigents.au
         run: |
-          for host in aigents.com.au www.aigents.com.au; do
+          for host in aigents.au www.aigents.au; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "https://$host" || echo "FAIL")
             echo "https://$host -> HTTP $code (FAIL = pending DNS / cert binding)"
           done
