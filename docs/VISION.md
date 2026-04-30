@@ -1,28 +1,38 @@
-# Product Vision: Aigents
+# Aigents — a not-for-profit community project by Tailor
+
+## Status
+
+**This is not a startup.** Aigents is a not-for-profit community project run by **Tailor** — the same team behind the open Australian fuel-price app already used by 50,000+ Aussies to find cheap petrol. The fuel app made petrol prices transparent and pulled the rent-extracting middlemen out of the loop. Aigents is the same idea, applied to real estate listings.
+
+We make no profit. We hold no equity. We charge no margin. The hosted version on `aigents.au` recovers only the literal cost of the GPT tokens and infrastructure we used on a user's behalf — every cent itemised in their dashboard. The full source is Apache 2.0 on GitHub; anyone can fork it, run it themselves, or contribute back.
+
+---
 
 ## The Pitch (One Sentence)
 
-**Facebook hosts our photos for free. Instagram hosts our videos for free. Marketplace lists our items for free. So why do we pay realestate.com.au and Domain $3,000–$4,000 just to list the most valuable thing we will ever sell — our home?**
-
-Aigents is the Australian-owned, open-source, AI-powered alternative for real estate agents who are done paying the photo tax to foreign-owned listing portals.
+**A$1.7 billion leaves Australia every year so that News Corp's REA Group and CoStar's Domain — both US-headquartered — can profit from advertising Australian homes to Australian buyers. We built the open-source alternative, because we got fed up.**
 
 ---
 
 ## The Core Vision
 
-To return the Australian real estate market to Australian agents and Australian homeowners — by replacing foreign-owned listing-portal middlemen with an AI agent that does the work, an open-source platform anyone can audit, and transparent compute-cost pricing that shows every cent.
+To stop the **A$1.7 billion per year** rent-extraction from Australian housing — keeping that money in the Australian economy, and giving every Australian agent and homeowner a free, open, AI-powered way to list and find property without funding offshore middlemen.
+
+We are not trying to build a unicorn. We are trying to make the foreign-owned listing portals irrelevant.
 
 ---
 
-## The Customer
+## The Users (not "customers" — we're not selling)
 
-**Australian real estate agents** — Brisbane and Gold Coast first — who are tired of being charged $3,000–$4,000 per listing by realestate.com.au and Domain just to publish photos and a description.
+- **Australian real estate agents** — Brisbane and Gold Coast first. Free to use, no subscription, no tier upsell. They pay only what the AI cost us on their behalf, no margin.
+- **Australian buyers** — chat with the buyer-side AI for free, get matched directly to listings, no realestate.com.au required.
+- **Self-hosters** — fork the Apache 2.0 source, run it on their own Azure/Hetzner/bare-metal, bring their own AI key. Zero dependency on Tailor's hosted version.
 
 ---
 
 ## The Product
 
-Agents upload their photos. Our AI generates the listing copy, the valuation, the buyer Q&A, and the offer analysis. Our buyer-side AI agent matches the listing to active buyers searching in real time. Agents keep the relationship and the commission. We charge a flat fee tied to actual compute cost — no per-listing gouge, no lock-in, no foreign middlemen.
+Agents upload photos and an address. Our AI generates the listing copy, the AVM-style valuation, the buyer Q&A, and the offer analysis. Our buyer-side AI matches active buyers to live listings in real time. Agents stay the agent of record, keep the relationship, and keep the commission. The hosted version bills only the literal AI/infra cost — no margin. The self-hosted version costs nothing to Tailor; you bring your own keys.
 
 ---
 
@@ -46,8 +56,8 @@ Aigents is the tooling, not the brokerage. The agent stays the agent of record, 
 ### 5. One-Click Migration off REA / Domain
 Already on realestate.com.au? Click once, your listings — *your* photos, *your* copy, *your* property — migrate to Aigents. Cancel REA. Save $3,000–$4,000 per listing. Agents own the copyright in their own listing content; we just help them move it.
 
-### 6. Transparent Compute-Cost Pricing
-You pay what the AI cost us, plus a flat margin. Every cent visible in the dashboard. No SaaS markup, no enterprise upsell, no per-seat tiering. Cloudflare- and AWS-style cost transparency applied to real estate.
+### 6. Cost-Recovery Only — No Margin, No Profit
+You pay only what the AI and infrastructure cost us on your behalf. Every cent itemised in the dashboard. We don't add a margin, we don't run an enterprise tier, we don't sell ads. Aigents is a not-for-profit project; the hosted version is a service, not a product.
 
 ### 7. Open Source (Apache 2.0)
 The code is public. The costs are public. The algorithm is public. You can fork it. We bet on execution, community, and trust — not on lock-in. An open, Australian-owned platform cannot be quietly acquired and shut down by a foreign incumbent.

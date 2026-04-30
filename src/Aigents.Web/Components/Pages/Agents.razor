@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Navigation
 
-<PageTitle>Aigents for Agents — A$1.7B/yr offshore. Be the agent who refuses to fund it.</PageTitle>
+<PageTitle>Aigents for Agents — Free, not-for-profit, open source. By Tailor (50k+ users).</PageTitle>
 
 <div class="agent-wrapper">
     @* Interactive ripple background *@
@@ -33,7 +33,7 @@
             <div class="hero-left animate-fade-up">
                 <div class="eyebrow">
                     <span class="eyebrow-icon">◆</span>
-                    <span>The Photo Tax · Australian housing has a foreign-owned problem</span>
+                    <span>A not-for-profit by Tailor · Open source · No commercial agenda</span>
                 </div>
 
                 <h1 class="hero-headline">
@@ -43,10 +43,13 @@
                 </h1>
 
                 <p class="hero-subheadline">
-                    Every time an Australian home goes on the market, the agent pays a US-owned
-                    listing portal thousands of dollars just to publish photos and a description.
-                    News Corp owns realestate.com.au. CoStar (Virginia) bought Domain in August 2025.
-                    There is no Australian-controlled major portal anymore. Aigents is the way out.
+                    Aigents isn't a SaaS. It's a not-for-profit community project by
+                    <strong>Tailor</strong> — the team behind the open Australian fuel-price app
+                    already used by <strong>50,000+ Aussies</strong>. Every Australian home sale
+                    routes through a US-owned listing portal that charges thousands just to
+                    publish photos and a description. News Corp owns realestate.com.au. CoStar
+                    (Virginia) bought Domain in August 2025. We got fed up. So we built the
+                    open-source alternative.
                 </p>
 
                 @* Single primary CTA — agent register *@
@@ -202,71 +205,62 @@
         </div>
     </section>
 
-    @* Pricing Section — transparent compute-cost pricing (Pillar 6) *@
+    @* Pricing Section — not-for-profit, you pay AI cost only *@
     <section class="pricing-section" id="pricing">
         <div class="pricing-container">
-            <h2 class="section-title">Transparent compute-cost pricing</h2>
-            <p class="section-subtitle">You pay what the AI cost us, plus a flat margin. Every cent visible in your dashboard. No SaaS markup.</p>
+            <h2 class="section-title">It's free. We're a not-for-profit.</h2>
+            <p class="section-subtitle">No subscription. No tiers. No upsell. You pay only what the AI cost us on your behalf — every cent itemised in your dashboard. We don't take a margin. Nothing leaves the country.</p>
 
-            <div class="pricing-cards">
-                <div class="pricing-card">
+            <div class="pricing-cards" style="grid-template-columns: 1fr 1fr; max-width: 880px; margin: 0 auto;">
+                <div class="pricing-card featured">
+                    <div class="featured-badge">For Australian agents</div>
                     <div class="price-header">
-                        <h3>Solo</h3>
-                        <div class="price">AI cost<span>+ $49/mo</span></div>
+                        <h3>Hosted by Tailor</h3>
+                        <div class="price">AI cost<span>only · no margin</span></div>
                     </div>
                     <ul class="price-features">
                         <li>✓ Unlimited AI listings</li>
                         <li>✓ Buyer-side AI matches</li>
-                        <li>✓ Pay only for tokens used</li>
-                        <li>✓ Live cost dashboard</li>
-                        <li>✓ Apache 2.0 source code</li>
-                        <li>✓ Cancel anytime</li>
-                    </ul>
-                    <button class="price-cta secondary" @onclick="GoToRegister">Try free for 30 days</button>
-                </div>
-
-                <div class="pricing-card featured">
-                    <div class="featured-badge">Most Popular</div>
-                    <div class="price-header">
-                        <h3>Agency</h3>
-                        <div class="price">AI cost<span>+ $199/mo</span></div>
-                    </div>
-                    <ul class="price-features">
-                        <li>✓ Everything in Solo</li>
-                        <li>✓ Up to 10 agents</li>
-                        <li>✓ Shared listing pool</li>
                         <li>✓ One-click migration off REA / Domain</li>
-                        <li>✓ Team-level cost reporting</li>
-                        <li>✓ Priority support</li>
+                        <li>✓ Live token-cost dashboard (every cent)</li>
+                        <li>✓ Inference in Australia East</li>
+                        <li>✓ No subscription, no lock-in</li>
                     </ul>
-                    <button class="price-cta primary" @onclick="GoToRegister">Try free for 30 days</button>
+                    <button class="price-cta primary" @onclick="GoToRegister">Use it free</button>
                 </div>
 
                 <div class="pricing-card">
                     <div class="price-header">
                         <h3>Self-host</h3>
-                        <div class="price">$0</div>
+                        <div class="price">$0<span>· Apache 2.0</span></div>
                     </div>
                     <ul class="price-features">
-                        <li>✓ Apache 2.0 source code</li>
-                        <li>✓ Run on your own Azure tenant</li>
+                        <li>✓ Full source on GitHub</li>
+                        <li>✓ Run on your own Azure / Hetzner / bare metal</li>
                         <li>✓ Bring your own AI key</li>
                         <li>✓ Community support</li>
                         <li>✓ No usage limits</li>
-                        <li>✓ Fork it</li>
+                        <li>✓ Fork it, extend it, share it back</li>
                     </ul>
                     <a class="price-cta secondary" href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener">View on GitHub</a>
                 </div>
             </div>
+
+            <p class="pricing-footnote" style="text-align:center; margin-top:32px; font-size:14px; color:#6b7280; max-width:680px; margin-left:auto; margin-right:auto;">
+                Tailor is the team behind the open Australian fuel-price app used by 50,000+
+                Aussies to find cheap petrol. Aigents is the same idea applied to real estate
+                listings. We're not trying to build a unicorn. We're trying to keep the A$1.7B/yr
+                in Australia.
+            </p>
         </div>
     </section>
 
     @* Final CTA *@
     <section class="final-cta">
         <div class="cta-container">
-            <h2>Ready to stop paying the photo tax?</h2>
-            <p>Join the Australian agents who refuse to pay foreign-owned portals $3,000–$4,000 just to publish a listing.</p>
-            <button class="mega-cta" @onclick="GoToRegister">Try Aigents free</button>
+            <h2>Help us keep A$1.7B in Australia.</h2>
+            <p>This is a not-for-profit community project. Use it free. Fork it. Tell your agent. Tell your neighbour selling their house. The more of us who refuse to fund the offshore middlemen, the faster the A$1.7B/yr starts staying in Australia.</p>
+            <button class="mega-cta" @onclick="GoToRegister">Use it free</button>
         </div>
     </section>
 </div>
