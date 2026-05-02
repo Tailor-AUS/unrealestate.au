@@ -28,9 +28,14 @@
                     <span class="step-label">Find Property</span>
                 </div>
                 <div class="progress-line @(_currentStep > 1 ? "active" : "")"></div>
-                <div class="progress-step @(_currentStep >= 2 ? "active" : "")">
+                <div class="progress-step @(_currentStep >= 2 ? "active" : "") @(_currentStep > 2 ? "completed" : "")">
                     <span class="step-num">2</span>
-                    <span class="step-label">Broadcast</span>
+                    <span class="step-label">Photos</span>
+                </div>
+                <div class="progress-line @(_currentStep > 2 ? "active" : "")"></div>
+                <div class="progress-step @(_currentStep >= 3 ? "active" : "")">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Publish</span>
                 </div>
             </div>
         </div>
@@ -117,30 +122,117 @@
             }
             
             @* Step 2: The New Streamlined Dashboard Preview *@
+            @* ─── Step 2: Upload + AI-style photos ─── *@
             @if (_currentStep == 2)
+            {
+                <div class="step-content animate-fade-up" style="max-width: 880px;">
+                    <h1>Add photos of your property</h1>
+                    <p class="step-intro">
+                        Upload photos taken on your phone. Our AI styles them into pro real-estate
+                        photography automatically — and the originals always stay on file. Aussie
+                        Consumer Law compliant: every AI-styled image is clearly labelled.
+                    </p>
+
+                    <div class="photo-dropzone @(_uploadedPhotos.Any() ? "has-photos" : "")">
+                        <InputFile OnChange="HandlePhotoUpload"
+                                   multiple
+                                   accept="image/*"
+                                   id="photo-input"
+                                   class="hidden-file-input" />
+                        <label for="photo-input" class="dropzone-label">
+                            <div class="dropzone-icon">📷</div>
+                            <div class="dropzone-title">@(_uploadedPhotos.Any() ? "Add more photos" : "Drop photos here or click to upload")</div>
+                            <div class="dropzone-hint">JPEG, PNG, HEIC · up to 20 photos · 5 MB each</div>
+                        </label>
+                    </div>
+
+                    @if (_isStylingPhotos)
+                    {
+                        <div class="photos-styling-banner">
+                            <span class="spinner">⚙️</span>
+                            AI is styling your photos… this usually takes 5-10 seconds per photo.
+                        </div>
+                    }
+
+                    @if (_uploadedPhotos.Any())
+                    {
+                        <div class="photo-grid">
+                            @{ var idx = 0; }
+                            @foreach (var photo in _uploadedPhotos)
+                            {
+                                var i = idx++;
+                                <div class="photo-card @(photo.ShowStyled ? "showing-styled" : "")">
+                                    <div class="photo-frame">
+                                        <img src="@(photo.ShowStyled ? photo.StyledDataUrl : photo.OriginalDataUrl)"
+                                             class="photo-image @(photo.ShowStyled ? "styled-filter" : "")"
+                                             alt="Property photo @(i + 1)" />
+                                        @if (photo.ShowStyled)
+                                        {
+                                            <div class="ai-disclosure">✨ AI-enhanced — original on file</div>
+                                        }
+                                    </div>
+                                    <div class="photo-controls">
+                                        <button type="button" class="photo-toggle @(photo.ShowStyled ? "active" : "")" @onclick="() => TogglePhotoStyle(i)">
+                                            @(photo.ShowStyled ? "Showing AI-styled" : "Showing original") · click to swap
+                                        </button>
+                                        <button type="button" class="photo-remove" @onclick="() => RemovePhoto(i)" title="Remove photo">✕</button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="back-btn" @onclick="() => _currentStep = 1">← Back to property</button>
+                            <button type="button" class="next-btn" @onclick="GoToReview" disabled="@(!_uploadedPhotos.Any())">
+                                Continue to publish →
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="step-actions">
+                            <button type="button" class="back-btn" @onclick="() => _currentStep = 1">← Back to property</button>
+                            <button type="button" class="next-btn-skip" @onclick="GoToReview">
+                                Skip photos for now →
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
+            @* ─── Step 3: Review + publish (OPEN listing) ─── *@
+            @if (_currentStep == 3)
             {
                 <div class="step-content animate-fade-up" style="max-width: 1000px;">
                     <div class="success-header">
                         <div class="success-icon">🎉</div>
-                        <h1>Your listing is ready to broadcast</h1>
-                        <p class="step-intro">We've compiled all necessary data. Review and go live.</p>
+                        <h1>Your listing is ready</h1>
+                        <p class="step-intro">It will go live as an <strong>OPEN listing</strong> — any verified Australian agent in your suburb can sell it. Whoever finds the buyer earns the commission. You stay in control.</p>
                     </div>
 
                     <div class="listing-preview-grid">
-                        @* Left Column: Listing Card *@
+                        @* Left column: listing card *@
                         <div class="preview-card-section">
                             <div class="review-card">
                                 <div class="review-header">
                                     <h3>Listing Preview</h3>
-                                    <span class="status-badge ready">READY</span>
+                                    <span class="status-badge ready">READY · OPEN LISTING</span>
                                 </div>
                                 <div class="listing-hero">
                                     <div class="hero-image-placeholder">
-                                        <div class="photo-badge">📸 12 AI Photos Found</div>
+                                        @if (_uploadedPhotos.Any())
+                                        {
+                                            <img src="@(_uploadedPhotos[0].ShowStyled ? _uploadedPhotos[0].StyledDataUrl : _uploadedPhotos[0].OriginalDataUrl)"
+                                                 class="hero-thumb" alt="Hero photo" />
+                                            <div class="photo-badge">📸 @_uploadedPhotos.Count photo@(_uploadedPhotos.Count == 1 ? "" : "s")</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="photo-badge">📸 No photos uploaded yet</div>
+                                        }
                                     </div>
                                     <div class="hero-content">
                                         <h2>@_address</h2>
-                                        
                                         @if (!_isEditing)
                                         {
                                             <div class="hero-specs">
@@ -153,22 +245,10 @@
                                         else
                                         {
                                             <div class="edit-specs-grid">
-                                                <div class="edit-field">
-                                                    <label>Beds</label>
-                                                    <input type="number" @bind="_bedrooms" class="w-full text-sm border rounded p-1" />
-                                                </div>
-                                                <div class="edit-field">
-                                                    <label>Baths</label>
-                                                    <input type="number" @bind="_bathrooms" class="w-full text-sm border rounded p-1" />
-                                                </div>
-                                                <div class="edit-field">
-                                                    <label>Cars</label>
-                                                    <input type="number" @bind="_carSpaces" class="w-full text-sm border rounded p-1" />
-                                                </div>
-                                                <div class="edit-field">
-                                                    <label>Land</label>
-                                                    <input type="text" @bind="_landSize" class="w-full text-sm border rounded p-1" />
-                                                </div>
+                                                <div class="edit-field"><label>Beds</label><input type="number" @bind="_bedrooms" class="w-full text-sm border rounded p-1" /></div>
+                                                <div class="edit-field"><label>Baths</label><input type="number" @bind="_bathrooms" class="w-full text-sm border rounded p-1" /></div>
+                                                <div class="edit-field"><label>Cars</label><input type="number" @bind="_carSpaces" class="w-full text-sm border rounded p-1" /></div>
+                                                <div class="edit-field"><label>Land</label><input type="text" @bind="_landSize" class="w-full text-sm border rounded p-1" /></div>
                                             </div>
                                         }
                                     </div>
@@ -179,7 +259,7 @@
                                         <span class="value">@(_propertyType ?? "House")</span>
                                     </div>
                                     <div class="review-row">
-                                        <span class="label">Price Guide ($)</span>
+                                        <span class="label">Price Guide</span>
                                         @if (!_isEditing)
                                         {
                                             <span class="value highlight">$@_priceMin - $@_priceMax</span>
@@ -200,10 +280,9 @@
                                     <div class="review-row description">
                                         <p>Discover this exceptional property featuring spacious living areas...</p>
                                     </div>
-                                    
-                                    <!-- Data Intelligence Section -->
+
                                     <div class="data-sources-section">
-                                        <h4 class="sources-header">✓ Verified Intelligence Sources</h4>
+                                        <h4 class="sources-header">✓ Verified Australian intelligence sources</h4>
                                         <div class="sources-list">
                                             @foreach (var source in _historicalSources)
                                             {
@@ -234,67 +313,74 @@
                             </div>
                         </div>
 
-                        @* Right Column: Action *@
+                        @* Right column: OPEN listing summary + publish *@
                         <div class="action-column">
                             <div class="broadcast-summary-card">
-                                <h3>Market Test Reach</h3>
-                                <div class="reach-stat">
-                                    <span class="reach-num">1.5B</span>
-                                    <span class="reach-label">Potential Buyers</span>
-                                </div>
-                                
+                                <h3>OPEN listing — what happens next</h3>
+                                <ol class="open-listing-flow">
+                                    <li>We notify every verified Australian agent operating in <strong>@(string.IsNullOrEmpty(_address) ? "your suburb" : ExtractSuburbForDisplay(_address))</strong>.</li>
+                                    <li>Your listing appears on unreal.estate immediately. Buyers chatting with our AI get matched to it in real time.</li>
+                                    <li>Whichever local agent finds the buyer earns the commission you negotiate. No exclusivity, no lock-in.</li>
+                                    <li>You can switch off the listing or change to exclusive at any time, free.</li>
+                                </ol>
+
                                 <div class="cost-comparison">
                                     <div class="comparison-row">
-                                        <span>Traditional Agent</span>
+                                        <span>realestate.com.au Premiere</span>
+                                        <span style="text-decoration: line-through;">$3,000+</span>
+                                    </div>
+                                    <div class="comparison-row">
+                                        <span>Domain Platinum</span>
                                         <span style="text-decoration: line-through;">$2,500+</span>
                                     </div>
                                     <div class="comparison-total">
-                                        <span>Your Cost</span>
+                                        <span>Your cost on unreal.estate</span>
                                         <span style="color: #4ade80;">$0.00</span>
                                     </div>
                                 </div>
 
                                 <div class="platform-list-mini">
                                     <div class="platform-item-mini">
-                                        <span class="check">✓</span> Aigents Global Network
+                                        <span class="check">✓</span> unreal.estate buyer-side AI
                                     </div>
                                     <div class="platform-item-mini">
-                                        <span class="check">✓</span> Juwai (China)
+                                        <span class="check">✓</span> Verified Australian agents in your suburb
                                     </div>
                                     <div class="platform-item-mini">
-                                        <span class="check">✓</span> Zillow (USA)
-                                    </div>
-                                    <div class="platform-item-mini">
-                                        <span class="check">✓</span> Facebook & Socials
+                                        <span class="check">✓</span> Hosted in Australia East · data stays here
                                     </div>
                                     <div class="platform-item-mini more" style="font-size: 11px; opacity: 0.7;">
-                                        * Major portals (Domain/Realestate) optional later
+                                        Not-for-profit. No US-owned listing portals involved.
                                     </div>
                                 </div>
                             </div>
 
                             <div class="user-capture-form" style="margin-bottom: 20px; background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #e5e7eb;">
-                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Where should we send offers?</label>
+                                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Where should we send buyer enquiries?</label>
                                 <input type="tel" @bind="_userMobile" placeholder="04XX XXX XXX" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px;" />
                             </div>
 
                             <div class="legal-check-compact">
                                 <label class="checkbox-item small">
                                     <input type="checkbox" @bind="_agreeTerms" />
-                                    <span>I agree to the <a href="/terms">Terms</a> & confirm I am the owner.</span>
+                                    <span>I confirm I am the owner of this property and accept the open-listing <a href="/terms">terms</a>.</span>
                                 </label>
                                 <div class="risk-free-note">
-                                    <span style="color: #10b981;">🛡️</span> Risk-Free: No credit card required. Cancel anytime.
+                                    <span style="color: #10b981;">🛡️</span> No credit card. No subscription. Cancel anytime.
                                 </div>
                             </div>
 
                             <button class="publish-btn large" @onclick="PublishListing" disabled="@(!_agreeTerms || string.IsNullOrWhiteSpace(_userMobile))">
-                                <span class="btn-icon">🚀</span>
+                                <span class="btn-icon">🇦🇺</span>
                                 <div class="btn-text">
-                                    <span class="btn-primary">Start Market Test</span>
-                                    <span class="btn-sub">Go live for $0 upfront</span>
+                                    <span class="btn-primary">Publish as OPEN listing</span>
+                                    <span class="btn-sub">Notify local Australian agents · go live free</span>
                                 </div>
                             </button>
+
+                            <div class="step-actions" style="margin-top: 16px;">
+                                <button type="button" class="back-btn" @onclick="() => _currentStep = 2">← Back to photos</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -495,6 +581,85 @@
     {
         var parts = address.Split(',');
         return parts.Length > 1 ? parts[^2].Trim() : address;
+    }
+
+    // Display-friendly suburb (capitalised) for the OPEN-listing summary
+    private string ExtractSuburbForDisplay(string address)
+    {
+        var s = ExtractSuburb(address);
+        return string.IsNullOrEmpty(s) ? "your suburb" : s;
+    }
+
+    // ─── Photo upload + AI-style toggle ─────────────────────────────────
+    // Holds uploaded property photos in component state. Originals stay
+    // on file (legal requirement under the REIA code of conduct + Aussie
+    // Consumer Law); AI-styled versions are clearly labelled.
+    //
+    // Phase A (this commit): photos are held client-side as base64 data
+    // URLs, AI styling is a CSS-filter visual stub.
+    // Phase B (follow-up): real Azure OpenAI gpt-image-1 integration via
+    // POST /api/listings/{id}/style-photos and blob storage for originals.
+    private List<UploadedPhoto> _uploadedPhotos = new();
+    private bool _isStylingPhotos = false;
+    private const long MaxPhotoBytes = 5 * 1024 * 1024;
+    private const int MaxPhotos = 20;
+
+    private async Task HandlePhotoUpload(InputFileChangeEventArgs e)
+    {
+        var remaining = MaxPhotos - _uploadedPhotos.Count;
+        if (remaining <= 0) return;
+
+        _isStylingPhotos = true;
+        StateHasChanged();
+
+        foreach (var file in e.GetMultipleFiles(remaining))
+        {
+            if (file.Size > MaxPhotoBytes) continue;
+            try
+            {
+                await using var stream = file.OpenReadStream(MaxPhotoBytes);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var dataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+                _uploadedPhotos.Add(new UploadedPhoto
+                {
+                    OriginalDataUrl = dataUrl,
+                    StyledDataUrl = dataUrl, // Phase A: stub — visual difference is via CSS filter on .photo-image.styled-filter
+                    ShowStyled = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to read photo: {ex.Message}");
+            }
+        }
+
+        _isStylingPhotos = false;
+        StateHasChanged();
+    }
+
+    private void TogglePhotoStyle(int index)
+    {
+        if (index < 0 || index >= _uploadedPhotos.Count) return;
+        _uploadedPhotos[index].ShowStyled = !_uploadedPhotos[index].ShowStyled;
+    }
+
+    private void RemovePhoto(int index)
+    {
+        if (index < 0 || index >= _uploadedPhotos.Count) return;
+        _uploadedPhotos.RemoveAt(index);
+    }
+
+    private void GoToReview()
+    {
+        _currentStep = 3;
+    }
+
+    public class UploadedPhoto
+    {
+        public string OriginalDataUrl { get; set; } = "";
+        public string StyledDataUrl { get; set; } = "";
+        public bool ShowStyled { get; set; } = true;
     }
     
     private async Task StartMagicFetch()

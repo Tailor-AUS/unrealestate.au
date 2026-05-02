@@ -1681,3 +1681,278 @@
         opacity: 1;
     }
 }
+/* ═══════════════════════════════════════════════════════════════
+   PHOTO UPLOAD + AI STYLING (Step 2)
+═══════════════════════════════════════════════════════════════ */
+
+.hidden-file-input {
+    display: none;
+}
+
+.photo-dropzone {
+    border: 2px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 16px;
+    padding: 48px 24px;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.04), rgba(99, 102, 241, 0.01));
+    transition: all 0.2s;
+    margin-bottom: 24px;
+}
+
+.photo-dropzone:hover,
+.photo-dropzone.has-photos {
+    border-color: #6366f1;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02));
+}
+
+.dropzone-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.dropzone-icon {
+    font-size: 42px;
+    margin-bottom: 4px;
+}
+
+.dropzone-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.dropzone-hint {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.photos-styling-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    color: #4f46e5;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.photos-styling-banner .spinner {
+    display: inline-block;
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.photo-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.photo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.photo-frame {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.photo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: filter 0.25s, transform 0.25s;
+}
+
+/* AI-styled visual stub: bumped saturation/contrast so toggle is visible.
+   Real implementation in Phase B will swap StyledDataUrl to a properly
+   AI-styled image and remove this filter. */
+.photo-image.styled-filter {
+    filter: saturate(1.18) brightness(1.04) contrast(1.06);
+}
+
+.ai-disclosure {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+}
+
+.photo-controls {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+}
+
+.photo-toggle {
+    flex: 1;
+    background: #f9fafb;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.photo-toggle:hover {
+    background: white;
+    color: #1a1a2e;
+}
+
+.photo-toggle.active {
+    background: #ede9fe;
+    border-color: #a78bfa;
+    color: #6366f1;
+}
+
+.photo-remove {
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    color: #ef4444;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.photo-remove:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+
+.step-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 10px 14px;
+}
+
+.back-btn:hover {
+    color: #1a1a2e;
+}
+
+.next-btn {
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.next-btn:hover:not(:disabled) {
+    background: #2d2d44;
+}
+
+.next-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.next-btn-skip {
+    background: white;
+    color: #6b7280;
+    border: 1.5px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    padding: 13px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.next-btn-skip:hover {
+    color: #1a1a2e;
+    border-color: #1a1a2e;
+}
+
+/* ─── Hero thumb (review step) ─── */
+.hero-thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ─── OPEN listing flow list (review step right column) ─── */
+.open-listing-flow {
+    list-style: none;
+    counter-reset: oli;
+    padding: 0;
+    margin: 0 0 16px 0;
+}
+
+.open-listing-flow li {
+    counter-increment: oli;
+    position: relative;
+    padding: 8px 0 8px 36px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #374151;
+}
+
+.open-listing-flow li::before {
+    content: counter(oli);
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1a1a2e;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
