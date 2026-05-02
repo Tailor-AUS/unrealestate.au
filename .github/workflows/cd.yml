@@ -244,14 +244,14 @@ jobs:
 
           # ─── Custom-domain verification ID ───
           # The user (domain owner at GoDaddy) needs to add a TXT record
-          # at asuid.aigents.au with this value before Azure will bind
+          # at asuid.unrealestate.au with this value before Azure will bind
           # the custom hostname. Emit as an annotation so it's readable
           # without GitHub auth.
           WEB_VERIFY_ID=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.customDomainVerificationId" -o tsv 2>/dev/null || echo "ERR")
           WEB_INGRESS_FQDN=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "ERR")
           WEB_OUTBOUND_IP=$(az containerapp env show -n aigents-env-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.staticIp" -o tsv 2>/dev/null || echo "ERR")
-          echo "::notice title=DOMAIN_verification_id_for_TXT_record_at_asuid_aigents_au::${WEB_VERIFY_ID}"
-          echo "::notice title=DOMAIN_target_for_CNAME_or_A_record_at_aigents_au::${WEB_INGRESS_FQDN}"
+          echo "::notice title=DOMAIN_verification_id_for_TXT_record_at_asuid_unrealestate_au::${WEB_VERIFY_ID}"
+          echo "::notice title=DOMAIN_target_for_CNAME_or_A_record_at_unrealestate_au::${WEB_INGRESS_FQDN}"
           echo "::notice title=DOMAIN_static_IP_for_apex_A_record::${WEB_OUTBOUND_IP}"
 
       - name: Deployment Summary
@@ -272,7 +272,7 @@ jobs:
   # CONFIGURE CUSTOM DOMAIN
   # ─────────────────────────────────────────────────────────────
   configure-domain:
-    name: Configure aigents.au domain
+    name: Configure unrealestate.au domain
     runs-on: ubuntu-latest
     needs: deploy
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -283,42 +283,42 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure custom domains (aigents.au + www)
+      - name: Configure custom domains (unrealestate.au + www)
         run: |
-          # Bind apex aigents.au — needs TXT asuid record + A record
+          # Bind apex unrealestate.au — needs TXT asuid record + A record
           # at GoDaddy pointing at the Container Apps env static IP.
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname aigents.au \
+            --hostname unrealestate.au \
             || echo "apex hostname may already be configured (or DNS not ready yet)"
 
           az containerapp hostname bind \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname aigents.au \
+            --hostname unrealestate.au \
             --environment aigents-env-production \
             --validation-method CNAME \
             || echo "apex cert binding may already exist (or DNS not ready yet)"
 
-          # www.aigents.au (optional — works if user adds a CNAME at GoDaddy)
+          # www.unrealestate.au (optional — works if user adds a CNAME at GoDaddy)
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.aigents.au \
+            --hostname www.unrealestate.au \
             || echo "www hostname may already be configured (or CNAME missing at GoDaddy)"
 
           az containerapp hostname bind \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.aigents.au \
+            --hostname www.unrealestate.au \
             --environment aigents-env-production \
             --validation-method CNAME \
             || echo "www cert binding may already exist (or CNAME missing at GoDaddy)"
 
-      - name: Verify deployment on aigents.au
+      - name: Verify deployment on unrealestate.au
         run: |
-          for host in aigents.au www.aigents.au; do
+          for host in unrealestate.au www.unrealestate.au; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "https://$host" || echo "FAIL")
             echo "https://$host -> HTTP $code (FAIL = pending DNS / cert binding)"
           done

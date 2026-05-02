@@ -18,7 +18,7 @@
         <div class="rea-nav-inner">
             <a href="/" class="rea-logo" @onclick:preventDefault @onclick="GoHome">
                 <span class="logo-mark">◆</span>
-                <span class="logo-text">aigents<span class="logo-au">.au</span></span>
+                <span class="logo-text">unreal<span class="logo-au">.estate</span></span>
                 <span class="logo-pill">not-for-profit</span>
             </a>
             <div class="rea-nav-links">
@@ -110,7 +110,7 @@
     <section class="audience-section">
         <div class="audience-container">
             <h2 class="audience-title">Built for Australians, by Australians</h2>
-            <p class="audience-subtitle">Aigents serves all three sides of the housing market — for free. No subscriptions. No upsells. No offshore middlemen. We're a not-for-profit community project by <strong>Tailor</strong> — the team behind the open Australian fuel-price app already used by 50,000+ Aussies.</p>
+            <p class="audience-subtitle">unreal.estate serves all three sides of the housing market — for free. No subscriptions. No upsells. No offshore middlemen. We're a not-for-profit community project by <strong>Tailor</strong> — the team behind the open Australian fuel-price app already used by 50,000+ Aussies.</p>
 
             <div class="audience-tabs">
                 <button class="audience-tab @(_audience == "sellers" ? "active" : "")" @onclick="@(() => _audience = "sellers")" type="button">Sellers</button>
@@ -136,7 +136,7 @@
                     <div class="audience-card">
                         <div class="audience-card-icon">🤝</div>
                         <h3>Sell direct or pick an agent</h3>
-                        <p>List on Aigents and let buyers come to you. Or use our directory to find a verified Australian agent who'll work for a flat fee, not a percentage.</p>
+                        <p>List on unreal.estate and let buyers come to you. Tag it as an OPEN listing and any agent in your area can sell it — whoever brings the buyer earns the commission, and you stay in control.</p>
                         <a class="audience-card-cta" href="/agents">Find an agent →</a>
                     </div>
                 }
@@ -146,7 +146,7 @@
                         <div class="audience-card-icon">🚪</div>
                         <h3>Migrate off REA / Domain in one click</h3>
                         <p>You own your photos. You own your listing copy. We just help you move them. Cancel REA Premiere. Save thousands per listing. No lock-in.</p>
-                        <a class="audience-card-cta" href="/agents/register">Try Aigents free →</a>
+                        <a class="audience-card-cta" href="/agents/register">Try unreal.estate free →</a>
                     </div>
                     <div class="audience-card">
                         <div class="audience-card-icon">⚡</div>
@@ -157,7 +157,7 @@
                     <div class="audience-card">
                         <div class="audience-card-icon">🎯</div>
                         <h3>Live buyer demand</h3>
-                        <p>Buyers chatting with the Aigents AI get matched to your listings in real time. No competing for clicks on a foreign-owned portal.</p>
+                        <p>Buyers chatting with the unreal.estate AI get matched to your listings in real time. No competing for clicks on a foreign-owned portal.</p>
                         <a class="audience-card-cta" href="/agents">Read more →</a>
                     </div>
                 }
@@ -192,20 +192,21 @@
             <div class="rea-footer-brand">
                 <div class="rea-logo">
                     <span class="logo-mark">◆</span>
-                    <span class="logo-text">aigents<span class="logo-au">.au</span></span>
+                    <span class="logo-text">unreal<span class="logo-au">.estate</span></span>
                 </div>
                 <p class="rea-footer-statement">
-                    aigents.au is owned and operated by <strong>Tailor</strong> — a not-for-profit
+                    unrealestate.au is owned and operated by <strong>Tailor</strong> — a not-for-profit
                     community project run by the same team behind the open Australian fuel-price
-                    app used by 50,000+ Aussies. Source code Apache 2.0 on
+                    app used by 50,000+ Aussies. Built on the open-source <em>Aigents</em> platform —
+                    source code Apache 2.0 on
                     <a href="https://github.com/Tailor-AUS/aigents-dotnet" target="_blank" rel="noopener">GitHub</a>.
                     Hosted in Australia East. We charge no margin and hold no equity.
                 </p>
             </div>
             <div class="rea-footer-col">
-                <h4>Aigents</h4>
-                <a href="/agents/register">Use it free</a>
-                <a href="/agents">For agents</a>
+                <h4>unreal.estate</h4>
+                <a href="/list">List your home</a>
+                <a href="/agents/register">For agents</a>
                 <a href="/explore?type=buy">Browse listings</a>
                 <a href="/chat?mode=buy">AI buyer agent</a>
             </div>
@@ -223,7 +224,7 @@
             </div>
         </div>
         <div class="rea-footer-bottom">
-            <p>© @DateTime.Now.Year Aigents · Apache License 2.0 · Built in Australia, hosted in Australia, governed by Australian law</p>
+            <p>© @DateTime.Now.Year unreal.estate · Apache License 2.0 · Built in Australia, hosted in Australia, governed by Australian law</p>
         </div>
     </footer>
 </div>
