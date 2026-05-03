@@ -777,6 +777,31 @@
     private string _searchQuery = "";
     private string _audience = "sellers";
 
+    protected override void OnInitialized()
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
+        switch (path)
+        {
+            case "/sell":
+                _audience = "sellers";
+                _searchType = "address";
+                break;
+            case "/buy":
+                _audience = "buyers";
+                _searchType = "buy";
+                break;
+            case "/rent":
+                _audience = "buyers";
+                _searchType = "rent";
+                break;
+            case "/agent":
+            case "/agents":
+                _audience = "agents";
+                _searchType = "agents";
+                break;
+        }
+    }
+
     // Demo image pairs for the AI staging slider on the homepage.
     // Swap these URLs for real before/after photos once the AI staging pipeline ships.
     private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()

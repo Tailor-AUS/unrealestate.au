@@ -1773,6 +1773,39 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
+.photo-card-slider {
+    position: relative;
+}
+
+.photo-remove-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.92);
+    border: none;
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    color: #ef4444;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+    transition: background 0.12s, transform 0.1s;
+}
+
+.photo-remove-overlay:hover {
+    background: white;
+    transform: scale(1.05);
+}
+
+.photos-help {
+    margin: -8px 0 16px 0;
+    font-size: 13px;
+    color: #6b7280;
+    text-align: center;
+}
+
 .photo-frame {
     position: relative;
     aspect-ratio: 4 / 3;

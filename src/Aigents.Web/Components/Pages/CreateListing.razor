@@ -156,26 +156,27 @@
 
                     @if (_uploadedPhotos.Any())
                     {
+                        <p class="photos-help">Drag the divider on each photo to compare your snap against the AI-staged version.</p>
                         <div class="photo-grid">
                             @{ var idx = 0; }
                             @foreach (var photo in _uploadedPhotos)
                             {
                                 var i = idx++;
-                                <div class="photo-card @(photo.ShowStyled ? "showing-styled" : "")">
-                                    <div class="photo-frame">
-                                        <img src="@(photo.ShowStyled ? photo.StyledDataUrl : photo.OriginalDataUrl)"
-                                             class="photo-image @(photo.ShowStyled ? "styled-filter" : "")"
-                                             alt="Property photo @(i + 1)" />
-                                        @if (photo.ShowStyled)
-                                        {
-                                            <div class="ai-disclosure">✨ AI-enhanced — original on file</div>
-                                        }
-                                    </div>
-                                    <div class="photo-controls">
-                                        <button type="button" class="photo-toggle @(photo.ShowStyled ? "active" : "")" @onclick="() => TogglePhotoStyle(i)">
-                                            @(photo.ShowStyled ? "Showing AI-styled" : "Showing original") · click to swap
-                                        </button>
-                                        <button type="button" class="photo-remove" @onclick="() => RemovePhoto(i)" title="Remove photo">✕</button>
+                                var sliderItem = new[]
+                                {
+                                    new BeforeAfterSlider.SliderItem(
+                                        Label: $"Photo {i + 1}",
+                                        BeforeUrl: photo.OriginalDataUrl,
+                                        AfterUrl: photo.StyledDataUrl,
+                                        AfterFilter: "saturate(1.18) brightness(1.04) contrast(1.06)")
+                                };
+                                <div class="photo-card">
+                                    <div class="photo-card-slider">
+                                        <BeforeAfterSlider Items="sliderItem"
+                                                           AspectRatio="4 / 3"
+                                                           BeforeLabel="Your photo"
+                                                           AfterLabel="AI-staged ✨" />
+                                        <button type="button" class="photo-remove-overlay" @onclick="() => RemovePhoto(i)" title="Remove photo" aria-label="Remove photo">✕</button>
                                     </div>
                                 </div>
                             }
@@ -636,12 +637,6 @@
 
         _isStylingPhotos = false;
         StateHasChanged();
-    }
-
-    private void TogglePhotoStyle(int index)
-    {
-        if (index < 0 || index >= _uploadedPhotos.Count) return;
-        _uploadedPhotos[index].ShowStyled = !_uploadedPhotos[index].ShowStyled;
     }
 
     private void RemovePhoto(int index)
