@@ -57,6 +57,15 @@
         </div>
     </header>
 
+    @if (!_isSellerMode)
+    {
+        <div class="explore-promo-wrap">
+            <SellPromoBanner Headline="Selling too? List your home free in 3 minutes."
+                             Sub="Browsing for ideas? You can list your own place in three minutes. AI writes the copy, stages your photos, syndicates everywhere. $0."
+                             Meta="Drag the slider to see what AI staging does" />
+        </div>
+    }
+
     <div class="explore-content">
         @* Left Panel - Property Intelligence *@
         <div class="intelligence-panel glass-panel">

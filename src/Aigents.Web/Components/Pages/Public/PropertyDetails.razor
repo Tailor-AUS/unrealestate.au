@@ -93,7 +93,14 @@ else
                 </div>
             </div>
         </div>
-        
+
+        <!-- Sell-side promo: convert browsing buyers into sellers -->
+        <div class="sell-promo-wrap">
+            <SellPromoBanner Headline="Selling too? List your own home free in 3 minutes."
+                             Sub="No marketing tax, no $3,000 cheque to a US portal. Drop your address, snap your photos — our AI writes the copy and stages the photos in seconds. Drag the slider to see it."
+                             Meta="Australian-owned · not-for-profit · ~3 minutes" />
+        </div>
+
         <!-- Offer Modal -->
         @if (_showOfferModal)
         {
@@ -341,6 +348,12 @@ else
         margin-top: 30px;
     }
 
+    .sell-promo-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 24px 56px 24px;
+    }
+
     @@media (max-width: 768px) {
         .content-grid {
             grid-template-columns: 1fr;
@@ -348,6 +361,9 @@ else
         }
         .hero-section {
             height: 40vh;
+        }
+        .sell-promo-wrap {
+            padding: 12px 16px 40px 16px;
         }
     }
 </style>
