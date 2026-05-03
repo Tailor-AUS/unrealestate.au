@@ -1,0 +1,89 @@
+.sp-banner {
+    display: grid;
+    grid-template-columns: minmax(260px, 380px) 1fr;
+    gap: 28px;
+    align-items: center;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 60%);
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+    color: #1a1a2e;
+}
+
+.sp-slider { width: 100%; }
+
+.sp-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sp-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: #6366f1;
+}
+
+.sp-headline {
+    font-size: clamp(20px, 2.4vw, 26px);
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.sp-sub {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #4b5563;
+    max-width: 56ch;
+}
+
+.sp-cta-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.sp-cta-primary {
+    text-decoration: none;
+    background: #ef4444;
+    color: white;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.sp-cta-primary:hover { background: #dc2626; }
+
+.sp-cta-primary:active { transform: translateY(1px); }
+
+.sp-cta-meta {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+@media (max-width: 760px) {
+    .sp-banner {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 18px;
+    }
+    .sp-slider { max-width: 100%; }
+}
+
+/* "compact" variant — borderless, transparent, used inside dark / busy pages */
+.sp-banner.compact {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}

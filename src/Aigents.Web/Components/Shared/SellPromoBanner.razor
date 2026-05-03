@@ -1,0 +1,36 @@
+@using Aigents.Web.Components.Shared
+
+<div class="sp-banner @CssClass">
+    <div class="sp-slider">
+        <BeforeAfterSlider Items="_demoItem"
+                           AspectRatio="3 / 2"
+                           BeforeLabel="Phone"
+                           AfterLabel="AI ✨" />
+    </div>
+    <div class="sp-copy">
+        <div class="sp-eyebrow">@Eyebrow</div>
+        <h3 class="sp-headline">@Headline</h3>
+        <p class="sp-sub">@Sub</p>
+        <div class="sp-cta-row">
+            <a class="sp-cta-primary" href="@CtaHref">@CtaLabel</a>
+            <span class="sp-cta-meta">@Meta</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Eyebrow { get; set; } = "Free for sellers";
+    [Parameter] public string Headline { get; set; } = "List your home for free in 3 minutes";
+    [Parameter] public string Sub { get; set; } = "Snap your photos, drop your address. Our AI writes the listing copy and stages your photos — drag the slider to see what it does. Australian-owned, not-for-profit, $0.";
+    [Parameter] public string CtaLabel { get; set; } = "List your home free →";
+    [Parameter] public string CtaHref { get; set; } = "/list";
+    [Parameter] public string Meta { get; set; } = "No card. No upsell. ~3 minutes.";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string BeforeUrl { get; set; } = "https://picsum.photos/seed/ue-promo-before/900/600";
+    [Parameter] public string AfterUrl { get; set; } = "https://picsum.photos/seed/ue-promo-after/900/600";
+
+    private IReadOnlyList<BeforeAfterSlider.SliderItem> _demoItem => new[]
+    {
+        new BeforeAfterSlider.SliderItem("Living room", BeforeUrl, AfterUrl)
+    };
+}
