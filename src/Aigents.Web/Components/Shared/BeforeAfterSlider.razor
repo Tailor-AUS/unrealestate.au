@@ -1,0 +1,89 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="ba-wrap">
+    @if (Items is { Count: > 1 })
+    {
+        <div class="ba-thumbs" role="tablist">
+            @for (var i = 0; i < Items.Count; i++)
+            {
+                var idx = i;
+                var item = Items[idx];
+                <button type="button"
+                        class="ba-thumb @(idx == _activeIndex ? "active" : "")"
+                        role="tab"
+                        aria-selected="@(idx == _activeIndex ? "true" : "false")"
+                        @onclick="() => SetActive(idx)">
+                    @if (!string.IsNullOrEmpty(item.Icon))
+                    {
+                        <span class="ba-thumb-icon">@item.Icon</span>
+                    }
+                    <span>@item.Label</span>
+                </button>
+            }
+        </div>
+    }
+
+    @{
+        var active = _active;
+    }
+    @if (active is not null)
+    {
+        <div class="ba-slider"
+             tabindex="0"
+             role="slider"
+             aria-label="Drag to compare before and after"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-valuenow="50"
+             style="--ba-pos:50%; aspect-ratio:@AspectRatio;">
+            <img class="ba-img ba-after"
+                 src="@active.AfterUrl"
+                 style="@(active.AfterFilter is null ? "" : $"filter:{active.AfterFilter};")"
+                 alt="After AI staging — @active.Label"
+                 draggable="false" />
+            <img class="ba-img ba-before"
+                 src="@active.BeforeUrl"
+                 style="@(active.BeforeFilter is null ? "" : $"filter:{active.BeforeFilter};")"
+                 alt="Before — @active.Label"
+                 draggable="false" />
+            <div class="ba-tag ba-tag-before">@BeforeLabel</div>
+            <div class="ba-tag ba-tag-after">@AfterLabel</div>
+            <div class="ba-divider"></div>
+            <div class="ba-handle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 6 3 12 9 18"></polyline>
+                    <polyline points="15 6 21 12 15 18"></polyline>
+                </svg>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Caption))
+    {
+        <p class="ba-caption">@Caption</p>
+    }
+</div>
+
+@code {
+    public sealed record SliderItem(
+        string Label,
+        string BeforeUrl,
+        string AfterUrl,
+        string? Icon = null,
+        string? BeforeFilter = null,
+        string? AfterFilter = null);
+
+    [Parameter, EditorRequired] public IReadOnlyList<SliderItem> Items { get; set; } = Array.Empty<SliderItem>();
+    [Parameter] public string AspectRatio { get; set; } = "16 / 10";
+    [Parameter] public string BeforeLabel { get; set; } = "Phone snap";
+    [Parameter] public string AfterLabel { get; set; } = "AI-staged ✨";
+    [Parameter] public string? Caption { get; set; }
+
+    private int _activeIndex;
+    private SliderItem? _active => Items.Count > 0 ? Items[Math.Clamp(_activeIndex, 0, Items.Count - 1)] : null;
+
+    private void SetActive(int idx)
+    {
+        if (idx >= 0 && idx < Items.Count) _activeIndex = idx;
+    }
+}

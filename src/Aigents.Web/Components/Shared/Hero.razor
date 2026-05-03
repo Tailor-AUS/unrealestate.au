@@ -106,6 +106,30 @@
         </div>
     </section>
 
+    @* ─── AI staging demo: before/after drag slider for sellers ─── *@
+    <section class="ai-staging-band" id="ai-staging">
+        <div class="ai-staging-container">
+            <div class="ai-staging-eyebrow">Free AI for sellers</div>
+            <h2 class="ai-staging-headline">Your phone snaps, restyled into pro listing photos</h2>
+            <p class="ai-staging-sub">
+                Snap on your phone. Drop them in. Our AI gives you the kind of marketing photos
+                agencies charge $300+ per room for — free, in seconds. Drag the slider to compare.
+            </p>
+
+            <div class="ai-staging-slider">
+                <BeforeAfterSlider Items="_stagingDemo"
+                                   BeforeLabel="Phone snap"
+                                   AfterLabel="AI-staged ✨"
+                                   Caption="Demo placeholders — your real photos appear here once you upload them in /list." />
+            </div>
+
+            <div class="ai-staging-cta">
+                <a class="rea-btn-primary ai-staging-primary" href="/list">List your home free →</a>
+                <a class="ai-staging-secondary" href="/chat?mode=sell">See how it works</a>
+            </div>
+        </div>
+    </section>
+
     @* ─── Audience tabs section: Built for Australians ─── *@
     <section class="audience-section">
         <div class="audience-container">
@@ -519,6 +543,64 @@
     }
     .stats-footnote a:hover { color: white; }
 
+    /* ─── AI staging band ─── */
+    .ai-staging-band {
+        padding: 80px 24px;
+        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+        position: relative;
+        z-index: 2;
+    }
+    .ai-staging-container {
+        max-width: 980px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .ai-staging-eyebrow {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #6366f1;
+        margin-bottom: 14px;
+    }
+    .ai-staging-headline {
+        font-size: clamp(26px, 3.4vw, 38px);
+        font-weight: 800;
+        margin: 0 0 14px 0;
+        letter-spacing: -0.02em;
+        color: #1a1a2e;
+    }
+    .ai-staging-sub {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #4b5563;
+        max-width: 680px;
+        margin: 0 auto 32px auto;
+    }
+    .ai-staging-slider { margin-bottom: 28px; }
+    .ai-staging-cta {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .ai-staging-primary {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        padding: 14px 28px;
+        font-size: 15px;
+    }
+    .ai-staging-secondary {
+        font-size: 14px;
+        font-weight: 700;
+        color: #6366f1;
+        text-decoration: none;
+        padding: 12px 8px;
+    }
+    .ai-staging-secondary:hover { color: #4f46e5; }
+
     /* ─── Audience section ─── */
     .audience-section {
         padding: 80px 24px;
@@ -694,6 +776,32 @@
     private string _searchType = "buy";
     private string _searchQuery = "";
     private string _audience = "sellers";
+
+    // Demo image pairs for the AI staging slider on the homepage.
+    // Swap these URLs for real before/after photos once the AI staging pipeline ships.
+    private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()
+    {
+        new BeforeAfterSlider.SliderItem(
+            "Outdoor living",
+            "https://picsum.photos/seed/ue-outdoor-before/1400/900",
+            "https://picsum.photos/seed/ue-outdoor-after/1400/900",
+            Icon: "🌿"),
+        new BeforeAfterSlider.SliderItem(
+            "Lounge",
+            "https://picsum.photos/seed/ue-lounge-before/1400/900",
+            "https://picsum.photos/seed/ue-lounge-after/1400/900",
+            Icon: "🛋️"),
+        new BeforeAfterSlider.SliderItem(
+            "Kitchen",
+            "https://picsum.photos/seed/ue-kitchen-before/1400/900",
+            "https://picsum.photos/seed/ue-kitchen-after/1400/900",
+            Icon: "🍳"),
+        new BeforeAfterSlider.SliderItem(
+            "Bedroom",
+            "https://picsum.photos/seed/ue-bedroom-before/1400/900",
+            "https://picsum.photos/seed/ue-bedroom-after/1400/900",
+            Icon: "🛏️")
+    };
 
     private string GetHeroTitle() => _searchType switch
     {
