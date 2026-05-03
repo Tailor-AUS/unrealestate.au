@@ -1,0 +1,434 @@
+@page "/sell/manage"
+@page "/sell/manage/{ListingId:guid}"
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Nav
+
+<PageTitle>Pick how to sell · unreal.estate</PageTitle>
+
+<div class="sm-page">
+    <nav class="sm-nav">
+        <div class="sm-nav-inner">
+            <a href="/" class="sm-logo">
+                <span class="sm-logo-mark">◆</span>
+                <span class="sm-logo-text">unreal<span class="sm-logo-au">.estate</span></span>
+            </a>
+            <div class="sm-crumbs">
+                <a href="/my-listings">My Listings</a>
+                <span class="sep">/</span>
+                <span>@_listing.Address</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="sm-main">
+        @* Hero strip — listing summary *@
+        <section class="sm-listing-strip">
+            <div class="sm-strip-head">
+                <h1>How do you want to sell?</h1>
+                <p>You're listed and getting interest. Pick a path. You can switch any time.</p>
+            </div>
+            <div class="sm-listing-card">
+                <div class="sm-listing-thumb"></div>
+                <div class="sm-listing-meta">
+                    <strong>@_listing.Address</strong>
+                    <span>@_listing.Suburb · @_listing.Beds bed · @_listing.Baths bath · @_listing.Cars car</span>
+                    <span class="sm-listing-price">Price guide: @_listing.PriceGuide</span>
+                </div>
+                <div class="sm-listing-stats">
+                    <div><strong>@_listing.Views</strong><span>views (7d)</span></div>
+                    <div><strong>@_listing.Enquiries</strong><span>enquiries</span></div>
+                    <div><strong>@_listing.Offers</strong><span>offers</span></div>
+                </div>
+            </div>
+        </section>
+
+        @* Sale Mode picker *@
+        <section class="sm-modes">
+            @foreach (var mode in _modes)
+            {
+                var m = mode;
+                <button type="button"
+                        class="sm-mode @(m.Key == _selectedMode ? "active" : "")"
+                        @onclick="() => SelectMode(m.Key)">
+                    <div class="sm-mode-icon">@m.Icon</div>
+                    <h3>@m.Title</h3>
+                    <p>@m.Tagline</p>
+                    <ul>
+                        @foreach (var b in m.Bullets)
+                        {
+                            <li>@b</li>
+                        }
+                    </ul>
+                    <div class="sm-mode-foot">@m.Footnote</div>
+                </button>
+            }
+        </section>
+
+        @if (_selectedMode == "diy")
+        {
+            <section class="sm-diy-panel">
+                <div class="sm-diy-icon">🛠️</div>
+                <div>
+                    <h2>You're managing this sale yourself.</h2>
+                    <p>You'll handle inspections, offers and negotiations directly with buyers. We'll keep your AI listing live, syndicated, and route every enquiry to your inbox. Switch to an agent at any time.</p>
+                    <div class="sm-diy-actions">
+                        <a class="sm-btn-primary" href="/my-offers">Review offers →</a>
+                        <a class="sm-btn-link" href="/chat?mode=sell">Ask the AI a question</a>
+                    </div>
+                </div>
+            </section>
+        }
+        else
+        {
+            @* Agent Shortlist *@
+            <section class="sm-agents">
+                <div class="sm-agents-head">
+                    <div>
+                        <h2>@(_selectedMode == "exclusive" ? "Pick your exclusive agent" : "Open agency — let them compete")</h2>
+                        <p>
+                            @if (_selectedMode == "exclusive")
+                            {
+                                <text>One agent, one fee, one focused campaign. They send a proposal, you accept.</text>
+                            }
+                            else
+                            {
+                                <text>Send the same brief to multiple agents. Whoever brings the buyer earns the commission. You see live competing proposals here.</text>
+                            }
+                        </p>
+                    </div>
+                    <div class="sm-shortlist-meta">Shortlisted by recent sales near @_listing.Suburb</div>
+                </div>
+
+                <div class="sm-agent-grid">
+                    @foreach (var agent in _agents)
+                    {
+                        var a = agent;
+                        <article class="sm-agent-card">
+                            <header>
+                                <div class="sm-agent-avatar" style="background:@a.AvatarBg">@a.Initials</div>
+                                <div class="sm-agent-id">
+                                    <strong>@a.Name</strong>
+                                    <span>@a.Agency · @a.Suburb</span>
+                                </div>
+                                @if (a.IsBaby)
+                                {
+                                    <span class="sm-tag sm-tag-baby" title="Newer agent — competitive, hungry">⭐ Agent baby</span>
+                                }
+                                @if (_invited.Contains(a.Id))
+                                {
+                                    <span class="sm-tag sm-tag-sent">✓ Proposal sent</span>
+                                }
+                            </header>
+
+                            <div class="sm-agent-quick">
+                                <div><strong>@a.SoldThisYear</strong><span>sold this year</span></div>
+                                <div><strong>@a.AvgDays<small>d</small></strong><span>avg days on market</span></div>
+                                <div><strong>@a.OverAskPct<small>%</small></strong><span>over price guide</span></div>
+                            </div>
+
+                            <div class="sm-agent-section">
+                                <h4>Recent comparable sales</h4>
+                                <ul class="sm-agent-comps">
+                                    @foreach (var c in a.RecentComps)
+                                    {
+                                        <li>
+                                            <span class="sm-comp-addr">@c.Address</span>
+                                            <span class="sm-comp-price">@c.SoldPrice</span>
+                                            <span class="sm-comp-meta">@c.Beds bed · @c.WhenAgo</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+
+                            <div class="sm-agent-section">
+                                <h4>Live database (estimated)</h4>
+                                <div class="sm-db-bar">
+                                    <div class="sm-db-bar-fill" style="width:@(Math.Min(100, a.EstimatedLiveBuyers / 6))%;"></div>
+                                </div>
+                                <p class="sm-db-blurb">
+                                    <strong>≈ @a.EstimatedLiveBuyers active buyers</strong> in their funnel —
+                                    derived from @a.SoldThisYear sales × ~@a.AvgBuyersPerSale buyers / sale.
+                                    @if (a.ActivePipeline > 0)
+                                    {
+                                        <span> They're also running <strong>@a.ActivePipeline live listings</strong> right now.</span>
+                                    }
+                                </p>
+                            </div>
+
+                            <footer>
+                                <button type="button" class="sm-btn-primary" @onclick="() => OpenProposal(a.Id)">
+                                    @(_invited.Contains(a.Id) ? "Update proposal" : (_selectedMode == "open" ? "Invite to compete →" : "Send proposal →"))
+                                </button>
+                                <button type="button" class="sm-btn-link" @onclick="() => ViewAgent(a.Id)">View profile</button>
+                            </footer>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+
+        @* Proposal drawer *@
+        @if (_proposalAgentId is not null)
+        {
+            var ag = _agents.FirstOrDefault(x => x.Id == _proposalAgentId);
+            if (ag is not null)
+            {
+                <div class="sm-drawer-backdrop" @onclick="CloseProposal"></div>
+                <aside class="sm-drawer" @onclick:stopPropagation>
+                    <header>
+                        <div>
+                            <span class="sm-drawer-eyebrow">@(_selectedMode == "open" ? "Invite to open agency" : "Exclusive proposal")</span>
+                            <h3>Brief @ag.Name</h3>
+                            <p>@ag.Agency · @ag.Suburb</p>
+                        </div>
+                        <button class="sm-drawer-close" @onclick="CloseProposal" aria-label="Close">×</button>
+                    </header>
+
+                    <div class="sm-form">
+                        <div class="sm-field">
+                            <label>Commission they get if they sell it</label>
+                            <input type="range" min="1.0" max="3.5" step="0.05" @bind="_commission" @bind:event="oninput" />
+                            <div class="sm-range-row">
+                                <span>1.0%</span>
+                                <strong>@_commission.ToString("0.00")%</strong>
+                                <span>3.5%</span>
+                            </div>
+                            <small>Industry avg in @_listing.Suburb sits around 2.0–2.5%. Your call.</small>
+                        </div>
+
+                        <div class="sm-field">
+                            <label>Marketing budget you'll cover</label>
+                            <input type="range" min="0" max="6000" step="100" @bind="_marketing" @bind:event="oninput" />
+                            <div class="sm-range-row">
+                                <span>$0</span>
+                                <strong>$@_marketing.ToString("N0")</strong>
+                                <span>$6,000</span>
+                            </div>
+                            <small>$0 is fine — your AI listing already syndicates everywhere. Spend extra only if you want signs, print, or premium social.</small>
+                        </div>
+
+                        <div class="sm-field">
+                            <label>Length of campaign</label>
+                            <input type="range" min="4" max="16" step="1" @bind="_weeks" @bind:event="oninput" />
+                            <div class="sm-range-row">
+                                <span>4 weeks</span>
+                                <strong>@_weeks weeks</strong>
+                                <span>16 weeks</span>
+                            </div>
+                        </div>
+
+                        <div class="sm-field">
+                            <label>Sale strategy</label>
+                            <div class="sm-pills">
+                                @foreach (var s in _strategies)
+                                {
+                                    var v = s;
+                                    <button type="button"
+                                            class="sm-pill @(_strategy == v.Key ? "active" : "")"
+                                            @onclick="() => _strategy = v.Key">
+                                        <strong>@v.Title</strong>
+                                        <span>@v.Tag</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="sm-field">
+                            <label>Anything else?</label>
+                            <textarea rows="3" placeholder="Open homes preferences, must-do dates, sensitive info…" @bind="_notes"></textarea>
+                        </div>
+
+                        <div class="sm-summary">
+                            <h4>What they'll see</h4>
+                            <ul>
+                                <li><span>Commission</span><strong>@_commission.ToString("0.00")%</strong></li>
+                                <li><span>Marketing</span><strong>$@_marketing.ToString("N0")</strong></li>
+                                <li><span>Campaign</span><strong>@_weeks weeks</strong></li>
+                                <li><span>Strategy</span><strong>@(_strategies.First(s => s.Key == _strategy).Title)</strong></li>
+                                <li><span>Mode</span><strong>@(_selectedMode == "open" ? "Open agency" : "Exclusive")</strong></li>
+                            </ul>
+                            @if (_selectedMode == "open")
+                            {
+                                <div class="sm-summary-note">Same brief will be sent to every agent you invite — they compete on result, not pitch.</div>
+                            }
+                        </div>
+
+                        <footer class="sm-form-actions">
+                            <button type="button" class="sm-btn-link" @onclick="CloseProposal">Cancel</button>
+                            <button type="button" class="sm-btn-primary" @onclick="SendProposal">
+                                @(_selectedMode == "open" ? "Invite to compete" : "Send exclusive proposal")
+                            </button>
+                        </footer>
+                    </div>
+                </aside>
+            }
+        }
+
+        @if (_lastSentAgentName is not null)
+        {
+            <div class="sm-toast" role="status">
+                ✓ Proposal sent to @_lastSentAgentName
+                @if (_selectedMode == "open" && _invited.Count > 1)
+                {
+                    <text>· @_invited.Count agents now competing</text>
+                }
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter] public Guid? ListingId { get; set; }
+
+    private record Listing(string Address, string Suburb, int Beds, int Baths, int Cars, string PriceGuide, int Views, int Enquiries, int Offers);
+    private record Mode(string Key, string Icon, string Title, string Tagline, string Footnote, string[] Bullets);
+    private record Comp(string Address, string SoldPrice, int Beds, string WhenAgo);
+    private record Agent(
+        Guid Id,
+        string Name,
+        string Initials,
+        string Agency,
+        string Suburb,
+        string AvatarBg,
+        int SoldThisYear,
+        int AvgDays,
+        int OverAskPct,
+        int ActivePipeline,
+        int AvgBuyersPerSale,
+        bool IsBaby,
+        Comp[] RecentComps)
+    {
+        public int EstimatedLiveBuyers => SoldThisYear * AvgBuyersPerSale + ActivePipeline * (AvgBuyersPerSale / 2);
+    }
+    private record Strategy(string Key, string Title, string Tag);
+
+    private readonly Listing _listing = new(
+        Address: "67 Northview Outlook",
+        Suburb: "Moorooka, QLD",
+        Beds: 4, Baths: 2, Cars: 2,
+        PriceGuide: "$1.05M – $1.15M",
+        Views: 1483, Enquiries: 27, Offers: 3);
+
+    private readonly Mode[] _modes = new[]
+    {
+        new Mode("diy", "🛠️", "Manage it yourself",
+                 "You're already getting offers. Keep going solo and pocket the commission.",
+                 "Pause or upgrade any time.",
+                 new [] { "$0 commission", "Direct buyer messaging", "AI helps draft replies + counter offers" }),
+        new Mode("open", "🏟️", "Open agency",
+                 "Invite multiple agents. Whoever brings the buyer earns the fee.",
+                 "Pick 2–6 agents. Sellers usually pick 3.",
+                 new [] { "Multiple agents compete", "Same brief, side-by-side proposals", "No exclusivity, no lock-in" }),
+        new Mode("exclusive", "🤝", "Exclusive agency",
+                 "Lock in one agent for a fixed term. Best when you want one focused campaign.",
+                 "Negotiable terms · cancel after term.",
+                 new [] { "One agent, one fee", "Higher marketing investment", "Auction-friendly" })
+    };
+
+    private readonly Strategy[] _strategies = new[]
+    {
+        new Strategy("private", "Private treaty", "Standard listing"),
+        new Strategy("auction", "Auction", "Best for hot markets"),
+        new Strategy("eoi",     "Expressions of interest", "Buyers blind-bid by date"),
+        new Strategy("offmarket","Off-market", "Discreet, network-only")
+    };
+
+    private readonly Agent[] _agents = new[]
+    {
+        new Agent(Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            "Sarah Chen", "SC", "Ray White Paddington", "Paddington QLD", "#6366f1",
+            SoldThisYear: 38, AvgDays: 24, OverAskPct: 6, ActivePipeline: 9,
+            AvgBuyersPerSale: 18, IsBaby: false,
+            RecentComps: new []
+            {
+                new Comp("12 Beck St, Paddington", "$1.42M",  4, "3 weeks ago"),
+                new Comp("9 Latrobe Tce, Paddington","$1.28M",3, "5 weeks ago"),
+                new Comp("4 Frank St, Auchenflower", "$1.61M", 4, "8 weeks ago")
+            }),
+        new Agent(Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            "Marcus Patel", "MP", "Belle Property", "Bulimba QLD", "#10b981",
+            SoldThisYear: 47, AvgDays: 19, OverAskPct: 9, ActivePipeline: 12,
+            AvgBuyersPerSale: 22, IsBaby: false,
+            RecentComps: new []
+            {
+                new Comp("18 Apollo Rd, Bulimba",   "$1.95M",  5, "2 weeks ago"),
+                new Comp("3 Stuart St, Bulimba",    "$1.31M",  4, "6 weeks ago"),
+                new Comp("21 Oxford St, Bulimba",   "$2.10M", 5, "10 weeks ago")
+            }),
+        new Agent(Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            "Aisha Rahman", "AR", "Place Estate Agents", "West End QLD", "#f59e0b",
+            SoldThisYear: 31, AvgDays: 22, OverAskPct: 5, ActivePipeline: 7,
+            AvgBuyersPerSale: 16, IsBaby: false,
+            RecentComps: new []
+            {
+                new Comp("44 Vulture St, West End",  "$1.18M", 4, "4 weeks ago"),
+                new Comp("8 Boundary St, West End",  "$1.42M", 4, "7 weeks ago"),
+                new Comp("12 Hardgrave Rd, West End","$0.96M", 3, "9 weeks ago")
+            }),
+        new Agent(Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            "Jamie O'Connor", "JO", "Harcourts Solutions", "Annerley QLD", "#ef4444",
+            SoldThisYear: 11, AvgDays: 28, OverAskPct: 4, ActivePipeline: 5,
+            AvgBuyersPerSale: 14, IsBaby: true,
+            RecentComps: new []
+            {
+                new Comp("19 Goring St, Annerley",   "$0.92M", 3, "1 week ago"),
+                new Comp("6 Cracknell Rd, Annerley", "$1.04M", 4, "5 weeks ago"),
+                new Comp("33 Frederick St, Annerley","$0.88M", 3, "8 weeks ago")
+            }),
+        new Agent(Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            "Lina Kovac", "LK", "LJ Hooker", "Yeronga QLD", "#8b5cf6",
+            SoldThisYear: 22, AvgDays: 26, OverAskPct: 3, ActivePipeline: 6,
+            AvgBuyersPerSale: 15, IsBaby: false,
+            RecentComps: new []
+            {
+                new Comp("14 Park Rd, Yeronga",      "$1.12M", 4, "2 weeks ago"),
+                new Comp("5 School St, Yeronga",     "$0.98M", 3, "5 weeks ago"),
+                new Comp("28 Rose St, Yeronga",      "$1.34M", 4, "9 weeks ago")
+            }),
+        new Agent(Guid.Parse("66666666-6666-6666-6666-666666666666"),
+            "Daniel Wright", "DW", "Coronis", "Moorooka QLD", "#0ea5e9",
+            SoldThisYear: 19, AvgDays: 21, OverAskPct: 7, ActivePipeline: 8,
+            AvgBuyersPerSale: 17, IsBaby: false,
+            RecentComps: new []
+            {
+                new Comp("3 Victoria Tce, Moorooka", "$1.07M", 4, "1 week ago"),
+                new Comp("25 Beaudesert Rd, Moorooka","$0.94M",3, "6 weeks ago"),
+                new Comp("14 Marshall Rd, Moorooka", "$1.21M", 4, "11 weeks ago")
+            })
+    };
+
+    private string _selectedMode = "open";
+    private Guid? _proposalAgentId;
+    private double _commission = 2.2;
+    private int _marketing = 1500;
+    private int _weeks = 6;
+    private string _strategy = "private";
+    private string _notes = "";
+    private readonly HashSet<Guid> _invited = new();
+    private string? _lastSentAgentName;
+
+    private void SelectMode(string key)
+    {
+        _selectedMode = key;
+        _proposalAgentId = null;
+    }
+
+    private void OpenProposal(Guid id) => _proposalAgentId = id;
+    private void CloseProposal() => _proposalAgentId = null;
+
+    private void ViewAgent(Guid id)
+    {
+        Nav.NavigateTo($"/agents/listing/{Math.Abs(id.GetHashCode() % 9999) + 1}");
+    }
+
+    private void SendProposal()
+    {
+        if (_proposalAgentId is { } id)
+        {
+            _invited.Add(id);
+            _lastSentAgentName = _agents.FirstOrDefault(a => a.Id == id)?.Name;
+            _proposalAgentId = null;
+        }
+    }
+}
