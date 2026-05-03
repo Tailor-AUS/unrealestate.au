@@ -96,6 +96,7 @@
                                 <p class="address">@listing.Suburb, @listing.State @listing.Postcode</p>
                             </div>
                             <div class="listing-actions">
+                                <a class="action-btn primary" href="/sell/manage">Manage sale →</a>
                                 <button class="action-btn">Edit</button>
                                 <button class="action-btn">Pause</button>
                             </div>
@@ -600,6 +601,19 @@
 
 .action-btn:hover {
     border-color: #1a1a2e;
+}
+
+.action-btn.primary {
+    background: #1a1a2e;
+    color: white;
+    border-color: #1a1a2e;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+.action-btn.primary:hover {
+    background: #312e81;
+    border-color: #312e81;
 }
 
 .listing-specs {

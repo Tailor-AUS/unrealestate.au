@@ -273,6 +273,7 @@
     // Persona
     private SitePersona _persona = SitePersona.Buy;
     private string _personaClass => $"persona-{_persona.ToString().ToLower()}";
+    private bool _isSellerMode => _persona == SitePersona.Sell;
     private string _modeDisplay => _persona switch
     {
         SitePersona.Buy => "🏠 BUY",
@@ -936,6 +937,19 @@
     flex: 1;
     position: relative;
     z-index: 1;
+}
+
+.explore-promo-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 16px 24px 0 24px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+@@media (max-width: 760px) {
+    .explore-promo-wrap { padding: 12px 16px 0 16px; }
 }
 
 /* Filter Panel - Light theme */
