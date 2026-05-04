@@ -1,0 +1,420 @@
+@page "/my-offers"
+@page "/seller/offers"
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Nav
+
+<PageTitle>Offers · unreal.estate</PageTitle>
+
+<div class="of-page">
+    <nav class="of-nav">
+        <div class="of-nav-inner">
+            <a href="/" class="of-logo">
+                <span class="of-logo-mark">◆</span>
+                <span class="of-logo-text">unreal<span class="of-logo-au">.estate</span></span>
+            </a>
+            <div class="of-crumbs">
+                <a href="/my-listings">My Listings</a>
+                <span class="sep">/</span>
+                <span>@_listing.Address</span>
+                <span class="sep">/</span>
+                <span>Offers</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="of-main">
+        <header class="of-head">
+            <div>
+                <h1>Offers on @_listing.Address</h1>
+                <p>Listed @_listing.DaysListed days ago · Price guide @_listing.PriceGuide</p>
+            </div>
+            <a class="of-back" href="/sell/manage">Back to Manage Sale →</a>
+        </header>
+
+        <section class="of-summary">
+            <div class="of-stat">
+                <span class="of-stat-label">Active offers</span>
+                <strong>@_visibleOffers.Count(o => o.Status == "pending" || o.Status == "countered")</strong>
+            </div>
+            <div class="of-stat highlight">
+                <span class="of-stat-label">Best active offer</span>
+                <strong>@FormatMoney(_bestActive)</strong>
+                <small>@DeltaToGuide(_bestActive)</small>
+            </div>
+            <div class="of-stat">
+                <span class="of-stat-label">Avg of active</span>
+                <strong>@FormatMoney(_avgActive)</strong>
+            </div>
+            <div class="of-stat">
+                <span class="of-stat-label">Total received</span>
+                <strong>@_offers.Count</strong>
+                <small>@_offers.Count(o => o.Status == "rejected") rejected</small>
+            </div>
+        </section>
+
+        <section class="of-controls">
+            <div class="of-tabs">
+                <button class="of-tab @(_filter == "active" ? "active" : "")" @onclick="@(() => _filter = "active")">Active</button>
+                <button class="of-tab @(_filter == "all" ? "active" : "")" @onclick="@(() => _filter = "all")">All</button>
+                <button class="of-tab @(_filter == "accepted" ? "active" : "")" @onclick="@(() => _filter = "accepted")">Accepted</button>
+                <button class="of-tab @(_filter == "rejected" ? "active" : "")" @onclick="@(() => _filter = "rejected")">Rejected</button>
+            </div>
+            <div class="of-sort">
+                Sort by
+                <select @bind="_sort">
+                    <option value="amount">Amount (highest first)</option>
+                    <option value="newest">Newest first</option>
+                    <option value="settlement">Settlement (soonest)</option>
+                </select>
+            </div>
+        </section>
+
+        @if (_visibleOffers.Count == 0)
+        {
+            <div class="of-empty">
+                <div class="of-empty-icon">📭</div>
+                <h3>No offers in this view</h3>
+                <p>Try a different filter, or share your listing again. We'll ping you the moment a new offer arrives.</p>
+            </div>
+        }
+        else
+        {
+            <section class="of-list">
+                @foreach (var o in _visibleOffers)
+                {
+                    var offer = o;
+                    <article class="of-card status-@offer.Status @(offer.IsBest ? "best" : "")">
+                        <header>
+                            <div class="of-buyer">
+                                <div class="of-avatar" style="background:@offer.AvatarBg">@offer.Initials</div>
+                                <div>
+                                    <strong>@offer.BuyerName</strong>
+                                    <span>@offer.Via</span>
+                                </div>
+                            </div>
+                            <div class="of-tags">
+                                @if (offer.IsBest && offer.Status != "rejected")
+                                {
+                                    <span class="of-tag of-tag-best">🏆 Best offer</span>
+                                }
+                                @if (offer.PreApproved)
+                                {
+                                    <span class="of-tag of-tag-preapp">✓ Pre-approved</span>
+                                }
+                                <span class="of-tag of-status-@offer.Status">@StatusLabel(offer.Status)</span>
+                            </div>
+                        </header>
+
+                        <div class="of-amount-row">
+                            <div class="of-amount">
+                                <span>Offer</span>
+                                <strong>@FormatMoney(offer.Amount)</strong>
+                                <small>@DeltaToGuide(offer.Amount)</small>
+                            </div>
+                            <div class="of-terms">
+                                <div class="of-term"><span>Conditions</span><strong>@offer.Conditions</strong></div>
+                                <div class="of-term"><span>Settlement</span><strong>@offer.Settlement</strong></div>
+                                <div class="of-term"><span>Received</span><strong>@offer.ReceivedAgo ago</strong></div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(offer.Message))
+                        {
+                            <blockquote class="of-msg">"@offer.Message"</blockquote>
+                        }
+
+                        @if (offer.CounteredAmount is { } countered)
+                        {
+                            <div class="of-counter-trail">
+                                <span>You countered</span>
+                                <strong>@FormatMoney(countered)</strong>
+                                @if (!string.IsNullOrEmpty(offer.CounterNote))
+                                {
+                                    <em>— "@offer.CounterNote"</em>
+                                }
+                            </div>
+                        }
+
+                        <footer>
+                            @if (offer.Status == "pending" || offer.Status == "countered")
+                            {
+                                <button class="of-btn of-btn-accept" @onclick="() => Accept(offer.Id)">Accept</button>
+                                <button class="of-btn of-btn-counter" @onclick="() => OpenCounter(offer.Id)">Counter</button>
+                                <button class="of-btn of-btn-reject" @onclick="() => Reject(offer.Id)">Reject</button>
+                                <button class="of-btn of-btn-link" @onclick="() => MessageBuyer(offer.Id)">Message</button>
+                            }
+                            else if (offer.Status == "accepted")
+                            {
+                                <span class="of-foot-note">✓ Accepted on @offer.ResolvedAt — buyer notified.</span>
+                                <button class="of-btn of-btn-link" @onclick="() => MessageBuyer(offer.Id)">Message</button>
+                            }
+                            else if (offer.Status == "rejected")
+                            {
+                                <span class="of-foot-note">✗ Rejected. Buyer was notified — you can still send them a message.</span>
+                                <button class="of-btn of-btn-link" @onclick="() => MessageBuyer(offer.Id)">Message</button>
+                            }
+                        </footer>
+                    </article>
+                }
+            </section>
+        }
+
+        @if (_counterOfferId is not null)
+        {
+            var target = _offers.FirstOrDefault(x => x.Id == _counterOfferId);
+            if (target is not null)
+            {
+                <div class="of-drawer-backdrop" @onclick="CloseCounter"></div>
+                <aside class="of-drawer" @onclick:stopPropagation>
+                    <header>
+                        <div>
+                            <span class="of-drawer-eyebrow">Counter offer</span>
+                            <h3>Counter @target.BuyerName</h3>
+                            <p>Their offer: <strong>@FormatMoney(target.Amount)</strong> · @target.Conditions · @target.Settlement</p>
+                        </div>
+                        <button class="of-drawer-close" @onclick="CloseCounter">×</button>
+                    </header>
+                    <div class="of-form">
+                        <div class="of-field">
+                            <label>Counter price</label>
+                            <input type="number" min="0" step="1000" @bind="_counterAmount" />
+                            <small>@DeltaToOffer(_counterAmount, target.Amount) vs their offer · @DeltaToGuide(_counterAmount) vs your guide</small>
+                        </div>
+                        <div class="of-field">
+                            <label>Note (buyers see this)</label>
+                            <textarea rows="3" placeholder="Why this number — settlement timing, finance, anything that helps." @bind="_counterNote"></textarea>
+                        </div>
+                        <footer class="of-form-actions">
+                            <button class="of-btn-link" @onclick="CloseCounter">Cancel</button>
+                            <button class="of-btn of-btn-counter" @onclick="SendCounter">Send counter</button>
+                        </footer>
+                    </div>
+                </aside>
+            }
+        }
+
+        @if (_toast is not null)
+        {
+            <div class="of-toast" role="status">@_toast</div>
+        }
+    </main>
+</div>
+
+@code {
+    private record Listing(string Address, string Suburb, string PriceGuide, decimal PriceGuideMid, int DaysListed);
+    private record Offer(
+        Guid Id,
+        string BuyerName,
+        string Initials,
+        string AvatarBg,
+        decimal Amount,
+        string Conditions,
+        string Settlement,
+        string ReceivedAgo,
+        DateTime ReceivedAt,
+        string Via,
+        bool PreApproved,
+        string? Message)
+    {
+        public string Status { get; set; } = "pending";
+        public bool IsBest { get; set; }
+        public decimal? CounteredAmount { get; set; }
+        public string? CounterNote { get; set; }
+        public string? ResolvedAt { get; set; }
+    }
+
+    private readonly Listing _listing = new(
+        "67 Northview Outlook",
+        "Moorooka, QLD",
+        "$1.05M – $1.15M",
+        PriceGuideMid: 1_100_000m,
+        DaysListed: 14);
+
+    private readonly List<Offer> _offers = new()
+    {
+        new Offer(
+            Guid.Parse("aaaaaaaa-0001-0000-0000-000000000001"),
+            BuyerName: "John Williams", Initials: "JW", AvatarBg: "#10b981",
+            Amount: 1_180_000m, Conditions: "Cash, unconditional",
+            Settlement: "30 days", ReceivedAgo: "2 days", ReceivedAt: DateTime.UtcNow.AddDays(-2),
+            Via: "Direct via unreal.estate", PreApproved: true,
+            Message: "Cash buyer, ready to settle. Happy to do an early inspection if it helps.")
+            { IsBest = true },
+        new Offer(
+            Guid.Parse("aaaaaaaa-0002-0000-0000-000000000002"),
+            BuyerName: "Emily Martinez", Initials: "EM", AvatarBg: "#6366f1",
+            Amount: 1_120_000m, Conditions: "Subject to finance (14 days)",
+            Settlement: "45 days", ReceivedAgo: "4 days", ReceivedAt: DateTime.UtcNow.AddDays(-4),
+            Via: "Via Sarah Chen, Ray White", PreApproved: true,
+            Message: "Loved the staging photos. Pre-approved with CBA — finance clause is a formality."),
+        new Offer(
+            Guid.Parse("aaaaaaaa-0003-0000-0000-000000000003"),
+            BuyerName: "Patel Family", Initials: "PF", AvatarBg: "#f59e0b",
+            Amount: 1_095_000m, Conditions: "Subject to building & pest",
+            Settlement: "60 days", ReceivedAgo: "5 days", ReceivedAt: DateTime.UtcNow.AddDays(-5),
+            Via: "Direct via unreal.estate", PreApproved: false,
+            Message: null),
+        new Offer(
+            Guid.Parse("aaaaaaaa-0004-0000-0000-000000000004"),
+            BuyerName: "Daniel Kim", Initials: "DK", AvatarBg: "#ef4444",
+            Amount: 1_040_000m, Conditions: "Subject to sale of own home",
+            Settlement: "90 days", ReceivedAgo: "7 days", ReceivedAt: DateTime.UtcNow.AddDays(-7),
+            Via: "Via Marcus Patel, Belle Property", PreApproved: false,
+            Message: "Very keen — own home is listed and showing well, expect to settle by Aug.")
+            { Status = "rejected", ResolvedAt = "2 days ago" },
+        new Offer(
+            Guid.Parse("aaaaaaaa-0005-0000-0000-000000000005"),
+            BuyerName: "Sienna Brooks", Initials: "SB", AvatarBg: "#8b5cf6",
+            Amount: 1_140_000m, Conditions: "Cash, 14-day cooling off",
+            Settlement: "21 days", ReceivedAgo: "1 day", ReceivedAt: DateTime.UtcNow.AddDays(-1),
+            Via: "Direct via unreal.estate", PreApproved: true,
+            Message: "Investor — minimal fuss, can settle fast.")
+            { Status = "countered", CounteredAmount = 1_165_000m, CounterNote = "Will accept at $1.165M with 30-day settlement." }
+    };
+
+    private string _filter = "active";
+    private string _sort = "amount";
+    private Guid? _counterOfferId;
+    private decimal _counterAmount;
+    private string _counterNote = "";
+    private string? _toast;
+
+    private decimal _bestActive => _offers.Where(IsActive).Select(o => o.CounteredAmount ?? o.Amount).DefaultIfEmpty(0).Max();
+    private decimal _avgActive
+    {
+        get
+        {
+            var active = _offers.Where(IsActive).ToList();
+            return active.Count == 0 ? 0 : (decimal)active.Average(o => (double)(o.CounteredAmount ?? o.Amount));
+        }
+    }
+
+    private List<Offer> _visibleOffers =>
+        _offers
+            .Where(MatchesFilter)
+            .OrderBy(o => _sort switch
+            {
+                "newest" => -o.ReceivedAt.Ticks,
+                "settlement" => SettlementDays(o.Settlement),
+                _ => -(double)(o.CounteredAmount ?? o.Amount)
+            })
+            .ToList();
+
+    private bool MatchesFilter(Offer o) => _filter switch
+    {
+        "all" => true,
+        "active" => IsActive(o),
+        _ => o.Status == _filter
+    };
+
+    private static bool IsActive(Offer o) => o.Status == "pending" || o.Status == "countered";
+
+    private static double SettlementDays(string s) =>
+        int.TryParse(new string(s.Where(char.IsDigit).ToArray()), out var d) ? d : 999;
+
+    private static string FormatMoney(decimal v) =>
+        v == 0 ? "—" : "$" + v.ToString("N0");
+
+    private string DeltaToGuide(decimal v)
+    {
+        if (v == 0) return "";
+        var diff = v - _listing.PriceGuideMid;
+        var pct = (diff / _listing.PriceGuideMid) * 100m;
+        var sign = diff >= 0 ? "+" : "";
+        return $"{sign}{FormatMoney(diff).TrimStart('+')} vs mid-guide ({sign}{pct:0.0}%)";
+    }
+
+    private static string DeltaToOffer(decimal a, decimal b)
+    {
+        if (b == 0) return "";
+        var diff = a - b;
+        var sign = diff >= 0 ? "+" : "";
+        return $"{sign}${diff:N0}";
+    }
+
+    private static string StatusLabel(string s) => s switch
+    {
+        "pending" => "Pending your decision",
+        "countered" => "Countered — awaiting buyer",
+        "accepted" => "Accepted",
+        "rejected" => "Rejected",
+        _ => s
+    };
+
+    private void Accept(Guid id)
+    {
+        var offer = _offers.FirstOrDefault(x => x.Id == id);
+        if (offer is null) return;
+        foreach (var o in _offers.Where(o => o.Id != id && IsActive(o)))
+        {
+            o.Status = "rejected";
+            o.ResolvedAt = "just now (auto)";
+        }
+        offer.Status = "accepted";
+        offer.ResolvedAt = "just now";
+        Toast($"Accepted {offer.BuyerName}'s offer · other active offers were auto-rejected");
+    }
+
+    private void Reject(Guid id)
+    {
+        var offer = _offers.FirstOrDefault(x => x.Id == id);
+        if (offer is null) return;
+        offer.Status = "rejected";
+        offer.ResolvedAt = "just now";
+        offer.IsBest = false;
+        RecomputeBest();
+        Toast($"Rejected {offer.BuyerName}'s offer");
+    }
+
+    private void OpenCounter(Guid id)
+    {
+        _counterOfferId = id;
+        var offer = _offers.FirstOrDefault(x => x.Id == id);
+        _counterAmount = offer is null ? 0 : Math.Max(offer.Amount + 25_000m, _listing.PriceGuideMid);
+        _counterNote = "";
+    }
+
+    private void CloseCounter() => _counterOfferId = null;
+
+    private void SendCounter()
+    {
+        var offer = _offers.FirstOrDefault(x => x.Id == _counterOfferId);
+        if (offer is null) return;
+        offer.Status = "countered";
+        offer.CounteredAmount = _counterAmount;
+        offer.CounterNote = string.IsNullOrWhiteSpace(_counterNote) ? null : _counterNote.Trim();
+        RecomputeBest();
+        Toast($"Counter sent to {offer.BuyerName} at {FormatMoney(_counterAmount)}");
+        _counterOfferId = null;
+    }
+
+    private void MessageBuyer(Guid id)
+    {
+        var offer = _offers.FirstOrDefault(x => x.Id == id);
+        if (offer is null) return;
+        Nav.NavigateTo($"/chat?mode=sell&buyer={Uri.EscapeDataString(offer.BuyerName)}");
+    }
+
+    private void RecomputeBest()
+    {
+        foreach (var o in _offers) o.IsBest = false;
+        var top = _offers.Where(IsActive)
+            .OrderByDescending(o => o.CounteredAmount ?? o.Amount)
+            .FirstOrDefault();
+        if (top is not null) top.IsBest = true;
+    }
+
+    private void Toast(string msg)
+    {
+        _toast = msg;
+        _ = HideToastSoon();
+    }
+
+    private async Task HideToastSoon()
+    {
+        await Task.Delay(3500);
+        _toast = null;
+        await InvokeAsync(StateHasChanged);
+    }
+}

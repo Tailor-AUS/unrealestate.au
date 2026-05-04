@@ -59,8 +59,9 @@ Add these secrets:
 3. Go to APIs & Services → Credentials
 4. Create OAuth 2.0 Client ID (Web application)
 5. Add authorized redirect URIs:
-   - `https://aigents.au/signin-google`
-   - `https://aigents-web-production.azurecontainerapps.io/signin-google`
+   - `https://unrealestate.au/signin-google`
+   - `https://www.unrealestate.au/signin-google`
+   - `https://aigents-web-production.bluetree-f1d87971.australiaeast.azurecontainerapps.io/signin-google`
 
 ## Step 4: Configure DNS for aigents.au
 
