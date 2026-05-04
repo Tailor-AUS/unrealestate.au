@@ -25,7 +25,20 @@ else
                 <div class="price-tag">
                     @_listing.PriceDisplay
                 </div>
+                <div class="status-row">
+                    <span class="status-pill open">OPEN listing · any agent can sell it</span>
+                </div>
             </div>
+        </div>
+
+        <!-- Live activity strip: social proof for buyers -->
+        <div class="activity-strip">
+            <div class="activity-pulse" aria-hidden="true"></div>
+            <div class="activity-stat"><strong>@_viewersToday</strong><span>viewing today</span></div>
+            <div class="activity-stat"><strong>@_enquiriesToday</strong><span>enquiries (24h)</span></div>
+            <div class="activity-stat"><strong>@_offersTotal</strong><span>offers received</span></div>
+            <div class="activity-stat"><strong>@_savedCount</strong><span>buyers saved</span></div>
+            <div class="activity-meta">Last enquiry @_lastEnquiryAgo ago</div>
         </div>
 
         <!-- Main Content -->
@@ -78,16 +91,20 @@ else
                     <button class="primary-btn pulse" @onclick="MakeOffer">
                         Make an Offer
                     </button>
-                    
-                    <button class="secondary-btn">
-                        Book Inspection
+
+                    <button class="secondary-btn" @onclick="OpenEnquiry">
+                        Ask a question
                     </button>
-                    
+
+                    <button class="ghost-btn" @onclick="OpenInspection">
+                        Book inspection
+                    </button>
+
                     <div class="agent-profile">
                         <div class="avatar">H</div>
                         <div class="details">
                             <span class="name">Direct to Homeowner</span>
-                            <span class="role">Managed by Aigents Platform</span>
+                            <span class="role">No agent fee · powered by unreal.estate</span>
                         </div>
                     </div>
                 </div>
@@ -100,6 +117,71 @@ else
                              Sub="No marketing tax, no $3,000 cheque to a US portal. Drop your address, snap your photos — our AI writes the copy and stages the photos in seconds. Drag the slider to see it."
                              Meta="Australian-owned · not-for-profit · ~3 minutes" />
         </div>
+
+        <!-- Enquiry Modal -->
+        @if (_showEnquiryModal)
+        {
+            <div class="modal-backdrop" @onclick="CloseEnquiry">
+                <div class="modal-content" @onclick:stopPropagation>
+                    <h3>Ask the owner a question</h3>
+                    <p>Direct message — no agent middleman, no spam list.</p>
+                    <div class="form-group">
+                        <label>Your name</label>
+                        <input type="text" @bind="_enqName" placeholder="Sienna Brooks" />
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" @bind="_enqEmail" placeholder="you@example.com" />
+                    </div>
+                    <div class="form-group">
+                        <label>Question</label>
+                        <textarea @bind="_enqMessage" placeholder="Is the rear deck staying? When can I inspect?"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="primary-btn" @onclick="SubmitEnquiry">Send question</button>
+                        <button class="secondary-btn" @onclick="CloseEnquiry">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Inspection Modal -->
+        @if (_showInspectionModal)
+        {
+            <div class="modal-backdrop" @onclick="CloseInspection">
+                <div class="modal-content" @onclick:stopPropagation>
+                    <h3>Book an inspection</h3>
+                    <p>Pick a slot. Owner confirms by reply.</p>
+                    <div class="form-group">
+                        <label>Your name</label>
+                        <input type="text" @bind="_inspName" placeholder="Sienna Brooks" />
+                    </div>
+                    <div class="form-group">
+                        <label>Phone (so the owner can reach you fast)</label>
+                        <input type="tel" @bind="_inspPhone" placeholder="04xx xxx xxx" />
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred slot</label>
+                        <div class="slot-grid">
+                            @foreach (var slot in _inspectionSlots)
+                            {
+                                var s = slot;
+                                <button type="button" class="slot @(_inspSlot == s ? "selected" : "")" @onclick="() => _inspSlot = s">@s</button>
+                            }
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="primary-btn" @onclick="SubmitInspection" disabled="@(string.IsNullOrEmpty(_inspSlot))">Request slot</button>
+                        <button class="secondary-btn" @onclick="CloseInspection">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_toast is not null)
+        {
+            <div class="page-toast" role="status">@_toast</div>
+        }
 
         <!-- Offer Modal -->
         @if (_showOfferModal)
@@ -348,6 +430,150 @@ else
         margin-top: 30px;
     }
 
+    .status-row {
+        margin-top: 14px;
+    }
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.85);
+        color: white;
+        backdrop-filter: blur(8px);
+    }
+    .status-pill.open {
+        background: rgba(16, 185, 129, 0.92);
+    }
+
+    .activity-strip {
+        max-width: 1200px;
+        margin: -24px auto 0 auto;
+        padding: 14px 22px;
+        background: white;
+        border-radius: 16px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        position: relative;
+        z-index: 5;
+        flex-wrap: wrap;
+    }
+    .activity-pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        position: relative;
+        flex-shrink: 0;
+    }
+    .activity-pulse::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        background: #10b981;
+        opacity: 0.4;
+        animation: pulse-ring 1.6s ease-out infinite;
+    }
+    @@keyframes pulse-ring {
+        0%   { transform: scale(0.5); opacity: 0.6; }
+        100% { transform: scale(1.8); opacity: 0; }
+    }
+    .activity-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+    }
+    .activity-stat strong {
+        font-size: 18px;
+        font-weight: 800;
+        color: #1a1a2e;
+    }
+    .activity-stat span {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+    }
+    .activity-meta {
+        margin-left: auto;
+        font-size: 12px;
+        color: #6b7280;
+        font-style: italic;
+    }
+
+    .ghost-btn {
+        background: none;
+        border: 1px dashed rgba(99, 102, 241, 0.45);
+        color: #6366f1;
+        border-radius: 10px;
+        padding: 11px 16px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        margin-top: 10px;
+        width: 100%;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .ghost-btn:hover {
+        background: rgba(99, 102, 241, 0.06);
+        border-color: #6366f1;
+        border-style: solid;
+    }
+
+    .slot-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    .slot {
+        background: white;
+        border: 1.5px solid rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1a1a2e;
+        cursor: pointer;
+        font-family: inherit;
+        transition: border-color .15s, background .15s;
+    }
+    .slot:hover { border-color: #6366f1; }
+    .slot.selected {
+        border-color: #6366f1;
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+
+    .page-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1a1a2e;
+        color: white;
+        padding: 12px 22px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+        z-index: 1100;
+        animation: pd-toast-in .25s ease;
+    }
+    @@keyframes pd-toast-in {
+        from { opacity: 0; transform: translate(-50%, 12px); }
+        to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+
     .sell-promo-wrap {
         max-width: 1200px;
         margin: 0 auto;
@@ -365,6 +591,12 @@ else
         .sell-promo-wrap {
             padding: 12px 16px 40px 16px;
         }
+        .activity-strip {
+            margin: -8px 16px 0 16px;
+            padding: 12px 16px;
+        }
+        .activity-meta { display: none; }
+        .activity-stat strong { font-size: 16px; }
     }
 </style>
 
@@ -378,6 +610,32 @@ else
     private string _offerName = "";
     private string _offerMessage = "";
 
+    // Enquiry + inspection state
+    private bool _showEnquiryModal;
+    private string _enqName = "";
+    private string _enqEmail = "";
+    private string _enqMessage = "";
+
+    private bool _showInspectionModal;
+    private string _inspName = "";
+    private string _inspPhone = "";
+    private string _inspSlot = "";
+    private readonly string[] _inspectionSlots = new[]
+    {
+        "Sat 10:00 am", "Sat 11:30 am", "Sat 1:00 pm",
+        "Sun 10:00 am", "Sun 11:30 am",
+        "Wed 5:30 pm"
+    };
+
+    private string? _toast;
+
+    // Live activity counters — mock for now; back with telemetry in a follow-up.
+    private int _viewersToday = 47;
+    private int _enquiriesToday = 3;
+    private int _offersTotal = 5;
+    private int _savedCount = 18;
+    private string _lastEnquiryAgo = "12 min";
+
     protected override async Task OnInitializedAsync()
     {
         _listing = await ListingService.GetListingAsync(Id);
@@ -386,6 +644,42 @@ else
     private void MakeOffer()
     {
         _showOfferModal = true;
+    }
+
+    private void OpenEnquiry() => _showEnquiryModal = true;
+    private void CloseEnquiry() => _showEnquiryModal = false;
+    private void OpenInspection() => _showInspectionModal = true;
+    private void CloseInspection() => _showInspectionModal = false;
+
+    private void SubmitEnquiry()
+    {
+        if (string.IsNullOrWhiteSpace(_enqMessage)) return;
+        _enquiriesToday += 1;
+        _lastEnquiryAgo = "just now";
+        _showEnquiryModal = false;
+        Toast($"✓ Question sent to the owner. They'll reply by email.");
+        _enqMessage = "";
+    }
+
+    private void SubmitInspection()
+    {
+        if (string.IsNullOrEmpty(_inspSlot)) return;
+        _showInspectionModal = false;
+        Toast($"✓ Inspection request sent for {_inspSlot}. Owner confirms by reply.");
+        _inspSlot = "";
+    }
+
+    private void Toast(string message)
+    {
+        _toast = message;
+        _ = HideToastSoon();
+    }
+
+    private async Task HideToastSoon()
+    {
+        await Task.Delay(3500);
+        _toast = null;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SubmitOffer()

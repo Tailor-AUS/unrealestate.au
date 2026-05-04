@@ -4,7 +4,7 @@
 
 <PageTitle>Chat - Aigents</PageTitle>
 
-<Chat Mode="@Mode" Address="@Address" />
+<Chat Mode="@Mode" Address="@Address" Buyer="@Buyer" />
 
 @code {
     [SupplyParameterFromQuery]
@@ -12,6 +12,9 @@
 
     [SupplyParameterFromQuery]
     public string? Address { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Buyer { get; set; }
 }
 
 

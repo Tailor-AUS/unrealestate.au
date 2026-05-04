@@ -150,6 +150,10 @@ else
     [SupplyParameterFromQuery]
     public string? Address { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? Buyer { get; set; }
+
     private string _mode = "buy";
     private string _input = "";
     private bool _isLoading;
@@ -174,6 +178,14 @@ else
         if (_mode == "sell" && !string.IsNullOrEmpty(Address))
         {
             await GenerateReport(Address);
+        }
+
+        // Buyer context handoff from /my-offers — seed the conversation so the
+        // AI knows it's drafting a reply on a specific offer thread.
+        if (_mode == "sell" && !string.IsNullOrEmpty(Buyer))
+        {
+            _messages.Add(new ChatMessage("assistant",
+                $"You're now talking about {Buyer}'s offer. I can help you draft a counter, ask for finance proof, request a stronger settlement, or simply reply with a question. What would you like to say?"));
         }
     }
     
