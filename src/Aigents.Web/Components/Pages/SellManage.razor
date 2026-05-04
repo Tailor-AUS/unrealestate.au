@@ -166,6 +166,109 @@
                     }
                 </div>
             </section>
+
+            @* ─── Live scoreboard for open-agency mode ─── *@
+            @if (_selectedMode == "open" && _agentResponses.Count > 0)
+            {
+                <section class="sm-scoreboard">
+                    <div class="sm-scoreboard-head">
+                        <div>
+                            <h2>Live competition · @_agentResponses.Count agent@(_agentResponses.Count == 1 ? "" : "s") responding</h2>
+                            <p>Same brief, side-by-side replies. Accept one and the rest auto-decline. Decline any individually before that.</p>
+                        </div>
+                        <div class="sm-brief-pill">
+                            <span>Your brief</span>
+                            <strong>@_commission.ToString("0.00")%</strong>
+                            <strong>$@_marketing.ToString("N0")</strong>
+                            <strong>@_weeks wk</strong>
+                            <strong>@(_strategies.First(s => s.Key == _strategy).Title)</strong>
+                        </div>
+                    </div>
+
+                    @{
+                        var responses = _agentResponses
+                            .Select(kv => (Agent: _agents.First(a => a.Id == kv.Key), Proposal: kv.Value))
+                            .OrderBy(x => x.Proposal.Status == "accepted" ? 0 : x.Proposal.Status == "declined" ? 2 : 1)
+                            .ThenBy(x => x.Proposal.Commission)
+                            .ToList();
+                        var winner = responses
+                            .Where(r => r.Proposal.Status == "accepted")
+                            .Select(r => r.Agent)
+                            .FirstOrDefault();
+                    }
+
+                    @if (winner is not null)
+                    {
+                        <div class="sm-winner-banner">
+                            🏆 You picked <strong>@winner.Name</strong> — @winner.Agency. The rest were notified and stood down.
+                        </div>
+                    }
+
+                    <div class="sm-score-grid">
+                        @foreach (var item in responses)
+                        {
+                            var ag = item.Agent;
+                            var pr = item.Proposal;
+                            var diffCom = pr.Commission - _commission;
+                            var diffMkt = pr.Marketing - _marketing;
+                            <article class="sm-score-card status-@pr.Status">
+                                <header>
+                                    <div class="sm-score-agent">
+                                        <div class="sm-agent-avatar" style="background:@ag.AvatarBg">@ag.Initials</div>
+                                        <div>
+                                            <strong>@ag.Name</strong>
+                                            <span>@ag.Agency · @ag.Suburb</span>
+                                        </div>
+                                    </div>
+                                    <span class="sm-score-status">@StatusLabel(pr.Status)</span>
+                                </header>
+
+                                <div class="sm-score-terms">
+                                    <div>
+                                        <span>Commission</span>
+                                        <strong>@pr.Commission.ToString("0.00")%</strong>
+                                        <small class="@(diffCom <= 0 ? "good" : "bad")">@FormatDelta(diffCom, "% pts")</small>
+                                    </div>
+                                    <div>
+                                        <span>Marketing</span>
+                                        <strong>$@pr.Marketing.ToString("N0")</strong>
+                                        <small class="@(diffMkt <= 0 ? "good" : "bad")">@FormatDelta(diffMkt)</small>
+                                    </div>
+                                    <div>
+                                        <span>Length</span>
+                                        <strong>@pr.Weeks wk</strong>
+                                    </div>
+                                    <div>
+                                        <span>Strategy</span>
+                                        <strong>@(_strategies.First(s => s.Key == pr.Strategy).Title)</strong>
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(pr.Note))
+                                {
+                                    <blockquote class="sm-score-note">"@pr.Note"</blockquote>
+                                }
+
+                                <footer>
+                                    @if (pr.Status == "pending")
+                                    {
+                                        <button class="sm-btn-primary" @onclick="() => AcceptResponse(ag.Id)">Accept this proposal</button>
+                                        <button class="sm-btn-link sm-decline" @onclick="() => DeclineResponse(ag.Id)">Decline</button>
+                                    }
+                                    else if (pr.Status == "accepted")
+                                    {
+                                        <span class="sm-foot-note">✓ Accepted. We're notifying the buyer pipeline.</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sm-foot-note">Declined.</span>
+                                    }
+                                </footer>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
         }
 
         @* Proposal drawer *@
@@ -398,6 +501,11 @@
             })
     };
 
+    private record AgentProposal(double Commission, int Marketing, int Weeks, string Strategy, string? Note)
+    {
+        public string Status { get; set; } = "pending";
+    }
+
     private string _selectedMode = "open";
     private Guid? _proposalAgentId;
     private double _commission = 2.2;
@@ -406,6 +514,7 @@
     private string _strategy = "private";
     private string _notes = "";
     private readonly HashSet<Guid> _invited = new();
+    private readonly Dictionary<Guid, AgentProposal> _agentResponses = new();
     private string? _lastSentAgentName;
 
     private void SelectMode(string key)
@@ -424,11 +533,82 @@
 
     private void SendProposal()
     {
-        if (_proposalAgentId is { } id)
+        if (_proposalAgentId is not { } id) return;
+        _invited.Add(id);
+        var ag = _agents.FirstOrDefault(a => a.Id == id);
+        _lastSentAgentName = ag?.Name;
+        if (_selectedMode == "open" && ag is not null)
         {
-            _invited.Add(id);
-            _lastSentAgentName = _agents.FirstOrDefault(a => a.Id == id)?.Name;
-            _proposalAgentId = null;
+            _agentResponses[id] = GenerateAgentCounter(ag);
         }
+        _proposalAgentId = null;
+    }
+
+    private AgentProposal GenerateAgentCounter(Agent a)
+    {
+        // Deterministic per-agent counter — established agents charge a touch more,
+        // hungrier "agent baby" types undercut to win the listing.
+        var rng = new Random(a.Id.GetHashCode());
+        var hunger = 1.0 - Math.Clamp(a.SoldThisYear / 40.0, 0, 1); // 0=busy, 1=hungry
+        var commissionDelta = (rng.NextDouble() * 0.5 - 0.25) - hunger * 0.15;
+        var counterCommission = Math.Round(Math.Clamp(_commission + commissionDelta, 1.5, 3.5), 2);
+
+        var marketingDelta = rng.Next(-400, 1600) - (int)(hunger * 700);
+        var counterMarketing = Math.Max(0, _marketing + marketingDelta);
+
+        var counterWeeks = Math.Clamp(_weeks + rng.Next(-1, 4), 4, 16);
+
+        var counterStrategy = (a.IsBaby && _strategy == "private") ? "auction" : _strategy;
+
+        var note = (hunger, a.IsBaby) switch
+        {
+            ( > 0.5, true)  => $"Lean and hungry — I'll out-work the established names. {counterWeeks}-wk campaign, tight feedback loop.",
+            ( > 0.5, false) => $"I can deliver inside @{counterWeeks} weeks. Reduce marketing without losing reach.",
+            (<= 0.5, true)  => "Still building — but I'll prioritise this listing over my pipeline. You'll hear from me daily.",
+            _               => $"Strong recent comparables in {a.Suburb}. Confident I'll bring it in over guide."
+        };
+
+        return new AgentProposal(counterCommission, counterMarketing, counterWeeks, counterStrategy, note);
+    }
+
+    private void AcceptResponse(Guid id)
+    {
+        if (!_agentResponses.ContainsKey(id)) return;
+        foreach (var (k, p) in _agentResponses)
+        {
+            p.Status = k == id ? "accepted" : "declined";
+        }
+        _lastSentAgentName = _agents.FirstOrDefault(a => a.Id == id)?.Name;
+    }
+
+    private void DeclineResponse(Guid id)
+    {
+        if (_agentResponses.TryGetValue(id, out var p))
+        {
+            p.Status = "declined";
+        }
+    }
+
+    private static string StatusLabel(string s) => s switch
+    {
+        "pending" => "Awaiting your call",
+        "accepted" => "Accepted ✓",
+        "declined" => "Declined",
+        _ => s
+    };
+
+    private static string FormatDelta(double v, string unit = "")
+    {
+        if (v == 0) return $"matches your brief";
+        var sign = v > 0 ? "+" : "";
+        return $"{sign}{v.ToString("0.00").TrimEnd('0').TrimEnd('.')}{unit} vs your brief";
+    }
+
+    private static string FormatDelta(int v)
+    {
+        if (v == 0) return "matches your brief";
+        return v > 0
+            ? $"+${v:N0} vs your brief"
+            : $"-${Math.Abs(v):N0} vs your brief";
     }
 }
