@@ -93,17 +93,24 @@ Landed on top of `main`:
 3. **`/list` Step 2** photos use the slider per-photo (replaced click-to-swap toggle).
 4. **`Hero.OnInitialized`** now maps `/sell|/buy|/rent|/agent` to the right tab + search-type.
 5. **`SellPromoBanner`** (`Components/Shared/SellPromoBanner.razor`) — mini slider + "List your home free in 3 minutes" CTA. Embedded above `/explore` content (suppressed in seller mode) and bottom of `/property/{id}`.
-6. **`/sell/manage`** (`Pages/SellManage.razor` + `.razor.css`) — Sale Mode picker (DIY / Open / Exclusive), agent shortlist with comparable sales + estimated live buyer database (sold × avg-buyers + active-pipeline × half), proposal drawer with sliders for commission / marketing / weeks plus a strategy pill row, and a sent-toast.
-7. Linked `/sell/manage` from the Hero seller card and added a primary "Manage sale →" button on each listing in `SellerDashboard`.
+6. **`/sell/manage`** (`Pages/SellManage.razor` + `.razor.css`) — Sale Mode picker (DIY / Open / Exclusive), agent shortlist with comparable sales + estimated live buyer database, proposal drawer with sliders, and a live open-agency scoreboard that generates deterministic per-agent counter-proposals on submit and lets the seller accept one (auto-declines the rest).
+7. **`/my-offers`** (`Pages/MyOffers.razor` + `.razor.css`) — DIY offer inbox with summary band, sortable + filterable list, accept/counter/reject + Message-buyer actions, counter drawer with delta vs offer / vs guide, and toasts.
+8. **`/property/{id}` two-way funnel** — OPEN-listing pill + live activity strip (viewers/enquiries/offers/saves with pulsing indicator + last-enquiry-ago) + Ask-a-question modal + Book-inspection slot picker. Both modals **persist** via `ListingService.UpdateListingAsync` as `ListingInquiry` rows.
+9. **`/chat?buyer=`** — Chat seeds an opening turn scoped to the buyer's offer thread when the seller clicks Message on `/my-offers`.
+10. **Seller dashboard hardening** — stats grid (Active Listings / Total Offers / Best Offer / Enquiries) is now computed from real `_dashboardListings` inquiries instead of hardcoded; "+N new" delta pills appear when fresh activity arrived in the last 24h; per-listing "🔥 N offers" / "✨ N new in 24h" pulse pills sit above the listing header.
+11. Linked `/sell/manage` from the Hero seller card and added a primary "Manage sale →" button on each listing in `SellerDashboard`.
+12. Fixed the OAuth redirect URI in `.github/DEPLOYMENT.md` to use the full env-subdomain ACA hostname.
 
 ## What's mock vs. real
 
 - **AI staging pipeline** — UI shipped; real image generation NOT wired. `UploadedPhoto.StyledDataUrl` is currently set to the same data URL as `OriginalDataUrl`; the visual difference is a CSS filter (`saturate(1.18) brightness(1.04) contrast(1.06)`) on `.photo-image.styled-filter`. Search for `Phase B` in `CreateListing.razor` for the swap point.
 - **Homepage demo image pairs** — Picsum-seeded placeholders in `Hero._stagingDemo` and `SellPromoBanner` defaults. Swap once real before/after pairs exist (or pipe in user-uploaded ones).
 - **`/sell/manage` agents** — fabricated `_agents` array in `SellManage.razor`. Replace with an `IAgentShortlistService` that takes (suburb, priceBand) and returns ranked results.
+- **`/sell/manage` open-agency scoreboard** — `GenerateAgentCounter()` is a deterministic mock that hashes the agent's Guid. Swap when proposals API exists. Accept/decline only mutates local state.
 - **`/sell/manage` proposal submit** — `SendProposal()` only mutates local state. No backend.
-- **`/my-offers`** — referenced from links but the page may not exist yet (verify before relying on it).
-- **`SellerDashboard` activity feed / hybrid team / offers table** — mostly hard-coded sample data.
+- **`/my-offers`** — entire offer inbox is in-memory mock (`_offers` array in `MyOffers.razor`). Accept/counter/reject only mutate local state.
+- **`/property/{id}` activity strip** — viewer/enquiry/offer/save counters are mock; real telemetry not wired. Buyer enquiries + inspection requests **do persist** via `ListingService.UpdateListingAsync` (they create a `ListingInquiry` row, mirroring the existing offer hack — note the entity still requires an Agent FK so each enquiry creates a transient Agent row).
+- **`SellerDashboard` stats** — counts (active listings, total offers, best offer, enquiries, "+N new in 24h") are now computed from real `_dashboardListings` inquiries. Activity feed / hybrid team / offers table below are still hard-coded sample data.
 
 ## Conventions
 
@@ -118,13 +125,14 @@ Landed on top of `main`:
 In rough priority order — pick whichever the user asks for:
 
 1. **Real `IAgentShortlistService`** — replace mock `_agents` in `SellManage.razor`. BFF + Infrastructure impl that ranks agents by recent sales near the listing's suburb/price band.
-2. **Open-agency live scoreboard** — once invited, render competing proposals side-by-side (commission, marketing, weeks) with accept/reject.
-3. **`/my-offers`** — DIY users need a real offers inbox + accept/reject + counter flow.
-4. **AI staging pipeline (Phase B)** — wire `StyledDataUrl` to a real generated image; remove the CSS filter.
-5. **Real before/after photo pairs** — replace Picsum seeds in `Hero._stagingDemo` with curated stock pairs.
-6. **Seller funnel telemetry** — events for list-create / agent-invited / proposal-accepted / sale-mode-chosen so conversion is measurable.
-7. **Buyer chat polish** — review `/chat?mode=buy` flow + copy.
-8. **CD URL fix** — `.github/DEPLOYMENT.md` documents `aigents-web-production.azurecontainerapps.io` (missing the env subdomain). Real Azure FQDN is `aigents-web-production.bluetree-f1d87971.australiaeast.azurecontainerapps.io`. Fix the doc.
+2. **`ListingInquiry` schema cleanup** — current entity requires an `AgentId`, so buyer enquiries hack a transient Agent row into the FK. Make `AgentId` nullable + add buyer fields (`BuyerName`, `BuyerEmail`, `BuyerPhone`, `InquiryType`) so enquiry/inspection/offer can share one persistence path cleanly. Will need an EF migration.
+3. **Real proposals API** — `_agentResponses` + `GenerateAgentCounter` in `SellManage.razor` are pure client mocks; replace with a real proposal entity + service when an agent can actually reply.
+4. **Persist `/my-offers` data** — currently fully in-memory mock. Hook to `ListingInquiry` rows once schema cleanup (item 2) lands.
+5. **AI staging pipeline (Phase B)** — wire `StyledDataUrl` to a real generated image; remove the CSS filter.
+6. **Real before/after photo pairs** — replace Picsum seeds in `Hero._stagingDemo` with curated stock pairs.
+7. **Activity-strip telemetry** — replace mock viewer/enquiry/save counts on `/property/{id}` with real events.
+8. **Seller funnel telemetry** — events for list-create / agent-invited / proposal-accepted / offer-accepted / enquiry-received so conversion is measurable.
+9. **Buyer chat polish** — review `/chat?mode=buy` flow + copy.
 
 ## Hard rules for any Claude in this repo
 

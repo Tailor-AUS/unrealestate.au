@@ -47,29 +47,37 @@
             <div class="stat-card">
                 <span class="stat-icon">🏠</span>
                 <div class="stat-content">
-                    <span class="stat-value">1</span>
+                    <span class="stat-value">@_activeCount</span>
                     <span class="stat-label">Active Listings</span>
                 </div>
             </div>
             <div class="stat-card">
                 <span class="stat-icon">📊</span>
                 <div class="stat-content">
-                    <span class="stat-value">3</span>
+                    <span class="stat-value">@_offersCount</span>
                     <span class="stat-label">Total Offers</span>
+                    @if (_newOffersCount > 0)
+                    {
+                        <span class="stat-delta">+@_newOffersCount new</span>
+                    }
                 </div>
             </div>
             <div class="stat-card highlight">
                 <span class="stat-icon">🔥</span>
                 <div class="stat-content">
-                    <span class="stat-value">$1.18M</span>
+                    <span class="stat-value">@(_bestOffer is null ? "—" : "$" + FormatShortMoney(_bestOffer.Value))</span>
                     <span class="stat-label">Best Offer</span>
                 </div>
             </div>
             <div class="stat-card">
-                <span class="stat-icon">👁️</span>
+                <span class="stat-icon">💬</span>
                 <div class="stat-content">
-                    <span class="stat-value">47</span>
-                    <span class="stat-label">Views This Week</span>
+                    <span class="stat-value">@_enquiriesCount</span>
+                    <span class="stat-label">Enquiries</span>
+                    @if (_newEnquiriesCount > 0)
+                    {
+                        <span class="stat-delta">+@_newEnquiriesCount new</span>
+                    }
                 </div>
             </div>
         </div>
@@ -90,6 +98,23 @@
                         </div>
                     </div>
                     <div class="listing-details">
+                        @{
+                            var listingOffers = CountListingOffers(listing);
+                            var listingFresh = CountNewListingActivity(listing);
+                        }
+                        @if (listingOffers > 0 || listingFresh > 0)
+                        {
+                            <div class="listing-pulse-row">
+                                @if (listingOffers > 0)
+                                {
+                                    <span class="listing-pulse offers">🔥 @listingOffers offer@(listingOffers == 1 ? "" : "s")</span>
+                                }
+                                @if (listingFresh > 0)
+                                {
+                                    <span class="listing-pulse fresh">✨ @listingFresh new in 24h</span>
+                                }
+                            </div>
+                        }
                         <div class="listing-header">
                             <div>
                                 <h2>@listing.Address</h2>
@@ -508,6 +533,46 @@
 .stat-label {
     font-size: 13px;
     color: #6b7280;
+}
+
+.stat-delta {
+    margin-top: 4px;
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    color: #065f46;
+    background: #d1fae5;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.listing-pulse-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 24px 0 24px;
+}
+
+.listing-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.listing-pulse.offers {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.listing-pulse.fresh {
+    color: #5b21b6;
+    background: #ede9fe;
 }
 
 /* Listing Card Full */
@@ -1225,6 +1290,62 @@
 
     private List<Listing> _dashboardListings = new();
 
+    // Computed dashboard stats
+    private int _activeCount;
+    private int _offersCount;
+    private int _newOffersCount;
+    private int _enquiriesCount;
+    private int _newEnquiriesCount;
+    private decimal? _bestOffer;
+
+    private static readonly System.Text.RegularExpressions.Regex _offerAmountRe =
+        new(@"OFFER:\s*\$([\d,]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private void RecomputeStats()
+    {
+        var fresh = DateTime.UtcNow.AddHours(-24);
+        _activeCount = _dashboardListings.Count(l => l.Status == ListingStatus.Active);
+
+        var allInquiries = _dashboardListings.SelectMany(l => l.Inquiries ?? new List<ListingInquiry>()).ToList();
+        var offers = allInquiries.Where(i => i.Status == InquiryStatus.OfferMade).ToList();
+        var enquiries = allInquiries.Where(i => i.Status != InquiryStatus.OfferMade).ToList();
+
+        _offersCount = offers.Count;
+        _newOffersCount = offers.Count(i => i.CreatedAt >= fresh);
+        _enquiriesCount = enquiries.Count;
+        _newEnquiriesCount = enquiries.Count(i => i.CreatedAt >= fresh);
+
+        _bestOffer = offers
+            .Select(ParseOfferAmount)
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .DefaultIfEmpty(0m)
+            .Max();
+        if (_bestOffer == 0m) _bestOffer = null;
+    }
+
+    private static decimal? ParseOfferAmount(ListingInquiry i)
+    {
+        if (string.IsNullOrEmpty(i.Message)) return null;
+        var m = _offerAmountRe.Match(i.Message);
+        if (!m.Success) return null;
+        return decimal.TryParse(m.Groups[1].Value.Replace(",", ""), out var amt) ? amt : null;
+    }
+
+    private static string FormatShortMoney(decimal v) =>
+        v >= 1_000_000m ? $"{v / 1_000_000m:0.##}M"
+        : v >= 1_000m ? $"{v / 1_000m:0}k"
+        : v.ToString("N0");
+
+    private static int CountListingOffers(Listing l) =>
+        l.Inquiries?.Count(i => i.Status == InquiryStatus.OfferMade) ?? 0;
+
+    private static int CountNewListingActivity(Listing l)
+    {
+        var fresh = DateTime.UtcNow.AddHours(-24);
+        return l.Inquiries?.Count(i => i.CreatedAt >= fresh) ?? 0;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         // Fetch real listings if email provided
@@ -1251,6 +1372,8 @@
                  CreatedAt = DateTime.UtcNow.AddDays(-3)
             });
         }
+
+        RecomputeStats();
 
         // Start "Live" simulation with a random interval between 3-10 seconds
         _activityTimer = new Timer(SimulateLiveActivity, null, 2000, 5000);

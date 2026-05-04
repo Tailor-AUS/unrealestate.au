@@ -651,19 +651,51 @@ else
     private void OpenInspection() => _showInspectionModal = true;
     private void CloseInspection() => _showInspectionModal = false;
 
-    private void SubmitEnquiry()
+    private async Task SubmitEnquiry()
     {
-        if (string.IsNullOrWhiteSpace(_enqMessage)) return;
+        if (string.IsNullOrWhiteSpace(_enqMessage) || _listing is null) return;
+
+        // Persist the enquiry alongside the listing's inquiry collection.
+        // Note: ListingInquiry currently requires an Agent — we mirror the existing
+        // hack from SubmitOffer (store sender name on a transient Agent) until
+        // ListingInquiry is properly modelled with optional buyer fields.
+        var inquiry = new ListingInquiry
+        {
+            Id = Guid.NewGuid(),
+            ListingId = _listing.Id,
+            Message = $"QUESTION: {_enqMessage} (from {_enqName} · {_enqEmail})",
+            Status = InquiryStatus.New,
+            CreatedAt = DateTime.UtcNow,
+            Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_enqName) ? "Anonymous buyer" : _enqName }
+        };
+        _listing.Inquiries.Add(inquiry);
+        await ListingService.UpdateListingAsync(_listing);
+
         _enquiriesToday += 1;
         _lastEnquiryAgo = "just now";
         _showEnquiryModal = false;
-        Toast($"✓ Question sent to the owner. They'll reply by email.");
+        Toast("✓ Question sent to the owner. They'll reply by email.");
         _enqMessage = "";
     }
 
-    private void SubmitInspection()
+    private async Task SubmitInspection()
     {
-        if (string.IsNullOrEmpty(_inspSlot)) return;
+        if (string.IsNullOrEmpty(_inspSlot) || _listing is null) return;
+
+        var inquiry = new ListingInquiry
+        {
+            Id = Guid.NewGuid(),
+            ListingId = _listing.Id,
+            Message = $"INSPECTION: requested {_inspSlot} (from {_inspName} · {_inspPhone})",
+            Status = InquiryStatus.InspectionBooked,
+            CreatedAt = DateTime.UtcNow,
+            Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_inspName) ? "Anonymous buyer" : _inspName }
+        };
+        _listing.Inquiries.Add(inquiry);
+        await ListingService.UpdateListingAsync(_listing);
+
+        _enquiriesToday += 1;
+        _lastEnquiryAgo = "just now";
         _showInspectionModal = false;
         Toast($"✓ Inspection request sent for {_inspSlot}. Owner confirms by reply.");
         _inspSlot = "";
