@@ -283,30 +283,84 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure custom domains (unrealestate.au + www)
+      - name: Read DNS targets from Azure
+        id: dns
         run: |
-          # Bind apex unrealestate.au — needs TXT asuid record + A record
-          # at GoDaddy pointing at the Container Apps env static IP.
+          VERIFY_ID=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.customDomainVerificationId" -o tsv)
+          INGRESS_FQDN=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv)
+          STATIC_IP=$(az containerapp env show -n aigents-env-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.staticIp" -o tsv)
+          echo "verify_id=${VERIFY_ID}" >> $GITHUB_OUTPUT
+          echo "ingress_fqdn=${INGRESS_FQDN}" >> $GITHUB_OUTPUT
+          echo "static_ip=${STATIC_IP}" >> $GITHUB_OUTPUT
+
+      - name: Print DNS instructions to summary (copy-paste at registrar)
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## 🌐 DNS for unrealestate.au
+
+          Add **these three records** at your domain registrar's DNS panel.
+          Once they're propagated (5–60 min), re-run the **Bind unrealestate.au** workflow.
+
+          | Type  | Name (host)               | Value                                                 | TTL  |
+          |-------|---------------------------|-------------------------------------------------------|------|
+          | **A**     | \`@\` (apex \`unrealestate.au\`) | \`${{ steps.dns.outputs.static_ip }}\`                  | 1h   |
+          | **TXT**   | \`asuid\`                       | \`${{ steps.dns.outputs.verify_id }}\`                  | 1h   |
+          | **CNAME** | \`www\`                         | \`${{ steps.dns.outputs.ingress_fqdn }}\`               | 1h   |
+
+          - Apex (\`unrealestate.au\`) needs an **A** record (CNAMEs aren't allowed at the zone apex).
+          - The **TXT at \`asuid.unrealestate.au\`** is what proves to Azure you control the domain.
+          - **\`www\`** uses a CNAME — Azure validates and certs it automatically.
+
+          Once set, run **Actions → Bind unrealestate.au → Run workflow** (or push another commit to \`main\`). The cert is provisioned by Azure as soon as DNS resolves.
+          EOF
+
+      - name: Pre-check DNS (best effort)
+        id: precheck
+        continue-on-error: true
+        run: |
+          set -e
+          APEX_IP=$(dig +short A unrealestate.au @1.1.1.1 | head -n1 || true)
+          ASUID_TXT=$(dig +short TXT asuid.unrealestate.au @1.1.1.1 | tr -d '"' | head -n1 || true)
+          WWW_CNAME=$(dig +short CNAME www.unrealestate.au @1.1.1.1 | head -n1 || true)
+          echo "Resolved A unrealestate.au           = ${APEX_IP:-<empty>}"
+          echo "Resolved TXT asuid.unrealestate.au   = ${ASUID_TXT:-<empty>}"
+          echo "Resolved CNAME www.unrealestate.au   = ${WWW_CNAME:-<empty>}"
+
+          APEX_OK="false"; ASUID_OK="false"; WWW_OK="false"
+          [ "${APEX_IP}" = "${{ steps.dns.outputs.static_ip }}" ] && APEX_OK="true"
+          [ "${ASUID_TXT}" = "${{ steps.dns.outputs.verify_id }}" ] && ASUID_OK="true"
+          # CNAME resolution can be returned with a trailing dot
+          [ "${WWW_CNAME%.}" = "${{ steps.dns.outputs.ingress_fqdn }}" ] && WWW_OK="true"
+
+          echo "apex_ok=${APEX_OK}"   >> $GITHUB_OUTPUT
+          echo "asuid_ok=${ASUID_OK}" >> $GITHUB_OUTPUT
+          echo "www_ok=${WWW_OK}"     >> $GITHUB_OUTPUT
+
+      - name: Configure custom domains (apex + www)
+        run: |
+          # Apex unrealestate.au — needs A record at apex + TXT at asuid.<domain>.
+          # We use --validation-method TXT because the verification record at
+          # asuid.<domain> is a TXT containing the customDomainVerificationId.
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --hostname unrealestate.au \
-            || echo "apex hostname may already be configured (or DNS not ready yet)"
+            || echo "apex hostname may already be configured"
 
           az containerapp hostname bind \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --hostname unrealestate.au \
             --environment aigents-env-production \
-            --validation-method CNAME \
-            || echo "apex cert binding may already exist (or DNS not ready yet)"
+            --validation-method TXT \
+            || echo "apex bind failed — DNS likely not propagated yet (set A + TXT records, then re-run Bind unrealestate.au)"
 
-          # www.unrealestate.au (optional — works if user adds a CNAME at GoDaddy)
+          # www.unrealestate.au — CNAME validation works directly.
           az containerapp hostname add \
             --name aigents-web-production \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --hostname www.unrealestate.au \
-            || echo "www hostname may already be configured (or CNAME missing at GoDaddy)"
+            || echo "www hostname may already be configured"
 
           az containerapp hostname bind \
             --name aigents-web-production \
@@ -314,11 +368,11 @@ jobs:
             --hostname www.unrealestate.au \
             --environment aigents-env-production \
             --validation-method CNAME \
-            || echo "www cert binding may already exist (or CNAME missing at GoDaddy)"
+            || echo "www bind failed — CNAME at www likely missing or not propagated yet"
 
       - name: Verify deployment on unrealestate.au
         run: |
           for host in unrealestate.au www.unrealestate.au; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "https://$host" || echo "FAIL")
-            echo "https://$host -> HTTP $code (FAIL = pending DNS / cert binding)"
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "https://$host" || echo "FAIL")
+            echo "https://$host -> HTTP $code  (FAIL = pending DNS / cert binding — set DNS as printed above and re-run Bind unrealestate.au)"
           done
