@@ -1,3 +1,15 @@
+// Expand FOO_FILE env vars: read the file path, inject the file contents as FOO.
+// Lets AloomU (and any Docker secrets setup) pass secrets via mounted files
+// without any app-specific secret-reading code in each feature.
+foreach (var key in Environment.GetEnvironmentVariables().Keys.Cast<string>().ToList())
+{
+    if (!key.EndsWith("_FILE")) continue;
+    var filePath = Environment.GetEnvironmentVariable(key);
+    if (filePath is null || !File.Exists(filePath)) continue;
+    var value = File.ReadAllText(filePath).Trim();
+    Environment.SetEnvironmentVariable(key[..^5], value); // strip _FILE suffix
+}
+
 using Aigents.Api.Common;
 using Aigents.Api.Features.Crm;
 using Aigents.Api.Features.Calls;
@@ -27,7 +39,7 @@ builder.AddServiceDefaults();
 // DATABASE
 // ───────────────────────────────────────────────────────────────
 
-builder.AddSqlServerDbContext<AigentsDbContext>("aigentsdb");
+builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
 // REDIS CACHE
@@ -124,7 +136,8 @@ app.UseAuthorization();
 // ENDPOINTS
 // ───────────────────────────────────────────────────────────────
 
-app.MapDefaultEndpoints(); // Health checks
+app.MapDefaultEndpoints(); // Health checks — maps /health and /alive
+app.MapGet("/healthz", () => Results.Ok(new { status = "healthy", ts = DateTime.UtcNow })); // AloomU uptime probe
 app.MapCarter(); // Feature endpoints (Carter modules)
 
 // Agent Mobile API Endpoints

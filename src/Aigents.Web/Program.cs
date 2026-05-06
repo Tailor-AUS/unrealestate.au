@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// AIGENTS WEB - BLAZOR FRONTEND
+// unrealestate.au — Blazor Server frontend
 // ═══════════════════════════════════════════════════════════════
+
+// Expand FOO_FILE env vars (Docker secrets convention used on AloomU).
+foreach (var key in Environment.GetEnvironmentVariables().Keys.Cast<string>().ToList())
+{
+    if (!key.EndsWith("_FILE")) continue;
+    var filePath = Environment.GetEnvironmentVariable(key);
+    if (filePath is null || !File.Exists(filePath)) continue;
+    Environment.SetEnvironmentVariable(key[..^5], File.ReadAllText(filePath).Trim());
+}
 
 using Aigents.Infrastructure.Data;
 using Aigents.Web.Components;
@@ -18,10 +27,10 @@ builder.AddServiceDefaults();
 builder.WebHost.UseStaticWebAssets();
 
 // ───────────────────────────────────────────────────────────────
-// DATABASE (AZURE SQL VIA ASPIRE)
+// DATABASE
 // ───────────────────────────────────────────────────────────────
 
-builder.AddSqlServerDbContext<AigentsDbContext>("aigentsdb");
+builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
 // BLAZOR
@@ -40,9 +49,12 @@ builder.AddRedisOutputCache("redis");
 // API CLIENT
 // ───────────────────────────────────────────────────────────────
 
+// Aspire service discovery uses "https+http://api"; on AloomU (plain Docker)
+// set API_BASE_URL=http://unrealestate-api:8080 in the compose env block.
+var apiBaseUrl = builder.Configuration["API_BASE_URL"] ?? "https+http://api";
 builder.Services.AddHttpClient("api", client =>
 {
-    client.BaseAddress = new Uri("https+http://api");
+    client.BaseAddress = new Uri(apiBaseUrl);
 });
 
 // Default HttpClient for Blazor components (used by CreateListing wizard)

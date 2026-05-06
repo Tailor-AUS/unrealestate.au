@@ -12,12 +12,12 @@ var builder = DistributedApplication.CreateBuilder(args);
 // ───────────────────────────────────────────────────────────────
 
 var redis = builder.AddRedis("redis")
-    .WithDataVolume("aigents-redis-data");
+    .WithDataVolume("unrealestate-redis-data");
 
-var sql = builder.AddSqlServer("sql")
-    .WithDataVolume("aigents-sql-data");
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("unrealestate-postgres-data");
 
-var sqlDatabase = sql.AddDatabase("aigentsdb");
+var db = postgres.AddDatabase("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
 // SECRETS (from environment/config)
@@ -34,7 +34,7 @@ var googleClientSecret = builder.AddParameter("google-client-secret", secret: tr
 
 var api = builder.AddProject<Projects.Aigents_Api>("api")
     .WithReference(redis)
-    .WithReference(sqlDatabase)
+    .WithReference(db)
     .WithEnvironment("AzureAI__Endpoint", azureAiEndpoint)
     .WithEnvironment("AzureAI__DeploymentName", azureAiDeployment)
     .WithEnvironment("Google__ClientId", googleClientId)
@@ -49,6 +49,7 @@ var api = builder.AddProject<Projects.Aigents_Api>("api")
 var web = builder.AddProject<Projects.Aigents_Web>("web")
     .WithReference(api)
     .WithReference(redis)
+    .WithReference(db)
     .WithEnvironment("Google__ClientId", googleClientId)
     .WithEnvironment("Google__ClientSecret", googleClientSecret)
     .WithExternalHttpEndpoints();
