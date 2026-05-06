@@ -163,8 +163,8 @@ public class GoogleAuthHandler : IRequestHandler<GoogleAuthCommand, AuthResponse
         };
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"] ?? "aigents.au",
-            audience: _config["Jwt:Audience"] ?? "aigents.au",
+            issuer: _config["Jwt:Issuer"] ?? "unrealestate.au",
+            audience: _config["Jwt:Audience"] ?? "unrealestate.au",
             claims: claims,
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: credentials
