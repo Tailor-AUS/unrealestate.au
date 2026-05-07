@@ -79,7 +79,8 @@ services:
       ConnectionStrings__redis: redis:6379
       # Azure OpenAI (retained as fallback during AloomU Reason ramp)
       AzureAI__Endpoint_FILE: /run/secrets/unrealestate_azure_ai_endpoint
-      AzureAI__DeploymentName: gpt-4o
+      AzureAI__ApiKey_FILE: /run/secrets/unrealestate_azure_ai_key
+      AzureAI__DeploymentName: gpt-4.1
       # JWT
       Jwt__Issuer: unrealestate.au
       Jwt__Audience: unrealestate.au
@@ -98,6 +99,7 @@ services:
       - unrealestate_google_client_id
       - unrealestate_google_client_secret
       - unrealestate_azure_ai_endpoint
+      - unrealestate_azure_ai_key
       - unrealestate_jwt_secret
       - unrealestate_minio_access_key
       - unrealestate_minio_secret_key
@@ -132,6 +134,8 @@ services:
 #     file: /run/secrets/unrealestate_google_client_secret
 #   unrealestate_azure_ai_endpoint:
 #     file: /run/secrets/unrealestate_azure_ai_endpoint
+#   unrealestate_azure_ai_key:
+#     file: /run/secrets/unrealestate_azure_ai_key
 #   unrealestate_jwt_secret:
 #     file: /run/secrets/unrealestate_jwt_secret
 #   unrealestate_minio_access_key:
