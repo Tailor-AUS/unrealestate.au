@@ -140,6 +140,7 @@ app.UseOutputCache();
 // ───────────────────────────────────────────────────────────────
 
 app.MapDefaultEndpoints();
+app.MapGet("/healthz", () => Results.Ok(new { status = "healthy", ts = DateTime.UtcNow })); // AloomU uptime probe
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

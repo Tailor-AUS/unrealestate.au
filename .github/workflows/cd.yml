@@ -1,9 +1,16 @@
 # ═══════════════════════════════════════════════════════════════
-# AIGENTS CI/CD PIPELINE
-# Deploy to Aigents.au via Azure Container Apps
+# unrealestate.au — CD pipeline (AloomU Stage-0)
+# ═══════════════════════════════════════════════════════════════
+# Pushes web + api images to git.aloomu.au/unrealestate-au.
+# AloomU pulls them, runs migrations against Postgres, and the
+# Caddy reverse-proxy serves https://unrealestate.au.
+#
+# Required repo secrets:
+#   FORGEJO_CI_USERNAME   — `unrealestate-ci`
+#   FORGEJO_CI_TOKEN      — write:package + read:repository on git.aloomu.au
 # ═══════════════════════════════════════════════════════════════
 
-name: CD - Deploy to Aigents.au
+name: CD - Push images to git.aloomu.au
 
 on:
   push:
@@ -11,23 +18,13 @@ on:
       - main
       - master
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - staging
 
 env:
   DOTNET_VERSION: '9.0.x'
-  AZURE_RESOURCE_GROUP: 'aigents-rg'
-  AZURE_LOCATION: 'australiaeast'
-  ACR_NAME: 'aigentsacr'
-  API_IMAGE: 'aigents-api'
-  WEB_IMAGE: 'aigents-web'
+  REGISTRY: git.aloomu.au
+  REGISTRY_NAMESPACE: unrealestate-au
+  API_IMAGE: api
+  WEB_IMAGE: web
 
 jobs:
   # ─────────────────────────────────────────────────────────────
@@ -36,7 +33,7 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,323 +53,79 @@ jobs:
         run: dotnet test Aigents.sln --configuration Release --no-build --verbosity normal
         continue-on-error: true
 
-      - name: Publish API
-        run: dotnet publish src/Aigents.Api/Aigents.Api.csproj -c Release -o ./publish/api
-
-      - name: Publish Web
-        run: dotnet publish src/Aigents.Web/Aigents.Web.csproj -c Release -o ./publish/web
-
-      - name: Upload API artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-artifact
-          path: ./publish/api
-
-      - name: Upload Web artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-artifact
-          path: ./publish/web
-
   # ─────────────────────────────────────────────────────────────
-  # BUILD DOCKER IMAGES
+  # BUILD + PUSH IMAGES TO FORGEJO
   # ─────────────────────────────────────────────────────────────
-  docker:
-    name: Build & Push Docker Images
+  publish:
+    name: Build & push images
     runs-on: ubuntu-latest
     needs: build
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Login to Azure Container Registry
-        run: |
-          az acr login --name ${{ env.ACR_NAME }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push API image
+      - name: Login to git.aloomu.au
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.FORGEJO_CI_USERNAME }}
+          password: ${{ secrets.FORGEJO_CI_TOKEN }}
+
+      - name: Build & push API image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./src/Aigents.Api/Dockerfile
           push: true
           tags: |
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.API_IMAGE }}:${{ github.sha }}
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.API_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.API_IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.API_IMAGE }}:latest
           build-args: |
             CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push Web image
+      - name: Build & push Web image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./src/Aigents.Web/Dockerfile
           push: true
           tags: |
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.WEB_IMAGE }}:${{ github.sha }}
-            ${{ env.ACR_NAME }}.azurecr.io/${{ env.WEB_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.WEB_IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.WEB_IMAGE }}:latest
           build-args: |
             CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ─────────────────────────────────────────────────────────────
-  # DEPLOY TO AZURE
-  # ─────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to Aigents.au
-    runs-on: ubuntu-latest
-    needs: docker
-    environment: production
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Infrastructure (Bicep)
-        id: bicep-deploy
-        uses: azure/arm-deploy@v2
-        with:
-          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-          template: ./infra/main.bicep
-          parameters: >
-            environmentName=production
-            acrName=${{ env.ACR_NAME }}
-            imageTag=${{ github.sha }}
-            googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
-            googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          failOnStdErr: false
-
-      - name: Show Bicep failure details
-        if: failure() && steps.bicep-deploy.conclusion == 'failure'
-        run: |
-          echo "::group::Last deployment status"
-          az deployment group show \
-            --name main \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "properties.{state:provisioningState, error:error, correlationId:correlationId, timestamp:timestamp}" \
-            -o json || true
-          echo "::endgroup::"
-
-          echo "::group::Failed deployment operations"
-          az deployment operation group list \
-            --name main \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceName, type:properties.targetResource.resourceType, status:properties.statusCode, message:properties.statusMessage}" \
-            -o json || true
-          echo "::endgroup::"
-
-          echo "::group::Container app states (api + web)"
-          az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{state:properties.provisioningState, running:properties.runningStatus, image:properties.template.containers[0].image, command:properties.template.containers[0].command}" -o json || true
-          az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{state:properties.provisioningState, running:properties.runningStatus, image:properties.template.containers[0].image}" -o json || true
-          echo "::endgroup::"
-
-          echo "::group::Cognitive services account + deployments"
-          az cognitiveservices account show -n aigents-ai-au-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{state:properties.provisioningState, endpoint:properties.endpoint}" -o json || true
-          az cognitiveservices account deployment list -n aigents-ai-au-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[].{name:name, model:properties.model.name, version:properties.model.version, state:properties.provisioningState}" -o json || true
-          echo "::endgroup::"
-
-      - name: Get Web App URL
-        id: get-url
-        run: |
-          WEB_URL=$(az containerapp show \
-            --name aigents-web-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn \
-            --output tsv)
-          API_URL=$(az containerapp show \
-            --name aigents-api-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn \
-            --output tsv)
-          echo "web_url=https://$WEB_URL" >> $GITHUB_OUTPUT
-          echo "api_url=https://$API_URL" >> $GITHUB_OUTPUT
-          echo "🚀 Web deployed to: https://$WEB_URL"
-          echo "🚀 API deployed to: https://$API_URL"
-
-      - name: Show container app revisions (always — emit as annotations)
-        if: always()
-        run: |
-          # Emit key revision facts as ::notice:: annotations so they're
-          # visible via the unauthenticated check-runs API (the raw step
-          # output requires GitHub auth to read).
-
-          WEB_TEMPLATE_IMAGE=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "ERR")
-          WEB_LATEST_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv 2>/dev/null || echo "ERR")
-          WEB_LATEST_READY_REV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestReadyRevisionName" -o tsv 2>/dev/null || echo "ERR")
-          WEB_PROV=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.provisioningState" -o tsv 2>/dev/null || echo "ERR")
-
-          echo "::notice title=WEB_template_image::${WEB_TEMPLATE_IMAGE}"
-          echo "::notice title=WEB_latest_revision::${WEB_LATEST_REV}"
-          echo "::notice title=WEB_latest_ready_revision::${WEB_LATEST_READY_REV}"
-          echo "::notice title=WEB_provisioning::${WEB_PROV}"
-
-          # Emit each web revision as an annotation
-          az containerapp revision list -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[].{n:name, a:properties.active, h:properties.healthState, p:properties.provisioningState, t:properties.trafficWeight, i:properties.template.containers[0].image, r:properties.replicas}" -o tsv 2>/dev/null \
-            | while IFS=$'\t' read -r active healthState image name provisioningState replicas trafficWeight; do
-                echo "::notice title=WEB_rev::${name} active=${active} health=${healthState} prov=${provisioningState} traffic=${trafficWeight} replicas=${replicas} image=${image}"
-              done
-
-          # Same for API
-          API_TEMPLATE_IMAGE=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "ERR")
-          API_LATEST_REV=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv 2>/dev/null || echo "ERR")
-          API_LATEST_READY_REV=$(az containerapp show -n aigents-api-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.latestReadyRevisionName" -o tsv 2>/dev/null || echo "ERR")
-          echo "::notice title=API_template_image::${API_TEMPLATE_IMAGE}"
-          echo "::notice title=API_latest_revision::${API_LATEST_REV}"
-          echo "::notice title=API_latest_ready_revision::${API_LATEST_READY_REV}"
-
-          # ─── Custom-domain verification ID ───
-          # The user (domain owner at GoDaddy) needs to add a TXT record
-          # at asuid.unrealestate.au with this value before Azure will bind
-          # the custom hostname. Emit as an annotation so it's readable
-          # without GitHub auth.
-          WEB_VERIFY_ID=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.customDomainVerificationId" -o tsv 2>/dev/null || echo "ERR")
-          WEB_INGRESS_FQDN=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "ERR")
-          WEB_OUTBOUND_IP=$(az containerapp env show -n aigents-env-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.staticIp" -o tsv 2>/dev/null || echo "ERR")
-          echo "::notice title=DOMAIN_verification_id_for_TXT_record_at_asuid_unrealestate_au::${WEB_VERIFY_ID}"
-          echo "::notice title=DOMAIN_target_for_CNAME_or_A_record_at_unrealestate_au::${WEB_INGRESS_FQDN}"
-          echo "::notice title=DOMAIN_static_IP_for_apex_A_record::${WEB_OUTBOUND_IP}"
-
-      - name: Deployment Summary
-        run: |
-          echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** ${{ steps.get-url.outputs.web_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Services Deployed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Aigents API" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Aigents Web" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ SQL Server" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Redis Cache" >> $GITHUB_STEP_SUMMARY
-
-  # ─────────────────────────────────────────────────────────────
-  # CONFIGURE CUSTOM DOMAIN
-  # ─────────────────────────────────────────────────────────────
-  configure-domain:
-    name: Configure unrealestate.au domain
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-
-    steps:
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Read DNS targets from Azure
-        id: dns
-        run: |
-          VERIFY_ID=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.customDomainVerificationId" -o tsv)
-          INGRESS_FQDN=$(az containerapp show -n aigents-web-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv)
-          STATIC_IP=$(az containerapp env show -n aigents-env-production -g ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.staticIp" -o tsv)
-          echo "verify_id=${VERIFY_ID}" >> $GITHUB_OUTPUT
-          echo "ingress_fqdn=${INGRESS_FQDN}" >> $GITHUB_OUTPUT
-          echo "static_ip=${STATIC_IP}" >> $GITHUB_OUTPUT
-
-      - name: Print DNS instructions to summary (copy-paste at registrar)
+      - name: Summary
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## 🌐 DNS for unrealestate.au
+          ## 🚀 Images published
 
-          Add **these three records** at your domain registrar's DNS panel.
-          Once they're propagated (5–60 min), re-run the **Bind unrealestate.au** workflow.
+          | Image | Tag |
+          |-------|-----|
+          | \`${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.API_IMAGE }}\` | \`${{ github.sha }}\`, \`latest\` |
+          | \`${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.WEB_IMAGE }}\` | \`${{ github.sha }}\`, \`latest\` |
 
-          | Type  | Name (host)               | Value                                                 | TTL  |
-          |-------|---------------------------|-------------------------------------------------------|------|
-          | **A**     | \`@\` (apex \`unrealestate.au\`) | \`${{ steps.dns.outputs.static_ip }}\`                  | 1h   |
-          | **TXT**   | \`asuid\`                       | \`${{ steps.dns.outputs.verify_id }}\`                  | 1h   |
-          | **CNAME** | \`www\`                         | \`${{ steps.dns.outputs.ingress_fqdn }}\`               | 1h   |
+          ### Update AloomU compose stanza
 
-          - Apex (\`unrealestate.au\`) needs an **A** record (CNAMEs aren't allowed at the zone apex).
-          - The **TXT at \`asuid.unrealestate.au\`** is what proves to Azure you control the domain.
-          - **\`www\`** uses a CNAME — Azure validates and certs it automatically.
+          Patch \`docker-compose.aloomu.yml\` (or \`docker-compose.stage0.yml\` on AloomU side):
 
-          Once set, run **Actions → Bind unrealestate.au → Run workflow** (or push another commit to \`main\`). The cert is provisioned by Azure as soon as DNS resolves.
+          \`\`\`
+          unrealestate-web:
+            image: ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.WEB_IMAGE }}:${{ github.sha }}
+          unrealestate-api:
+            image: ${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.API_IMAGE }}:${{ github.sha }}
+          \`\`\`
+
+          Then on AloomU rack: \`docker compose pull && docker compose up -d\`.
           EOF
 
-      - name: Pre-check DNS (best effort)
-        id: precheck
-        continue-on-error: true
-        run: |
-          set -e
-          APEX_IP=$(dig +short A unrealestate.au @1.1.1.1 | head -n1 || true)
-          ASUID_TXT=$(dig +short TXT asuid.unrealestate.au @1.1.1.1 | tr -d '"' | head -n1 || true)
-          WWW_CNAME=$(dig +short CNAME www.unrealestate.au @1.1.1.1 | head -n1 || true)
-          echo "Resolved A unrealestate.au           = ${APEX_IP:-<empty>}"
-          echo "Resolved TXT asuid.unrealestate.au   = ${ASUID_TXT:-<empty>}"
-          echo "Resolved CNAME www.unrealestate.au   = ${WWW_CNAME:-<empty>}"
-
-          APEX_OK="false"; ASUID_OK="false"; WWW_OK="false"
-          [ "${APEX_IP}" = "${{ steps.dns.outputs.static_ip }}" ] && APEX_OK="true"
-          [ "${ASUID_TXT}" = "${{ steps.dns.outputs.verify_id }}" ] && ASUID_OK="true"
-          # CNAME resolution can be returned with a trailing dot
-          [ "${WWW_CNAME%.}" = "${{ steps.dns.outputs.ingress_fqdn }}" ] && WWW_OK="true"
-
-          echo "apex_ok=${APEX_OK}"   >> $GITHUB_OUTPUT
-          echo "asuid_ok=${ASUID_OK}" >> $GITHUB_OUTPUT
-          echo "www_ok=${WWW_OK}"     >> $GITHUB_OUTPUT
-
-      - name: Configure custom domains (apex + www)
-        run: |
-          # Apex unrealestate.au — needs A record at apex + TXT at asuid.<domain>.
-          # We use --validation-method TXT because the verification record at
-          # asuid.<domain> is a TXT containing the customDomainVerificationId.
-          az containerapp hostname add \
-            --name aigents-web-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname unrealestate.au \
-            || echo "apex hostname may already be configured"
-
-          az containerapp hostname bind \
-            --name aigents-web-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname unrealestate.au \
-            --environment aigents-env-production \
-            --validation-method TXT \
-            || echo "apex bind failed — DNS likely not propagated yet (set A + TXT records, then re-run Bind unrealestate.au)"
-
-          # www.unrealestate.au — CNAME validation works directly.
-          az containerapp hostname add \
-            --name aigents-web-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.unrealestate.au \
-            || echo "www hostname may already be configured"
-
-          az containerapp hostname bind \
-            --name aigents-web-production \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --hostname www.unrealestate.au \
-            --environment aigents-env-production \
-            --validation-method CNAME \
-            || echo "www bind failed — CNAME at www likely missing or not propagated yet"
-
-      - name: Verify deployment on unrealestate.au
-        run: |
-          for host in unrealestate.au www.unrealestate.au; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "https://$host" || echo "FAIL")
-            echo "https://$host -> HTTP $code  (FAIL = pending DNS / cert binding — set DNS as printed above and re-run Bind unrealestate.au)"
-          done
+          echo "::notice title=API_image::${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.API_IMAGE }}:${{ github.sha }}"
+          echo "::notice title=WEB_image::${{ env.REGISTRY }}/${{ env.REGISTRY_NAMESPACE }}/${{ env.WEB_IMAGE }}:${{ github.sha }}"

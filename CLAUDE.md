@@ -12,33 +12,45 @@ Australian homes on US-owned portals (REA, CoStar/Domain). We're the free
 Australian alternative — sellers list for $0, buyers and agents browse for $0,
 hosted in Australia East.
 
-Customer-facing site: <https://unrealestate.au> (apex domain bound to the
-`aigents-web-production` Azure Container App in `aigents-rg`, `australiaeast`).
+Customer-facing site: <https://unrealestate.au> served by AloomU's Caddy
+reverse-proxy in front of the `unrealestate-web` container.
 Vision/thesis: `docs/VISION.md`. User stories: `docs/USER_STORIES.md`.
+Stage-0 deployment + auth detail: `docs/HANDOFF.md`.
 
 ## Stack at a glance
 
-- **.NET 9** + **.NET Aspire 9** orchestration (`Aigents.AppHost`).
+- **.NET 9** + **.NET Aspire 9** orchestration (`Aigents.AppHost`, local dev only).
 - **Web** — Blazor Server (interactive server render with prerender) — `Aigents.Web`.
 - **API** — minimal API service — `Aigents.Api`.
 - **Domain / Infrastructure** — DDD-ish split (`Aigents.Domain`, `Aigents.Infrastructure`).
-  Infrastructure holds `PropertyData`, `Syndication`, `CrmIntegration`, `Services/AI` (Azure OpenAI gpt-4o).
-- **Local dev** — Aspire AppHost spins up SQL (Azure SQL Edge image, ARM64-friendly), Redis, MailDev via `docker-compose.yml`.
-- **Hosting** — Azure Container Apps in `australiaeast` (`bluetree-f1d87971` env). Custom domain bound in `.github/workflows/cd.yml`.
+  Infrastructure holds `PropertyData`, `Syndication`, `CrmIntegration`, `Services/AI` (Azure OpenAI gpt-4.1).
+- **Auth** — sovereign-from-day-1: ASP.NET Core Identity native (email + password,
+  email confirmation, password reset, login alerts). Optional WebAuthn passkey
+  via Fido2NetLib. **No third-party IdP.** Web uses cookie auth; API issues JWT.
+- **Database** — PostgreSQL 16 (`unrealestate` database on AloomU's Postgres).
+- **Email** — transactional via AloomU's mailserver (`mail.aloomu.au:587`
+  STARTTLS, MailKit). `admin@unrealestate.au` / `noreply@unrealestate.au`.
+- **Local dev** — Aspire AppHost spins up Postgres, Redis, MailDev via `docker-compose.yml`.
+- **Hosting** — AloomU rack (Docker Compose stack: `unrealestate-{web,api}` +
+  shared Postgres / Redis / MinIO / Caddy). Images in
+  `git.aloomu.au/unrealestate-au/{web,api}:<sha>`, pushed by GitHub Actions
+  (`.github/workflows/cd.yml`) on merge to `main`.
 
 ## Run it locally
 
 Full guide: `SETUP.md` (the "Local Development" section). Short version:
 
 ```bash
-# 1. Start containers (SQL, Redis, MailDev)
+# 1. Start infra containers (Postgres, Redis, MailDev)
 ./scripts/setup-local.sh        # or .\scripts\setup-local.ps1 on Windows
 
 # 2. Required user-secrets on AppHost (one-time)
 dotnet user-secrets set "Parameters:azure-ai-endpoint"   "https://YOUR.openai.azure.com/" --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:azure-ai-deployment" "gpt-4o"                          --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:google-client-id"     "..."                            --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:google-client-secret" "..."                            --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:azure-ai-deployment" "gpt-4.1"                         --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-host"           "mail.aloomu.au"                  --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-username"       "admin@unrealestate.au"           --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-password"       "<from password manager>"         --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:jwt-secret"          "<random 32-byte string>"          --project src/Aigents.AppHost
 
 # 3. Run the whole graph through Aspire
 dotnet run --project src/Aigents.AppHost
@@ -63,12 +75,15 @@ src/
       Layout/                 MainLayout
     wwwroot/js/               JS interop (leaflet, globe-viz, before-after-slider, …)
   Aigents.Api/                Minimal API
-  Aigents.Domain/             Entities (Listing, SyndicationStatus, …)
-  Aigents.Infrastructure/     PropertyData, Syndication, AI, CRM
+    Features/Auth/              NativeAuth (Identity) + PasskeyAuth (WebAuthn)
+  Aigents.Domain/             Entities (User : IdentityUser<Guid>, Listing, …)
+  Aigents.Infrastructure/     PropertyData, Syndication, AI, CRM, Services/Auth, Services/Email
+    Data/Migrations/            EF migrations (auto-applied on API startup)
   Aigents.ServiceDefaults/    Shared host config
 
-docs/                         VISION, USER_STORIES, ARCHITECTURE, research
-.github/workflows/cd.yml      Build → push image → bind unrealestate.au domain
+docs/                         VISION, USER_STORIES, ARCHITECTURE, HANDOFF, research
+docker-compose.aloomu.yml     Stage-0 stanza Knox merges into AloomU's compose stack
+.github/workflows/cd.yml      Build → push image to git.aloomu.au/unrealestate-au
 SETUP.md                      End-to-end deployment + local-dev guide
 ```
 
@@ -82,24 +97,26 @@ All three personas have full coverage; the Hero's audience tabs surface them.
 | Buyer   | `/explore`, `/property/{guid}`, `/chat?mode=buy` | Buyer pages also surface a `SellPromoBanner` to convert browsers into sellers. |
 | Agent   | `/agents`, `/agents/register`, `/agents/listings` (alias `/agents/browse`), `/agents/listing/{id}` | |
 | Cross   | `/`, `/buy`, `/sell`, `/rent`, `/agent` (all render `Home.razor` → `Hero.razor`; `Hero.OnInitialized` maps the path to the right audience tab + search type). | |
+| Account | `/Account/{Login,Register,RegisterConfirmation,ConfirmEmail,ResendConfirmation,ForgotPassword,ResetPassword,Logout,AccessDenied}` | Identity native flow; SSR forms backed by `SignInManager` / `UserManager`. |
 
-## Recent work on `claude/provide-production-url-b2XAK`
+## Recent platform-shape changes (post-AloomU migration)
 
-Landed on top of `main`:
+Now on `main`:
 
-1. **`BeforeAfterSlider`** (`Components/Shared/BeforeAfterSlider.razor` + `.razor.css` + `wwwroot/js/before-after-slider.js`)
-   — pointer/touch drag, keyboard (← → Home End), thumbnail tab switcher.
-2. **AI staging band** on the homepage Hero — drag to compare phone snap → AI-staged.
-3. **`/list` Step 2** photos use the slider per-photo (replaced click-to-swap toggle).
-4. **`Hero.OnInitialized`** now maps `/sell|/buy|/rent|/agent` to the right tab + search-type.
-5. **`SellPromoBanner`** (`Components/Shared/SellPromoBanner.razor`) — mini slider + "List your home free in 3 minutes" CTA. Embedded above `/explore` content (suppressed in seller mode) and bottom of `/property/{id}`.
-6. **`/sell/manage`** (`Pages/SellManage.razor` + `.razor.css`) — Sale Mode picker (DIY / Open / Exclusive), agent shortlist with comparable sales + estimated live buyer database, proposal drawer with sliders, and a live open-agency scoreboard that generates deterministic per-agent counter-proposals on submit and lets the seller accept one (auto-declines the rest).
-7. **`/my-offers`** (`Pages/MyOffers.razor` + `.razor.css`) — DIY offer inbox with summary band, sortable + filterable list, accept/counter/reject + Message-buyer actions, counter drawer with delta vs offer / vs guide, and toasts.
-8. **`/property/{id}` two-way funnel** — OPEN-listing pill + live activity strip (viewers/enquiries/offers/saves with pulsing indicator + last-enquiry-ago) + Ask-a-question modal + Book-inspection slot picker. Both modals **persist** via `ListingService.UpdateListingAsync` as `ListingInquiry` rows.
-9. **`/chat?buyer=`** — Chat seeds an opening turn scoped to the buyer's offer thread when the seller clicks Message on `/my-offers`.
-10. **Seller dashboard hardening** — stats grid (Active Listings / Total Offers / Best Offer / Enquiries) is now computed from real `_dashboardListings` inquiries instead of hardcoded; "+N new" delta pills appear when fresh activity arrived in the last 24h; per-listing "🔥 N offers" / "✨ N new in 24h" pulse pills sit above the listing header.
-11. Linked `/sell/manage` from the Hero seller card and added a primary "Manage sale →" button on each listing in `SellerDashboard`.
-12. Fixed the OAuth redirect URI in `.github/DEPLOYMENT.md` to use the full env-subdomain ACA hostname.
+1. **Sovereign-from-day-1 auth.** `Features/Auth/GoogleAuth.cs` deleted; replaced
+   by `NativeAuth.cs` (register / confirm / login / forgot / reset / me, all
+   issuing JWT) and `PasskeyAuth.cs` (Fido2NetLib WebAuthn). Web has SSR
+   account pages under `Components/Account/Pages`.
+2. **Postgres + AloomU substrate.** `AddSqlServer` → `AddPostgres`; Azure SQL
+   Edge image and Bicep deploy retired. `docker-compose.aloomu.yml` is the
+   stanza Knox feeds into the AloomU compose stack.
+3. **Transactional email via AloomU SMTP.** MailKit-backed sender with branded
+   templates for confirmation, reset, login alerts, and passkey-added notices.
+4. **CD pipeline points at Forgejo.** `.github/workflows/cd.yml` now logs in
+   to `git.aloomu.au` and pushes `unrealestate-au/{web,api}:<sha>`. The Azure
+   Bicep / Container Apps deploy steps are gone.
+5. **EF migration regenerated** for Postgres; auto-applied on API start.
+   Includes Identity tables (`AspNetUsers`, etc.) + new `Fido2Credentials`.
 
 ## What's mock vs. real
 
@@ -115,7 +132,7 @@ Landed on top of `main`:
 ## Conventions
 
 - **Commits** — Conventional-ish: `feat(scope): summary` (`feat(/list, home): …`). Imperative present tense.
-- **Branch development** — All Claude work lands on a single feature branch; current is `claude/provide-production-url-b2XAK`. Don't push directly to `main`.
+- **Branch development** — Work lands on a `claude/<topic>` branch and is PR'd to `main`. Don't push directly to `main`.
 - **Comments** — sparing. Only when the WHY isn't obvious. Don't narrate the WHAT.
 - **Razor pages** — scoped CSS via `Foo.razor.css` sibling files; `_Imports.razor` already has `Aigents.Web.Components.Shared` so shared components are usable without `@using`.
 - **No new top-level docs unless asked.** This file is the exception.
