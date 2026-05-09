@@ -91,7 +91,7 @@ public static class InspectionEndpoints
         {
             inspectionId,
             checkInToken = token,
-            checkInUrl = $"https://aigents.au/checkin/{token}",
+            checkInUrl = $"https://unrealestate.au/checkin/{token}",
             qrCodeUrl = $"/api/inspections/{inspectionId}/qr"
         }));
     }
@@ -99,7 +99,7 @@ public static class InspectionEndpoints
     private static Task<IResult> GetQrCode(string inspectionId)
     {
         var token = GenerateCheckInToken(inspectionId);
-        var checkInUrl = $"https://aigents.au/checkin/{token}";
+        var checkInUrl = $"https://unrealestate.au/checkin/{token}";
         
         // Return QR code configuration (mobile app will render it)
         return Task.FromResult(Results.Ok(new

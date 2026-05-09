@@ -1,0 +1,146 @@
+# ═══════════════════════════════════════════════════════════════
+# unrealestate.au — AloomU Stage-0 compose stanza
+# ═══════════════════════════════════════════════════════════════
+# Knox: merge these two service blocks into docker-compose.stage0.yml
+# Network assumed: aloomu_default (containers join automatically)
+# Secrets: mount at /run/secrets/<name> via top-level secrets block
+# Images: sha-tagged; update <GIT_SHA> on each deploy
+#
+# Notes for AloomU:
+#   * Auth is sovereign-from-day-1 — ASP.NET Core Identity native, no
+#     third-party IdP. No Google OAuth env or secrets.
+#   * Resource caps are expressed as top-level mem_limit/cpus so plain
+#     `docker compose up` enforces them (deploy.resources.limits is a
+#     no-op outside Swarm).
+#   * Healthcheck uses wget --spider — the Alpine .NET runtime base
+#     ships BusyBox wget but not curl.
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  unrealestate-web:
+    image: git.aloomu.au/unrealestate-au/web:<GIT_SHA>
+    container_name: unrealestate-web
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      # Postgres — reads connection string from secret file at startup
+      ConnectionStrings__unrealestate_FILE: /run/secrets/unrealestate_db_connstr
+      # Redis
+      ConnectionStrings__redis: redis:6379
+      # API base URL (internal Docker network — no Aspire service discovery)
+      API_BASE_URL: http://unrealestate-api:8080
+      # MinIO
+      Storage__Endpoint: http://minio:9000
+      Storage__Bucket: unrealestate-photos
+      Storage__AccessKey_FILE: /run/secrets/unrealestate_minio_access_key
+      Storage__SecretKey_FILE: /run/secrets/unrealestate_minio_secret_key
+      Storage__ForcePathStyle: "true"
+      # SMTP — transactional outbound via mail.aloomu.au
+      Smtp__Host: mail.aloomu.au
+      Smtp__Port: "587"
+      Smtp__Username: admin@unrealestate.au
+      Smtp__Password_FILE: /run/secrets/unrealestate_smtp_password
+      Smtp__FromAddress: noreply@unrealestate.au
+      Smtp__FromName: unrealestate.au
+      # Public site URL — used to build email confirmation / password reset links
+      App__PublicUrl: https://unrealestate.au
+    secrets:
+      - unrealestate_db_connstr
+      - unrealestate_minio_access_key
+      - unrealestate_minio_secret_key
+      - unrealestate_smtp_password
+    mem_limit: 1g
+    mem_reservation: 256m
+    cpus: 2.0
+    pids_limit: 300
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  unrealestate-api:
+    image: git.aloomu.au/unrealestate-au/api:<GIT_SHA>
+    container_name: unrealestate-api
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      # Postgres
+      ConnectionStrings__unrealestate_FILE: /run/secrets/unrealestate_db_connstr
+      # Redis
+      ConnectionStrings__redis: redis:6379
+      # Azure OpenAI (retained as fallback during AloomU Reason ramp)
+      AzureAI__Endpoint_FILE: /run/secrets/unrealestate_azure_ai_endpoint
+      AzureAI__ApiKey_FILE: /run/secrets/unrealestate_azure_ai_key
+      AzureAI__DeploymentName: gpt-4.1
+      # JWT (issued for the ASP.NET Core Identity native flow)
+      Jwt__Issuer: unrealestate.au
+      Jwt__Audience: unrealestate.au
+      Jwt__Secret_FILE: /run/secrets/unrealestate_jwt_secret
+      # MinIO
+      Storage__Endpoint: http://minio:9000
+      Storage__Bucket: unrealestate-photos
+      Storage__AccessKey_FILE: /run/secrets/unrealestate_minio_access_key
+      Storage__SecretKey_FILE: /run/secrets/unrealestate_minio_secret_key
+      Storage__ForcePathStyle: "true"
+      # SMTP — transactional outbound via mail.aloomu.au
+      Smtp__Host: mail.aloomu.au
+      Smtp__Port: "587"
+      Smtp__Username: admin@unrealestate.au
+      Smtp__Password_FILE: /run/secrets/unrealestate_smtp_password
+      Smtp__FromAddress: noreply@unrealestate.au
+      Smtp__FromName: unrealestate.au
+      App__PublicUrl: https://unrealestate.au
+    secrets:
+      - unrealestate_db_connstr
+      - unrealestate_azure_ai_endpoint
+      - unrealestate_azure_ai_key
+      - unrealestate_jwt_secret
+      - unrealestate_minio_access_key
+      - unrealestate_minio_secret_key
+      - unrealestate_smtp_password
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 1.0
+    pids_limit: 200
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ─────────────────────────────────────────────────────────────
+# Secrets to declare in docker-compose.stage0.yml top-level:
+# ─────────────────────────────────────────────────────────────
+# secrets:
+#   unrealestate_db_connstr:
+#     file: /run/secrets/unrealestate_db_connstr
+#   unrealestate_azure_ai_endpoint:
+#     file: /run/secrets/unrealestate_azure_ai_endpoint
+#   unrealestate_azure_ai_key:
+#     file: /run/secrets/unrealestate_azure_ai_key
+#   unrealestate_jwt_secret:
+#     file: /run/secrets/unrealestate_jwt_secret
+#   unrealestate_minio_access_key:
+#     file: /run/secrets/unrealestate_minio_access_key
+#   unrealestate_minio_secret_key:
+#     file: /run/secrets/unrealestate_minio_secret_key
+#   unrealestate_smtp_password:
+#     file: /run/secrets/unrealestate_smtp_password

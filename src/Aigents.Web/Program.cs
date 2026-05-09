@@ -1,10 +1,24 @@
 // ═══════════════════════════════════════════════════════════════
-// AIGENTS WEB - BLAZOR FRONTEND
+// unrealestate.au — Blazor Server frontend
 // ═══════════════════════════════════════════════════════════════
 
+using Aigents.Domain.Entities;
 using Aigents.Infrastructure.Data;
+using Aigents.Infrastructure.Services.Auth;
 using Aigents.Web.Components;
+using Aigents.Web.Components.Account;
 using Aigents.Web.Services;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
+
+// Expand FOO_FILE env vars (Docker secrets convention used on AloomU).
+foreach (var key in Environment.GetEnvironmentVariables().Keys.Cast<string>().ToList())
+{
+    if (!key.EndsWith("_FILE")) continue;
+    var filePath = Environment.GetEnvironmentVariable(key);
+    if (filePath is null || !File.Exists(filePath)) continue;
+    Environment.SetEnvironmentVariable(key[..^5], File.ReadAllText(filePath).Trim());
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,10 +32,10 @@ builder.AddServiceDefaults();
 builder.WebHost.UseStaticWebAssets();
 
 // ───────────────────────────────────────────────────────────────
-// DATABASE (AZURE SQL VIA ASPIRE)
+// DATABASE
 // ───────────────────────────────────────────────────────────────
 
-builder.AddSqlServerDbContext<AigentsDbContext>("aigentsdb");
+builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
 // BLAZOR
@@ -29,6 +43,7 @@ builder.AddSqlServerDbContext<AigentsDbContext>("aigentsdb");
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddCascadingAuthenticationState();
 
 // ───────────────────────────────────────────────────────────────
 // OUTPUT CACHING (REDIS)
@@ -40,13 +55,16 @@ builder.AddRedisOutputCache("redis");
 // API CLIENT
 // ───────────────────────────────────────────────────────────────
 
+// Aspire service discovery uses "https+http://api"; on AloomU (plain Docker)
+// set API_BASE_URL=http://unrealestate-api:8080 in the compose env block.
+var apiBaseUrl = builder.Configuration["API_BASE_URL"] ?? "https+http://api";
 builder.Services.AddHttpClient("api", client =>
 {
-    client.BaseAddress = new Uri("https+http://api");
+    client.BaseAddress = new Uri(apiBaseUrl);
 });
 
 // Default HttpClient for Blazor components (used by CreateListing wizard)
-builder.Services.AddScoped(sp => 
+builder.Services.AddScoped(sp =>
 {
     var factory = sp.GetRequiredService<IHttpClientFactory>();
     return factory.CreateClient("api");
@@ -62,35 +80,46 @@ builder.Services.AddScoped<IListingService, ListingService>();
 // Web Intelligence Service (Scrapes/Searches for property data)
 builder.Services.AddHttpClient<Aigents.Infrastructure.PropertyData.IPropertyIntelligenceService, Aigents.Infrastructure.PropertyData.PropertyIntelligenceService>(client =>
 {
-    // In a real scenario, this might point to a specific scraper service or use a proxy
     client.Timeout = TimeSpan.FromSeconds(30);
-    // client.BaseAddress = ... 
 });
 
 // ───────────────────────────────────────────────────────────────
-// AUTHENTICATION (optional - requires Google credentials)
+// AUTHENTICATION — sovereign-from-day-1, no third-party IdP
 // ───────────────────────────────────────────────────────────────
 
-var googleClientId = builder.Configuration["Google:ClientId"];
-var googleClientSecret = builder.Configuration["Google:ClientSecret"];
+builder.Services.AddAigentsAuthCore(builder.Configuration);
 
-if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
-{
-    builder.Services.AddAuthentication(options =>
+builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     {
-        options.DefaultScheme = "Cookies";
-        options.DefaultChallengeScheme = "Google";
+        options.SignIn.RequireConfirmedEmail = true;
+        options.Password.RequiredLength = 10;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.User.RequireUniqueEmail = true;
     })
-    .AddCookie("Cookies")
-    .AddGoogle("Google", options =>
-    {
-        options.ClientId = googleClientId;
-        options.ClientSecret = googleClientSecret;
-        options.CallbackPath = "/signin-google";
-    });
-    
-    builder.Services.AddCascadingAuthenticationState();
-}
+    .AddEntityFrameworkStores<AigentsDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "unrealestate.auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.SlidingExpiration = true;
+});
+
+builder.Services.AddScoped<IdentityRedirectManager>();
+builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<ISiteContext, SiteContext>();
 
@@ -100,10 +129,10 @@ var app = builder.Build();
 // MIDDLEWARE
 // ───────────────────────────────────────────────────────────────
 
-// Note: HTTPS redirect disabled for local Aspire development
-// Enable in production with proper HTTPS configuration
 app.MapStaticAssets();
 app.UseAntiforgery();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseOutputCache();
 
 // ───────────────────────────────────────────────────────────────
@@ -114,5 +143,8 @@ app.MapDefaultEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Identity helper endpoints (sign-out, etc.).
+app.MapAdditionalIdentityEndpoints();
 
 app.Run();

@@ -547,16 +547,16 @@
             PriceDisplay = $"$ {(_priceMin)} - {(_priceMax)}",
             Status = Aigents.Domain.Entities.ListingStatus.Active,
             CreatedAt = DateTime.UtcNow,
-            // Create a Ghost User for this session
-            User = new User 
-            { 
-                Id = Guid.NewGuid(), 
-                Email = $"{_userMobile.Replace(" ", "")}@sms.aigents.com", // Synthetic email from mobile
-                Phone = _userMobile,
+            // Create a Ghost User for this session — they finish signup later
+            // via the email-confirmation flow if/when they choose a password.
+            User = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
+                UserName = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
+                PhoneNumber = _userMobile,
                 Name = "Homeowner",
-                Provider = "mobile",
-                ProviderId = _userMobile
-            } 
+            }
         };
 
         // 2. Persist to in-memory service

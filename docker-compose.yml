@@ -1,42 +1,42 @@
 # ═══════════════════════════════════════════════════════════════
-# AIGENTS - DOCKER COMPOSE (ARM64 Compatible)
+# unrealestate.au — LOCAL DEV (Docker Compose)
 # ═══════════════════════════════════════════════════════════════
-# Works on: Apple Silicon (M1/M2/M3), Snapdragon (Windows ARM64)
+# Mirrors the AloomU Stage-0 substrate: Postgres 16, Redis, MinIO.
 # Run: docker compose up -d
+# After first start, generate migrations:
+#   dotnet ef migrations add InitialCreate \
+#     --project src/Aigents.Infrastructure \
+#     --startup-project src/Aigents.Api
 # ═══════════════════════════════════════════════════════════════
 
 services:
   # ─────────────────────────────────────────────────────────────
-  # SQL SERVER (using x86_64 emulation on Windows ARM64)
+  # POSTGRES 16  (matches AloomU substrate exactly)
   # ─────────────────────────────────────────────────────────────
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    platform: linux/amd64
-    container_name: aigents-sql
-    user: root
+  postgres:
+    image: postgres:16-alpine
+    container_name: unrealestate-postgres
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "Aigents@2024!"
-      MSSQL_PID: "Developer"
+      POSTGRES_DB: unrealestate
+      POSTGRES_USER: unrealestate
+      POSTGRES_PASSWORD: localdev_password
     ports:
-      - "1433:1433"
+      - "5432:5432"
     volumes:
-      - sqlserver-data:/var/opt/mssql
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Aigents@2024!" -C -Q "SELECT 1" || exit 1
+      test: ["CMD-SHELL", "pg_isready -U unrealestate -d unrealestate"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 60s
+      start_period: 20s
 
   # ─────────────────────────────────────────────────────────────
   # REDIS
   # ─────────────────────────────────────────────────────────────
   redis:
     image: redis:alpine
-    platform: linux/arm64
-    container_name: aigents-redis
-    command: ["redis-server", "--ignore-warnings", "ARM64-COW-BUG"]
+    container_name: unrealestate-redis
     ports:
       - "6379:6379"
     volumes:
@@ -48,14 +48,36 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────────────────────
-  # MAILDEV (Local email testing)
+  # MINIO  (S3-compatible object storage — matches AloomU)
+  # Console: http://localhost:9001  user: minioadmin / minioadmin
+  # ─────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: unrealestate-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────
+  # MAILDEV (local email testing — http://localhost:1080)
   # ─────────────────────────────────────────────────────────────
   maildev:
     image: maildev/maildev:latest
-    container_name: aigents-mail
+    container_name: unrealestate-mail
     ports:
-      - "1080:1080"  # Web UI
-      - "1025:1025"  # SMTP
+      - "1080:1080"
+      - "1025:1025"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:1080"]
       interval: 10s
@@ -63,5 +85,6 @@ services:
       retries: 5
 
 volumes:
-  sqlserver-data:
+  postgres-data:
   redis-data:
+  minio-data:

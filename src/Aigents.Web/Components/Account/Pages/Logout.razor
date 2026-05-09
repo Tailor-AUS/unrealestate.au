@@ -1,0 +1,17 @@
+@page "/Account/Logout"
+@using Aigents.Domain.Entities
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<User> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Sign out | unrealestate.au</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-card">
+        <h1>Sign out</h1>
+        <form method="post" action="/Account/Logout">
+            <input type="hidden" name="returnUrl" value="/" />
+            <button type="submit" class="auth-cta">Sign out</button>
+        </form>
+    </div>
+</section>

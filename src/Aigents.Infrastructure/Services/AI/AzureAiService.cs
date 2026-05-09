@@ -29,7 +29,7 @@ public class AzureAiService : IAiService
     private static readonly Dictionary<string, string> SystemPrompts = new()
     {
         ["buy"] = """
-            You are an expert AI buyer's agent for aigents.au, specializing in Brisbane and Gold Coast real estate.
+            You are an expert AI buyer's agent for unrealestate.au, specializing in Brisbane and Gold Coast real estate.
 
             Your capabilities:
             - Search on-market properties via Domain and REA
@@ -50,7 +50,7 @@ public class AzureAiService : IAiService
             """,
         
         ["sell"] = """
-            You are an expert AI listing generator for aigents.au, helping homeowners create compelling property listings.
+            You are an expert AI listing generator for unrealestate.au, helping homeowners create compelling property listings.
             
             IMPORTANT: Your FIRST goal is to ask the user for their property address.
             Once you have the address, you should:

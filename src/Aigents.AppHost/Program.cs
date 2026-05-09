@@ -12,21 +12,26 @@ var builder = DistributedApplication.CreateBuilder(args);
 // ───────────────────────────────────────────────────────────────
 
 var redis = builder.AddRedis("redis")
-    .WithDataVolume("aigents-redis-data");
+    .WithDataVolume("unrealestate-redis-data");
 
-var sql = builder.AddSqlServer("sql")
-    .WithDataVolume("aigents-sql-data");
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("unrealestate-postgres-data");
 
-var sqlDatabase = sql.AddDatabase("aigentsdb");
+var db = postgres.AddDatabase("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
-// SECRETS (from environment/config)
+// SECRETS / PARAMETERS
 // ───────────────────────────────────────────────────────────────
+// Sovereign-from-day-1: no third-party identity provider, no Google
+// OAuth client. Auth is ASP.NET Core Identity native (email + password
+// + optional WebAuthn passkey).
 
 var azureAiEndpoint = builder.AddParameter("azure-ai-endpoint", secret: false);
 var azureAiDeployment = builder.AddParameter("azure-ai-deployment", secret: false);
-var googleClientId = builder.AddParameter("google-client-id", secret: true);
-var googleClientSecret = builder.AddParameter("google-client-secret", secret: true);
+var smtpHost = builder.AddParameter("smtp-host", secret: false);
+var smtpUsername = builder.AddParameter("smtp-username", secret: false);
+var smtpPassword = builder.AddParameter("smtp-password", secret: true);
+var jwtSecret = builder.AddParameter("jwt-secret", secret: true);
 
 // ───────────────────────────────────────────────────────────────
 // API SERVICE
@@ -34,11 +39,13 @@ var googleClientSecret = builder.AddParameter("google-client-secret", secret: tr
 
 var api = builder.AddProject<Projects.Aigents_Api>("api")
     .WithReference(redis)
-    .WithReference(sqlDatabase)
+    .WithReference(db)
     .WithEnvironment("AzureAI__Endpoint", azureAiEndpoint)
     .WithEnvironment("AzureAI__DeploymentName", azureAiDeployment)
-    .WithEnvironment("Google__ClientId", googleClientId)
-    .WithEnvironment("Google__ClientSecret", googleClientSecret)
+    .WithEnvironment("Smtp__Host", smtpHost)
+    .WithEnvironment("Smtp__Username", smtpUsername)
+    .WithEnvironment("Smtp__Password", smtpPassword)
+    .WithEnvironment("Jwt__Secret", jwtSecret)
     .WithHttpEndpoint(port: 5001, name: "http")
     .WithExternalHttpEndpoints();
 
@@ -49,8 +56,10 @@ var api = builder.AddProject<Projects.Aigents_Api>("api")
 var web = builder.AddProject<Projects.Aigents_Web>("web")
     .WithReference(api)
     .WithReference(redis)
-    .WithEnvironment("Google__ClientId", googleClientId)
-    .WithEnvironment("Google__ClientSecret", googleClientSecret)
+    .WithReference(db)
+    .WithEnvironment("Smtp__Host", smtpHost)
+    .WithEnvironment("Smtp__Username", smtpUsername)
+    .WithEnvironment("Smtp__Password", smtpPassword)
     .WithExternalHttpEndpoints();
 
 // ───────────────────────────────────────────────────────────────

@@ -1,0 +1,100 @@
+@page "/Account/Login"
+@using System.ComponentModel.DataAnnotations
+@using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Services.Auth
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<User> SignInManager
+@inject UserManager<User> UserManager
+@inject ILoginAlertService LoginAlerts
+@inject IdentityRedirectManager RedirectManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign in | unrealestate.au</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-card">
+        <h1>Sign in</h1>
+        <p class="auth-sub">Australian property listings — free, sovereign, no third parties.</p>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="auth-error">@_errorMessage</div>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="DoLogin" FormName="login">
+            <DataAnnotationsValidator />
+            <div class="auth-field">
+                <label for="email">Email</label>
+                <InputText id="email" @bind-Value="Input.Email" autocomplete="username" />
+                <ValidationMessage For="() => Input.Email" />
+            </div>
+            <div class="auth-field">
+                <label for="password">Password</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" />
+                <ValidationMessage For="() => Input.Password" />
+            </div>
+            <div class="auth-row">
+                <label class="auth-check">
+                    <InputCheckbox @bind-Value="Input.RememberMe" />
+                    Remember me on this device
+                </label>
+                <a href="/Account/ForgotPassword" class="auth-link">Forgot password?</a>
+            </div>
+            <button type="submit" class="auth-cta">Sign in</button>
+        </EditForm>
+
+        <div class="auth-foot">
+            New here? <a href="/Account/Register">Create a free account</a>.
+        </div>
+    </div>
+</section>
+
+@code {
+    private string? _errorMessage;
+
+    [SupplyParameterFromForm] public InputModel Input { get; set; } = new();
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private async Task DoLogin()
+    {
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
+
+        if (result.IsLockedOut)
+        {
+            _errorMessage = "This account is temporarily locked after too many failed attempts. Try again in 15 minutes or reset your password.";
+            return;
+        }
+        if (result.IsNotAllowed)
+        {
+            _errorMessage = "Please confirm your email address before signing in. Check your inbox for the confirmation link.";
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _errorMessage = "Email or password is incorrect.";
+            return;
+        }
+
+        var user = await UserManager.FindByEmailAsync(Input.Email);
+        if (user is not null)
+        {
+            var ctx = HttpContextAccessor.HttpContext;
+            var ip = ctx?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var ua = ctx?.Request.Headers.UserAgent.ToString() ?? string.Empty;
+            await LoginAlerts.RecordLoginAsync(user, ip, ua);
+        }
+
+        Logger.LogInformation("User {Email} signed in", Input.Email);
+        RedirectManager.RedirectTo(ReturnUrl);
+    }
+
+    public sealed class InputModel
+    {
+        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
+        [Required, DataType(DataType.Password)] public string Password { get; set; } = string.Empty;
+        public bool RememberMe { get; set; }
+    }
+}
