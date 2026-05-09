@@ -27,10 +27,10 @@ Three user personas:
 | Web frontend | Blazor Server (interactive-server + prerender) |
 | API | ASP.NET Core Minimal API + Carter + MediatR (vertical slices) |
 | ORM | Entity Framework Core 9 |
-| Database | SQL Server (Azure SQL Edge image locally, Azure SQL in prod) |
+| Database | PostgreSQL 16 (AloomU stage-0 substrate; locally via Aspire `AddPostgres`) |
 | Cache / pub-sub | Redis |
 | AI | Azure OpenAI gpt-4o (buyer chat + listing generator) |
-| Auth | Google OAuth → JWT (HS256, 30-day expiry) |
+| Auth | ASP.NET Core Identity native (email + password, email confirmation, password reset, login alerts). Optional WebAuthn passkey (Fido2NetLib). API issues JWT (HS256, 30-day expiry); Web uses cookie auth. **No third-party IdP.** |
 | Container | Docker (multi-stage, .NET 9 base images) |
 | Dev email | MailDev (local only) |
 
@@ -61,7 +61,8 @@ docker-compose.yml          Local dev infra (SQL, Redis, MailDev)
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `User` | Id (Guid), Email, Name, PreferredMode | Created on first Google sign-in |
+| `User` | Id (Guid, IdentityUser<Guid>), Email, Name, PreferredMode, LastLoginAt/Ip/UserAgent | Extends ASP.NET Core Identity; created on registration with email confirmation |
+| `Fido2Credential` | Id, UserId, CredentialId, PublicKey, Nickname | Stored WebAuthn passkeys (one user → many) |
 | `Listing` | Id (Guid), Address, Price, Status, UserId | Core seller entity |
 | `Agent` | Id (Guid), Name, Agency, Email | Created on agent register |
 | `ListingInquiry` | Id, ListingId, AgentId (FK — **nullable hack needed**), Type | Overloaded: holds buyer enquiries + inspection bookings. AgentId is required but buyer enquiries stuff a transient Agent row. **Needs schema cleanup.** |
@@ -75,12 +76,12 @@ docker-compose.yml          Local dev infra (SQL, Redis, MailDev)
 
 ### Migrations
 
-Three EF migrations in `Aigents.Infrastructure/Data/Migrations/`:
-1. `20251203_InitialCreate`
-2. `20251221_ModelUpdate_SellerExperience`
-3. `20251223_AddProposalsAndOffers`
+Postgres-targeted EF migrations in `Aigents.Infrastructure/Data/Migrations/`. The
+context is an `IdentityDbContext<User, IdentityRole<Guid>, Guid>`, so all
+`AspNet*` Identity tables are owned by the same DbContext as the domain
+tables. The API auto-applies migrations on startup (`db.Database.MigrateAsync()`).
 
-Run with: `dotnet ef database update --project src/Aigents.Infrastructure --startup-project src/Aigents.Api`
+Manual run: `dotnet ef database update --project src/Aigents.Infrastructure --startup-project src/Aigents.Api`
 
 ---
 
@@ -88,7 +89,8 @@ Run with: `dotnet ef database update --project src/Aigents.Infrastructure --star
 
 | Feature folder | Routes | Notes |
 |---|---|---|
-| `Auth` | `POST /api/auth/google`, `GET /api/auth/me` | Google ID token → JWT |
+| `Auth` | `POST /api/auth/{register,login,confirm-email,resend-confirmation,forgot-password,reset-password,logout}`, `GET /api/auth/me` | ASP.NET Core Identity native, JWT issued on login |
+| `Auth (passkey)` | `POST /api/auth/passkey/{register/options,register/complete,login/options,login/complete}`, `GET /api/auth/passkey/list`, `DELETE /api/auth/passkey/{id}` | WebAuthn / Fido2NetLib parallel auth path |
 | `Listings` | CRUD `/api/listings`, `GET /api/listings/property-report` | Core listing operations |
 | `Seller` | `/api/seller/*` | Seller-specific queries |
 | `Buyer` | `/api/buyer/*` | Buyer search + enquiry |
@@ -108,7 +110,7 @@ Run with: `dotnet ef database update --project src/Aigents.Infrastructure --star
 | Service | Used for | Config key | Status |
 |---|---|---|---|
 | **Azure OpenAI** (gpt-4o, australiaeast) | AI chat (buy + sell), listing description generation | `AzureAI__Endpoint`, `AzureAI__DeploymentName` | Live |
-| **Google OAuth** | User sign-in | `Google__ClientId`, `Google__ClientSecret` | Live; redirect URI must include prod hostname |
+| **AloomU SMTP** (`mail.aloomu.au:587 STARTTLS`) | Transactional email — confirmation, password reset, login alerts, passkey-added notices | `Smtp__Host`, `Smtp__Port`, `Smtp__Username`, `Smtp__Password` (file-mounted secret) | Stage-0 ready |
 | **MapsOnline** | Property data lookup | hardcoded in `MapsOnlineService.cs` | Live |
 | **QLD Cadastre** (ArcGIS REST) | Parcel boundary overlay on Leaflet map | public URL, no key | Live |
 | **Domain.com.au API** | Property listings adapter | `DomainPropertyAdapter.cs` | Wired, mock fallback |
@@ -124,24 +126,26 @@ Run with: `dotnet ef database update --project src/Aigents.Infrastructure --star
 
 | Key | Where set | Value in prod |
 |---|---|---|
-| `ConnectionStrings__sql` | Aspire / env var | SQL Server connection string |
+| `ConnectionStrings__unrealestate` | Aspire / env var (`_FILE` on AloomU) | Postgres connection string |
 | `ConnectionStrings__redis` | Aspire / env var | Redis connection string |
 | `AzureAI__Endpoint` | Aspire parameter / env var | `https://aigents-ai-au-production.openai.azure.com/` |
-| `AzureAI__DeploymentName` | Aspire parameter / env var | `gpt-4o` |
-| `Google__ClientId` | Aspire parameter / env var | From Google Cloud Console |
-| `Google__ClientSecret` | Aspire parameter / env var | From Google Cloud Console |
-| `Jwt__Secret` | env var | min 32-char random string |
-| `Jwt__Issuer` | `appsettings.json` | `unrealestate.au` |
-| `Jwt__Audience` | `appsettings.json` | `unrealestate.au` |
+| `AzureAI__DeploymentName` | Aspire parameter / env var | `gpt-4.1` |
+| `AzureAI__ApiKey` | env var (`_FILE` on AloomU) | from `unrealestate_azure_ai_key` |
+| `Jwt__Secret` | env var (`_FILE` on AloomU) | from `unrealestate_jwt_secret`; min 32 chars |
+| `Jwt__Issuer` / `Jwt__Audience` | `appsettings.json` | `unrealestate.au` |
+| `Smtp__Host` / `Smtp__Port` / `Smtp__Username` | env var | `mail.aloomu.au` / `587` / `admin@unrealestate.au` |
+| `Smtp__Password` | env var (`_FILE`) | from `unrealestate_smtp_password` |
+| `App__PublicUrl` | env var | `https://unrealestate.au` — used to build email links |
+| `Fido2__ServerDomain` / `Fido2__Origins` | env var / `appsettings.json` | `unrealestate.au` / `https://unrealestate.au` |
 
-### GitHub Actions secrets (current, to be migrated)
+### Forgejo secrets (Stage-0 CI on AloomU)
+
+CI pushes images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>`. Forgejo
+service principal `unrealestate-ci` holds the `package:write` token.
 
 | Secret | Used for |
 |---|---|
-| `AZURE_CREDENTIALS` | az login service principal |
-| `AZURE_SUBSCRIPTION_ID` | Bicep deployment target |
-| `GOOGLE_CLIENT_ID` | Passed to Bicep → Container App env |
-| `GOOGLE_CLIENT_SECRET` | Same |
+| `FORGEJO_CI_TOKEN` | Push images to `git.aloomu.au/unrealestate-au` |
 
 ---
 
@@ -200,9 +204,11 @@ Build arg `CACHE_BUST=${{ github.sha }}` ensures Docker layer cache is busted on
 
 # 2. Set user-secrets on AppHost (one-time)
 dotnet user-secrets set "Parameters:azure-ai-endpoint"   "https://..." --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:azure-ai-deployment" "gpt-4o"      --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:google-client-id"    "..."         --project src/Aigents.AppHost
-dotnet user-secrets set "Parameters:google-client-secret" "..."        --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:azure-ai-deployment" "gpt-4.1"     --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-host"     "mail.aloomu.au"        --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-username" "admin@unrealestate.au" --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:smtp-password" "<from secret store>"   --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:jwt-secret"    "<32-byte random>"       --project src/Aigents.AppHost
 
 # 3. Run via Aspire (starts Web + API + SQL + Redis wired together)
 dotnet run --project src/Aigents.AppHost
@@ -229,7 +235,7 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 | Buyer enquiries + inspections | **Real** — persist to DB via `ListingService.UpdateListingAsync` | Creates `ListingInquiry` row (with transient Agent FK hack) |
 | Seller dashboard stats | **Real** — computed from DB `_dashboardListings` | `SellerDashboard.razor` |
 | AI chat (buy + sell) | **Real** — hits Azure OpenAI gpt-4o | `AzureAiService.cs` |
-| Google OAuth | **Real** | `GoogleAuth.cs` |
+| Auth (sovereign-from-day-1) | **Real** — Identity native + transactional SMTP, optional WebAuthn passkey | `Aigents.Api/Features/Auth/NativeAuth.cs`, `PasskeyAuth.cs`; `Aigents.Web/Components/Account/Pages/*` |
 
 ---
 
@@ -255,15 +261,15 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 
 ## 14. Migration Checklist (GitHub + Azure → Aloomu)
 
-- [ ] Mirror repo to Aloomu source control
-- [ ] Replace `cd.yml` (GitHub Actions) with Aloomu equivalent pipeline
-- [ ] Push Docker images to Aloomu container registry (update image tags in deploy config)
-- [ ] Provision equivalent of: 2× Container Apps (web + api), SQL Server, Redis, OpenAI endpoint
-- [ ] Migrate DB: `dotnet ef database update` against new SQL instance (3 migrations, clean run)
-- [ ] Port secrets (see §7) to Aloomu secrets store
-- [ ] Update Google OAuth redirect URI in Google Cloud Console to new hostname
-- [ ] DNS: point `unrealestate.au` A record + `www` CNAME to new host's IP/FQDN
-- [ ] Rename/update all `github.com/Tailor-AUS/aigents-dotnet` links in code + docs
+- [x] Migrate from SQL Server to Postgres (done in `claude/rebrand-unrealestate-au-szd3P`)
+- [x] Replace Google OAuth with sovereign Identity native + WebAuthn (done in `claude/aloomu-stage0-followup`)
+- [x] Wire AloomU SMTP for transactional email (done in `claude/aloomu-stage0-followup`)
+- [ ] Register Forgejo CI principal (`unrealestate-ci`) at `git.aloomu.au` and store the `package:write` token
+- [ ] Build + push images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>`
+- [ ] Provide stanza updates to AloomU – onboarding for merge into `docker-compose.stage0.yml`
+- [ ] DNS: confirm GoDaddy MX/SPF/DKIM/DMARC records on `unrealestate.au` (AloomU side)
+- [ ] DNS: point `unrealestate.au` A record + `www` CNAME to AloomU edge once Caddy snippet flips
+- [ ] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs
 - [ ] Remove Azure Bicep (`infra/`) or archive it — no longer needed
 - [ ] Update `CLAUDE.md` "Hosting" section
 

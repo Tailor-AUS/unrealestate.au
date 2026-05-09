@@ -1,42 +1,47 @@
 using Aigents.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aigents.Infrastructure.Data;
 
 /// <summary>
-/// Entity Framework Core database context for Aigents
+/// Entity Framework Core database context for Aigents. Extends IdentityDbContext
+/// so ASP.NET Core Identity tables (AspNetUsers etc.) are owned by this context
+/// — auth is sovereign-from-day-1, no third-party IdP.
 /// </summary>
-public class AigentsDbContext : DbContext
+public class AigentsDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
 {
     public AigentsDbContext(DbContextOptions<AigentsDbContext> options) : base(options)
     {
     }
 
-    public DbSet<User> Users => Set<User>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Agent> Agents => Set<Agent>();
     public DbSet<ListingInquiry> ListingInquiries => Set<ListingInquiry>();
     public DbSet<ListingDistribution> ListingDistributions => Set<ListingDistribution>();
-    
+    public DbSet<Fido2Credential> Fido2Credentials => Set<Fido2Credential>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // User configuration
+        // User configuration — Email/PhoneNumber/UserName already mapped by IdentityUser<Guid>.
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => new { e.Provider, e.ProviderId }).IsUnique();
-            
-            entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.InterestedSuburb).HasMaxLength(100);
-            
+            entity.Property(e => e.LastLoginIp).HasMaxLength(64);
+            entity.Property(e => e.LastLoginUserAgent).HasMaxLength(512);
+
             entity.HasMany(e => e.Conversations)
+                .WithOne(c => c.User)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Fido2Credentials)
                 .WithOne(c => c.User)
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -48,9 +53,9 @@ public class AigentsDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => e.CreatedAt);
-            
+
             entity.Property(e => e.Summary).HasMaxLength(1000);
-            
+
             entity.HasMany(e => e.Messages)
                 .WithOne(m => m.Conversation)
                 .HasForeignKey(m => m.ConversationId)
@@ -63,7 +68,7 @@ public class AigentsDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.ConversationId);
             entity.HasIndex(e => e.CreatedAt);
-            
+
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.ModelUsed).HasMaxLength(50);
         });
@@ -139,6 +144,16 @@ public class AigentsDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.ListingId, e.AgentId }).IsUnique();
             entity.HasIndex(e => e.SentAt);
+        });
+
+        // Fido2Credential — passkey storage for WebAuthn registrations.
+        modelBuilder.Entity<Fido2Credential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.CredentialId).IsUnique();
+            entity.Property(e => e.CredType).HasMaxLength(64);
+            entity.Property(e => e.Nickname).HasMaxLength(120);
         });
     }
 }

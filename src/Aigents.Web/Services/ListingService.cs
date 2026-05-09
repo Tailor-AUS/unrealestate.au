@@ -42,9 +42,11 @@ public class ListingService : IListingService
         // Handle the User relationship
         if (listing.User != null && !string.IsNullOrEmpty(listing.User.Email))
         {
-            // Check if user already exists
+            // Check if user already exists. Identity persists NormalizedEmail so we
+            // match against that rather than calling ToLower on the server side.
+            var normalized = listing.User.Email.ToUpperInvariant();
             var existingUser = await _db.Users
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == listing.User.Email.ToLower());
+                .FirstOrDefaultAsync(u => u.NormalizedEmail == normalized);
 
             if (existingUser != null)
             {
@@ -54,11 +56,15 @@ public class ListingService : IListingService
             }
             else
             {
-                // Create new user (ghost user)
+                // Create new user (ghost user) — Identity will fill normalized fields
+                // when the user later registers properly with a password.
                 if (listing.User.Id == Guid.Empty)
                 {
                     listing.User.Id = Guid.NewGuid();
                 }
+                listing.User.UserName ??= listing.User.Email;
+                listing.User.NormalizedUserName = listing.User.UserName?.ToUpperInvariant();
+                listing.User.NormalizedEmail = listing.User.Email.ToUpperInvariant();
                 listing.User.CreatedAt = DateTime.UtcNow;
                 listing.UserId = listing.User.Id;
                 _db.Users.Add(listing.User);
@@ -87,11 +93,11 @@ public class ListingService : IListingService
         if (string.IsNullOrWhiteSpace(userEmail))
             return new List<Listing>();
 
-        var email = userEmail.ToLowerInvariant();
-        
+        var normalized = userEmail.ToUpperInvariant();
+
         return await _db.Listings
             .Include(l => l.User)
-            .Where(l => l.User != null && l.User.Email.ToLower() == email)
+            .Where(l => l.User != null && l.User.NormalizedEmail == normalized)
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
     }

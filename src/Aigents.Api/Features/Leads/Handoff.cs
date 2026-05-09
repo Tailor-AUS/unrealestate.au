@@ -122,7 +122,7 @@ public class HandoffHandler : IRequestHandler<HandoffCommand, HandoffResponse>
         return new HandoffResponse(
             user.Id,
             user.Name,
-            user.Email,
+            user.Email ?? string.Empty,
             summary,
             "handed_off"
         );
@@ -182,8 +182,8 @@ public class GetLeadsHandler : IRequestHandler<GetLeadsQuery, List<LeadDto>>
             .Select(u => new LeadDto(
                 u.Id,
                 u.Name,
-                u.Email,
-                u.Phone,
+                u.Email ?? string.Empty,
+                u.PhoneNumber,
                 u.PreferredMode.ToString(),
                 u.Status.ToString(),
                 u.Conversations.SelectMany(c => c.Messages).Count(),

@@ -1,0 +1,109 @@
+@page "/Account/Register"
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Aigents.Domain.Entities
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@inject UserManager<User> UserManager
+@inject IUserStore<User> UserStore
+@inject IEmailSender<User> EmailSender
+@inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<Register> Logger
+
+<PageTitle>Create your account | unrealestate.au</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-card">
+        <h1>Create your account</h1>
+        <p class="auth-sub">Free Australian property listings — sovereign, ad-free, hosted in Australia.</p>
+
+        @if (_errors.Count > 0)
+        {
+            <div class="auth-error">
+                <ul>@foreach (var e in _errors) { <li>@e</li> }</ul>
+            </div>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="DoRegister" FormName="register">
+            <DataAnnotationsValidator />
+            <div class="auth-field">
+                <label for="name">Your name</label>
+                <InputText id="name" @bind-Value="Input.Name" autocomplete="name" />
+                <ValidationMessage For="() => Input.Name" />
+            </div>
+            <div class="auth-field">
+                <label for="email">Email</label>
+                <InputText id="email" @bind-Value="Input.Email" autocomplete="email" />
+                <ValidationMessage For="() => Input.Email" />
+            </div>
+            <div class="auth-field">
+                <label for="password">Password</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" />
+                <small>Min 10 characters with upper, lower, and a number.</small>
+                <ValidationMessage For="() => Input.Password" />
+            </div>
+            <div class="auth-field">
+                <label for="confirm">Confirm password</label>
+                <InputText id="confirm" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" />
+                <ValidationMessage For="() => Input.ConfirmPassword" />
+            </div>
+            <button type="submit" class="auth-cta">Create account</button>
+        </EditForm>
+
+        <div class="auth-foot">
+            Already have an account? <a href="/Account/Login">Sign in</a>.
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly List<string> _errors = new();
+
+    [SupplyParameterFromForm] public InputModel Input { get; set; } = new();
+    [SupplyParameterFromQuery] public string? Mode { get; set; }
+
+    private async Task DoRegister()
+    {
+        _errors.Clear();
+        var user = new User
+        {
+            Email = Input.Email,
+            UserName = Input.Email,
+            Name = Input.Name,
+            PreferredMode = string.Equals(Mode, "sell", StringComparison.OrdinalIgnoreCase) ? AgentMode.Sell : AgentMode.Buy,
+        };
+
+        await ((IUserEmailStore<User>)UserStore).SetEmailAsync(user, Input.Email, CancellationToken.None);
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            _errors.AddRange(result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        Logger.LogInformation("User {Email} registered", Input.Email);
+
+        var token = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var publicUrl = Configuration["App:PublicUrl"] ?? new Uri(NavigationManager.BaseUri).GetLeftPart(UriPartial.Authority);
+        var link = $"{publicUrl}/Account/ConfirmEmail?userId={user.Id}&code={encoded}";
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(link));
+
+        RedirectManager.RedirectTo($"/Account/RegisterConfirmation?email={Uri.EscapeDataString(Input.Email)}");
+    }
+
+    public sealed class InputModel
+    {
+        [Required, StringLength(120)] public string Name { get; set; } = string.Empty;
+        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
+        [Required, StringLength(100, MinimumLength = 10), DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+        [Required, Compare(nameof(Password)), DataType(DataType.Password)]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

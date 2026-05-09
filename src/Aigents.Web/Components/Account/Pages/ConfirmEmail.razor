@@ -1,0 +1,49 @@
+@page "/Account/ConfirmEmail"
+@using System.Text
+@using Aigents.Domain.Entities
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@inject UserManager<User> UserManager
+
+<PageTitle>Email confirmed | unrealestate.au</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-card">
+        <h1>@(_succeeded ? "Email confirmed" : "We couldn't confirm that email")</h1>
+        <p class="auth-sub">@_message</p>
+        <div class="auth-foot">
+            <a href="/Account/Login" class="auth-cta">Sign in</a>
+        </div>
+    </div>
+</section>
+
+@code {
+    private bool _succeeded;
+    private string _message = "Verifying...";
+
+    [SupplyParameterFromQuery] public Guid? UserId { get; set; }
+    [SupplyParameterFromQuery] public string? Code { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserId is null || string.IsNullOrEmpty(Code))
+        {
+            _message = "This link is incomplete or expired.";
+            return;
+        }
+
+        var user = await UserManager.FindByIdAsync(UserId.Value.ToString());
+        if (user is null)
+        {
+            _message = "We couldn't find an account for this confirmation link.";
+            return;
+        }
+
+        var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
+        var result = await UserManager.ConfirmEmailAsync(user, token);
+        _succeeded = result.Succeeded;
+        _message = result.Succeeded
+            ? "Your email is confirmed. You can sign in now."
+            : "This link is invalid or has expired. Request a new confirmation email and try again.";
+    }
+}

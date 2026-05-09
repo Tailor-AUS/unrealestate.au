@@ -1,0 +1,27 @@
+@page "/Account/RegisterConfirmation"
+
+<PageTitle>Check your email | unrealestate.au</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-card">
+        <h1>Check your email</h1>
+        <p class="auth-sub">
+            @if (!string.IsNullOrEmpty(Email))
+            {
+                <span>We've sent a confirmation link to <strong>@Email</strong>.</span>
+            }
+            else
+            {
+                <span>We've sent a confirmation link to your email address.</span>
+            }
+        </p>
+        <p>Click the link in that email to activate your account, then sign in.</p>
+        <div class="auth-foot">
+            Didn't receive it? <a href="/Account/ResendConfirmation">Resend the email</a>.
+        </div>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery] public string? Email { get; set; }
+}
