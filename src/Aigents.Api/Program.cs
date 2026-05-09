@@ -180,7 +180,10 @@ app.UseAuthorization();
 // ───────────────────────────────────────────────────────────────
 
 app.MapDefaultEndpoints(); // Health checks — maps /health and /alive
-app.MapGet("/healthz", () => Results.Ok(new { status = "healthy", ts = DateTime.UtcNow })); // AloomU uptime probe
+// AloomU uptime probe. Accepts both GET and HEAD so wget-style probes that
+// issue HEAD don't get a 405 (which led to a healthcheck false-negative on
+// first deploy — the app was fine, the probe was lying).
+app.MapMethods("/healthz", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "healthy", ts = DateTime.UtcNow }));
 app.MapCarter(); // Feature endpoints (Carter modules) — includes /api/auth and /api/auth/passkey
 
 // Agent Mobile API Endpoints

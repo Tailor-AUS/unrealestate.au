@@ -62,7 +62,10 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:8080/healthz || exit 1"]
+      # Use GET, not HEAD (--spider). .NET's /healthz handler accepts both
+      # methods now, but the first deploy hit a false-negative because the
+      # earlier handler was GET-only and HEAD returned 405 → wget exit 8.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -120,7 +123,10 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:8080/healthz || exit 1"]
+      # Use GET, not HEAD (--spider). .NET's /healthz handler accepts both
+      # methods now, but the first deploy hit a false-negative because the
+      # earlier handler was GET-only and HEAD returned 405 → wget exit 8.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

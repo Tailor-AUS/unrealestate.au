@@ -41,7 +41,10 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Health check — /healthz is the AloomU uptime probe; /health is Aspire's.
+# Use a GET (-q -O /dev/null) rather than HEAD (--spider) — .NET's minimal
+# /healthz handler accepts GET + HEAD now, but BusyBox-wget --spider on
+# older runtimes that only had GET handlers got back 405 → exit 8.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --spider --quiet http://localhost:8080/healthz || exit 1
+  CMD wget -q -O /dev/null http://localhost:8080/healthz || exit 1
 
 ENTRYPOINT ["dotnet", "Aigents.Api.dll"]
