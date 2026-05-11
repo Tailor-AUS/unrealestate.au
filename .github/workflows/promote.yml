@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════
+# unrealestate.au — promote a tested SHA to :prod
+# ═══════════════════════════════════════════════════════════════
+# `:prod` is the deploy trigger on AloomU's side. CD never pushes
+# `:prod` — promotion is a deliberate, audited act:
+#
+#   1. A SHA already exists at git.aloomu.au/unrealestate-au/{web,api}:<sha>
+#      because cd.yml pushed it on merge to main.
+#   2. A human goes to Actions → "Promote to :prod" → Run workflow,
+#      pastes the SHA + selects which services to promote.
+#   3. This workflow uses `docker buildx imagetools create` to update
+#      the `:prod` manifest atomically (single registry-side op).
+#   4. Forgejo's "package updated" webhook fires AloomU's deployer
+#      sidecar, which health-gates the swap and rolls back if needed.
+#
+# Reuses the same FORGEJO_CI_USERNAME / FORGEJO_CI_TOKEN secrets that
+# cd.yml uses to push images. The token's scope (write:package +
+# read:repository) already covers what we need.
+# ═══════════════════════════════════════════════════════════════
+
+name: Promote to :prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Git SHA to promote (full 40-char or 7-char short)'
+        required: true
+        type: string
+      services:
+        description: 'Which services to promote'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - web
+          - api
+      reason:
+        description: 'Short note for the audit log (release name, ticket, "rollback to X"…)'
+        required: false
+        type: string
+        default: ''
+
+env:
+  REGISTRY: git.aloomu.au
+  NAMESPACE: unrealestate-au
+
+# Allow only one promote at a time per ref so a double-click doesn't
+# fire two webhooks at AloomU's deployer.
+concurrency:
+  group: promote-prod
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.sha }} → :prod
+    runs-on: ubuntu-latest
+    # GitHub environment lets you require approval before promotion runs.
+    # Create "production-promotion" environment in repo settings → Environments,
+    # add a required reviewer, and the workflow will block here for approval.
+    environment: production-promotion
+
+    steps:
+      - name: Resolve full SHA
+        id: sha
+        run: |
+          INPUT="${{ inputs.sha }}"
+          # Accept 7-char short shas; resolve to full via GitHub API for
+          # the audit trail. Skip resolution if the input is already 40 chars.
+          if [ ${#INPUT} -eq 40 ]; then
+            echo "full=${INPUT}" >> "$GITHUB_OUTPUT"
+          else
+            FULL=$(gh api "repos/${{ github.repository }}/commits/${INPUT}" --jq '.sha')
+            if [ -z "$FULL" ]; then
+              echo "::error::Could not resolve SHA ${INPUT} to a commit on this repo"
+              exit 1
+            fi
+            echo "full=${FULL}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to git.aloomu.au
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.FORGEJO_CI_USERNAME }}
+          password: ${{ secrets.FORGEJO_CI_TOKEN }}
+
+      - name: Promote web → :prod
+        if: inputs.services == 'both' || inputs.services == 'web'
+        run: |
+          SRC="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/web:${{ steps.sha.outputs.full }}"
+          DST="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/web:prod"
+          echo "Promoting $SRC → $DST"
+          docker buildx imagetools create -t "$DST" "$SRC"
+
+      - name: Promote api → :prod
+        if: inputs.services == 'both' || inputs.services == 'api'
+        run: |
+          SRC="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/api:${{ steps.sha.outputs.full }}"
+          DST="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/api:prod"
+          echo "Promoting $SRC → $DST"
+          docker buildx imagetools create -t "$DST" "$SRC"
+
+      - name: Resolve promoted digests
+        id: digests
+        run: |
+          for svc in web api; do
+            if [ "${{ inputs.services }}" != "both" ] && [ "${{ inputs.services }}" != "$svc" ]; then
+              continue
+            fi
+            DIGEST=$(docker buildx imagetools inspect \
+              "${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${svc}:prod" \
+              --format '{{ .Manifest.Digest }}')
+            echo "${svc}_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## :rocket: Promoted to \`:prod\`
+
+          - **Source SHA:** \`${{ steps.sha.outputs.full }}\`
+          - **Services:** \`${{ inputs.services }}\`
+          - **Promoted by:** @${{ github.actor }}
+          - **Reason:** ${{ inputs.reason || '_(none)_' }}
+
+          | Service | Tag | Digest |
+          |---------|-----|--------|
+          | web | \`${{ env.REGISTRY }}/${{ env.NAMESPACE }}/web:prod\` | \`${{ steps.digests.outputs.web_digest }}\` |
+          | api | \`${{ env.REGISTRY }}/${{ env.NAMESPACE }}/api:prod\` | \`${{ steps.digests.outputs.api_digest }}\` |
+
+          AloomU's deployer sidecar will fire shortly via the Forgejo
+          \`package updated\` webhook. Watch the deploy at:
+          https://aloomu.au/deploys/unrealestate-au/current
+          EOF
+
+          echo "::notice title=promoted_sha::${{ steps.sha.outputs.full }}"
+          echo "::notice title=web_digest::${{ steps.digests.outputs.web_digest }}"
+          echo "::notice title=api_digest::${{ steps.digests.outputs.api_digest }}"

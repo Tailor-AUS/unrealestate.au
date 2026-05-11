@@ -149,28 +149,49 @@ service principal `unrealestate-ci` holds the `package:write` token.
 
 ---
 
-## 8. Current Hosting (Azure — to be replaced)
+## 8. Hosting (AloomU Stage-0)
 
 | Resource | Name | Notes |
 |---|---|---|
-| Resource group | `aigents-rg` | australiaeast |
-| Container Apps env | `aigents-env-production` | Hosts both apps |
-| Web Container App | `aigents-web-production` | Custom domain: `unrealestate.au` + `www.unrealestate.au` |
-| API Container App | `aigents-api-production` | Internal ingress only |
-| Container Registry | `aigentsacr.azurecr.io` | Stores `aigents-web:*` and `aigents-api:*` images |
-| Azure OpenAI | `aigents-ai-au-production` | australiaeast, gpt-4o:2024-11-20, Standard |
-| Log Analytics | `aigents-logs-production` | 30-day retention |
+| Compose stack | AloomU rack | `unrealestate-web`, `unrealestate-api` + shared Postgres, Redis, MinIO, Caddy |
+| Public URL | `https://unrealestate.au` | Caddy → `unrealestate-web:8080`, Let's Encrypt TLS |
+| API URL | `https://api.unrealestate.au` | Caddy → `unrealestate-api:8080`, Let's Encrypt TLS |
+| Registry | `git.aloomu.au/unrealestate-au/{web,api}` | Forgejo OCI registry; CI principal `unrealestate-ci` |
+| Azure OpenAI | `aigents-ai-au-production` | australiaeast, gpt-4.1, retained as AI fallback |
+| Deploy trigger | `:prod` tag on Forgejo | Webhook → AloomU deployer sidecar → compose pull+up with health-gated rollback |
 
-### How deploy works today
+### How deploy works
 
 ```
 git push main
   → GitHub Actions cd.yml
-  → dotnet build + publish
-  → docker build+push to ACR (aigentsacr.azurecr.io)
-  → az arm-deploy main.bicep (idempotent infra)
-  → az containerapp hostname bind unrealestate.au (TXT + CNAME validation)
+  → dotnet build + test
+  → docker buildx build+push:
+       git.aloomu.au/unrealestate-au/{web,api}:<sha>
+       git.aloomu.au/unrealestate-au/{web,api}:latest
+  ──────────────────────────────────────────────────────────
+                  (manual promotion gate)
+  ──────────────────────────────────────────────────────────
+  → GitHub Actions promote.yml (workflow_dispatch with SHA input)
+  → docker buildx imagetools create →
+       git.aloomu.au/unrealestate-au/{web,api}:prod (atomic manifest update)
+  → Forgejo "package updated" webhook fires
+  → AloomU deployer sidecar:
+       compose pull → up → wait 30s/90s for healthcheck →
+       audit-log → rollback if unhealthy (BLOCKED if EF migration ran)
 ```
+
+`:prod` is never pushed by CD — only by `promote.yml`. This is the
+explicit promotion gate: a human in Actions picks the SHA, optionally
+which services (web/api/both), and a reason for the audit log. The
+`production-promotion` GitHub environment can require a reviewer for
+two-eyes promotion.
+
+Auto-rollback is **blocked** when a forward-only EF migration ran in
+the failing deploy (Identity tables have versioned columns; new schema
++ old code = broken). On block, AloomU pages Knox for manual roll-
+forward. `/healthz` is the deploy health gate — keep it stable, public,
+and 200 on success.
 
 ---
 
