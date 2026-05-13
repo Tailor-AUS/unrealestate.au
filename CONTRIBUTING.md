@@ -67,7 +67,7 @@ The Aspire dashboard runs at https://localhost:17225.
 
 ## Reporting bugs
 
-Open an issue at https://github.com/Tailor-AUS/aigents-dotnet/issues with:
+Open an issue at https://github.com/Tailor-AUS/unrealestate.au/issues with:
 
 - Steps to reproduce (concrete, copy-pasteable where possible).
 - What you expected vs. what happened.

@@ -54,7 +54,7 @@ Before you start, make sure you have:
 
 ### 2.2 Push Your Code
 
-Open terminal in your `aigents-dotnet` folder:
+Open terminal in your `unrealestate.au` folder:
 
 ```bash
 # Initialize git

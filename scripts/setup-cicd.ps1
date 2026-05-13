@@ -7,7 +7,7 @@ param(
     [string]$ResourceGroup = "aigents-rg",
     [string]$Location = "australiaeast",
     [string]$AcrName = "aigentsacr",
-    [string]$GitHubRepo = "aigents-dotnet"
+    [string]$GitHubRepo = "unrealestate.au"
 )
 
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
