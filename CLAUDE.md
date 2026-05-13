@@ -125,6 +125,19 @@ Now on `main`:
    `/healthz` is the deploy health gate — accepts GET + HEAD, must stay
    200 + public + same path. Treat as stable contract.
 
+## Deploy constraints (per AloomU 2026-05-14)
+
+- **EF migrations are one-way for rollback.** Auto-rollback is blocked
+  when a forward-only migration ran in the failing deploy (new schema +
+  old code would brick Identity). Use **expand-contract**: one deploy
+  ships the additive change (nullable column, new table) and is safe to
+  roll back; a *later* deploy does the destructive cleanup (drop the old
+  column) once it's confident. Never bundle "add new + drop old" into a
+  single migration.
+- **Every `web` deploy resets live SignalR sessions** — users mid-session
+  get a "Reconnecting…" toast and lose unsaved client-side state.
+  Schedule web deploys for low-traffic hours until blue-green lands.
+
 ## What's mock vs. real
 
 - **AI staging pipeline** — UI shipped; real image generation NOT wired. `UploadedPhoto.StyledDataUrl` is currently set to the same data URL as `OriginalDataUrl`; the visual difference is a CSS filter (`saturate(1.18) brightness(1.04) contrast(1.06)`) on `.photo-image.styled-filter`. Search for `Phase B` in `CreateListing.razor` for the swap point.
