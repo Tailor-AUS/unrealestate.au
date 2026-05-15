@@ -74,71 +74,7 @@
         </div>
     </section>
 
-    @* ─── "Selling too?" secondary CTA, immediately below the search ─── *@
-    @* Same component as /explore and /property pages — buyer-context nudge   *@
-    @* toward also listing. Smaller / less polemical than the seller-framed   *@
-    @* ai-staging-band lower on the page; the two coexist (this is the hook,  *@
-    @* the lower section is the proper pitch).                                *@
-    <div class="home-promo-wrap">
-        <SellPromoBanner Headline="Selling too? List your home free in 3 minutes."
-                         Sub="Browsing for ideas? You can list your own place in three minutes. AI writes the copy, stages your photos, syndicates everywhere. $0."
-                         Meta="Drag the slider to see what AI staging does" />
-    </div>
-
-    @* ─── Browse by city — buyer entry point ─── *@
-    <section class="popular-cities-band">
-        <div class="popular-cities-container">
-            <div class="popular-cities-eyebrow">Find your next home</div>
-            <h2 class="popular-cities-headline">Browse Australian listings by city</h2>
-            <p class="popular-cities-sub">Free, no login, no foreign trackers. Just listings.</p>
-            <div class="popular-cities-grid">
-                @foreach (var city in _popularCities)
-                {
-                    <a class="city-tile" href="@($"/explore?type=buy&suburb={Uri.EscapeDataString(city.Name)}")">
-                        <div class="city-tile-name">@city.Name</div>
-                        <div class="city-tile-state">@city.State</div>
-                    </a>
-                }
-            </div>
-            <a class="popular-cities-all" href="/explore?type=buy">See every Australian suburb →</a>
-        </div>
-    </section>
-
-    @* ─── AI staging demo: before/after drag slider for sellers ─── *@
-    <section class="ai-staging-band" id="ai-staging">
-        <div class="ai-staging-container">
-            <div class="ai-staging-eyebrow">Free AI for sellers</div>
-            <h2 class="ai-staging-headline">List your home free in 3 minutes — phone snaps become pro photos</h2>
-            <p class="ai-staging-sub">
-                Drop your address, snap your photos. Our AI writes the copy and stages the photos in
-                seconds — the kind of marketing agencies charge $300+ per room for. Free. Drag the
-                slider to see what it does.
-            </p>
-
-            <div class="ai-staging-slider">
-                <BeforeAfterSlider Items="_stagingDemo"
-                                   BeforeLabel="Phone snap"
-                                   AfterLabel="AI-staged ✨"
-                                   Caption="Drag the divider — same room, AI-restyled in seconds." />
-            </div>
-
-            <div class="ai-staging-cta">
-                <a class="rea-btn-primary ai-staging-primary" href="/list">List your home free →</a>
-                <a class="ai-staging-secondary" href="/chat?mode=sell">See how it works</a>
-            </div>
-        </div>
-    </section>
-
-    @* ─── Stats band — the photo tax in numbers (moved down per UX feedback) ─── *@
-    <section class="stats-band" id="why-we-exist">
-        <div class="stats-container">
-            <div class="stats-eyebrow">Why we exist</div>
-            <h2 class="stats-headline">A$1.7 billion leaves Australia every year just to advertise Australian homes — to two American companies.</h2>
-            <PhotoTaxSankey />
-        </div>
-    </section>
-
-    @* ─── Audience tabs section: Built for Australians ─── *@
+    @* ─── REA-style "explore all things property" — audience tabs as helper cards ─── *@
     <section class="audience-section">
         <div class="audience-container">
             <h2 class="audience-title">Built for Australians, by Australians</h2>
@@ -215,6 +151,17 @@
                     </div>
                 }
             </div>
+        </div>
+    </section>
+
+    @* ─── Stats band — the photo-tax sankey. Sits just before the footer so   *@
+    @* the polemic is a quiet "why this exists" closer, not a top-of-page      *@
+    @* shouter. Per UX feedback against the REA-style compact-hero target.    *@
+    <section class="stats-band" id="why-we-exist">
+        <div class="stats-container">
+            <div class="stats-eyebrow">Why we exist</div>
+            <h2 class="stats-headline">A$1.7 billion leaves Australia every year just to advertise Australian homes — to two American companies.</h2>
+            <PhotoTaxSankey />
         </div>
     </section>
 
@@ -354,19 +301,24 @@
     /* ─── Hero (search-first) ─── */
     .rea-hero {
         position: relative;
-        min-height: 480px;
+        min-height: 360px;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 60px 24px;
+        padding: 44px 24px;
         overflow: hidden;
     }
     .rea-hero-bg {
         position: absolute;
         inset: 0;
+        /* Placeholder hero photo: the Outdoor "after" shot we already have on
+           disk, darkened to a level where the white H1 and trust pills read
+           cleanly. Replace with a curated Australian-suburb aerial when one
+           lands at /wwwroot/images/hero/. The Unsplash URL that used to live
+           here was being blocked / lazy / served the empty gray fallback. */
         background:
-            linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%),
-            url('https://images.unsplash.com/photo-1568322445389-f64ac2515099?w=1600&q=80') center/cover no-repeat;
+            linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.65) 100%),
+            url('/images/staging/ue-outdoor-after.jpg') center/cover no-repeat;
         z-index: 0;
     }
     .rea-hero-content {
@@ -487,96 +439,6 @@
         white-space: nowrap;
     }
 
-    /* ─── Homepage SellPromoBanner wrapper (sits between hero + Sankey) ─── */
-    .home-promo-wrap {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 36px 24px 0 24px;
-        width: 100%;
-    }
-    @@media (max-width: 760px) {
-        .home-promo-wrap { padding: 24px 16px 0 16px; }
-    }
-
-    /* ─── Popular cities (buyer entry point) ─── */
-    .popular-cities-band {
-        padding: 72px 24px;
-        background: #ffffff;
-    }
-    .popular-cities-container {
-        max-width: 1100px;
-        margin: 0 auto;
-        text-align: center;
-    }
-    .popular-cities-eyebrow {
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #6366f1;
-        margin-bottom: 14px;
-    }
-    .popular-cities-headline {
-        font-size: 32px;
-        font-weight: 800;
-        color: #0b0b1a;
-        margin: 0 0 10px;
-        line-height: 1.15;
-    }
-    .popular-cities-sub {
-        font-size: 15px;
-        color: #6b7280;
-        margin: 0 0 36px;
-    }
-    .popular-cities-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 14px;
-        margin-bottom: 28px;
-    }
-    .city-tile {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: flex-end;
-        gap: 4px;
-        padding: 22px 20px;
-        min-height: 120px;
-        background: linear-gradient(135deg, #f9fafb 0%, #eef2ff 100%);
-        border: 1.5px solid rgba(99, 102, 241, 0.10);
-        border-radius: 14px;
-        text-decoration: none;
-        color: #0b0b1a;
-        transition: transform .15s ease, border-color .15s, box-shadow .15s;
-    }
-    .city-tile:hover {
-        transform: translateY(-2px);
-        border-color: #6366f1;
-        box-shadow: 0 12px 28px rgba(99, 102, 241, 0.18);
-    }
-    .city-tile-name {
-        font-size: 18px;
-        font-weight: 800;
-    }
-    .city-tile-state {
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        color: #6b7280;
-    }
-    .popular-cities-all {
-        display: inline-block;
-        font-size: 14px;
-        font-weight: 700;
-        color: #6366f1;
-        text-decoration: none;
-    }
-    .popular-cities-all:hover { text-decoration: underline; }
-    @@media (max-width: 900px) {
-        .popular-cities-grid { grid-template-columns: repeat(2, 1fr); }
-        .popular-cities-headline { font-size: 26px; }
-    }
-
     /* ─── Stats band ─── */
     .stats-band {
         padding: 80px 24px;
@@ -607,64 +469,6 @@
         color: white;
         letter-spacing: -0.01em;
     }
-
-    /* ─── AI staging band ─── */
-    .ai-staging-band {
-        padding: 80px 24px;
-        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
-        position: relative;
-        z-index: 2;
-    }
-    .ai-staging-container {
-        max-width: 980px;
-        margin: 0 auto;
-        text-align: center;
-    }
-    .ai-staging-eyebrow {
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: #6366f1;
-        margin-bottom: 14px;
-    }
-    .ai-staging-headline {
-        font-size: clamp(26px, 3.4vw, 38px);
-        font-weight: 800;
-        margin: 0 0 14px 0;
-        letter-spacing: -0.02em;
-        color: #1a1a2e;
-    }
-    .ai-staging-sub {
-        font-size: 16px;
-        line-height: 1.6;
-        color: #4b5563;
-        max-width: 680px;
-        margin: 0 auto 32px auto;
-    }
-    .ai-staging-slider { margin-bottom: 28px; }
-    .ai-staging-cta {
-        display: flex;
-        gap: 16px;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .ai-staging-primary {
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        padding: 14px 28px;
-        font-size: 15px;
-    }
-    .ai-staging-secondary {
-        font-size: 14px;
-        font-weight: 700;
-        color: #6366f1;
-        text-decoration: none;
-        padding: 12px 8px;
-    }
-    .ai-staging-secondary:hover { color: #4f46e5; }
 
     /* ─── Audience section ─── */
     .audience-section {
@@ -865,49 +669,6 @@
                 break;
         }
     }
-
-    // Demo image pairs for the AI staging slider on the homepage.
-    // Outdoor is a real before/after; remaining rooms are Picsum placeholders
-    // until real photos land in /wwwroot/images/staging/.
-    private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()
-    {
-        new BeforeAfterSlider.SliderItem(
-            "Outdoor living",
-            "/images/staging/ue-outdoor-before.jpg",
-            "/images/staging/ue-outdoor-after.jpg",
-            Icon: "🌿"),
-        // TODO: drop real photos at /wwwroot/images/staging/ue-lounge-{before,after}.jpg and swap below.
-        new BeforeAfterSlider.SliderItem(
-            "Lounge",
-            "https://picsum.photos/seed/ue-lounge-before/1400/900",
-            "https://picsum.photos/seed/ue-lounge-after/1400/900",
-            Icon: "🛋️"),
-        new BeforeAfterSlider.SliderItem(
-            "Kitchen",
-            "https://picsum.photos/seed/ue-kitchen-before/1400/900",
-            "https://picsum.photos/seed/ue-kitchen-after/1400/900",
-            Icon: "🍳"),
-        new BeforeAfterSlider.SliderItem(
-            "Bedroom",
-            "https://picsum.photos/seed/ue-bedroom-before/1400/900",
-            "https://picsum.photos/seed/ue-bedroom-after/1400/900",
-            Icon: "🛏️")
-    };
-
-    // Top-of-funnel buyer entry: 8 largest Australian cities. Links to /explore
-    // with type=buy and the city pre-filled as the suburb query.
-    private sealed record PopularCity(string Name, string State);
-    private readonly List<PopularCity> _popularCities = new()
-    {
-        new("Sydney",      "NSW"),
-        new("Melbourne",   "VIC"),
-        new("Brisbane",    "QLD"),
-        new("Perth",       "WA"),
-        new("Adelaide",    "SA"),
-        new("Gold Coast",  "QLD"),
-        new("Canberra",    "ACT"),
-        new("Newcastle",   "NSW"),
-    };
 
     private string GetHeroTitle() => _searchType switch
     {
