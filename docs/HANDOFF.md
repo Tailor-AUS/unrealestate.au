@@ -47,12 +47,10 @@ src/
   Aigents.Domain/           Entities only — no EF, no DI
   Aigents.Infrastructure/   EF DbContext, migrations, external service adapters
   Aigents.ServiceDefaults/  Shared OpenTelemetry / health-check config
-infra/
-  main.bicep                Azure IaC (Container Apps + OpenAI + SQL + Redis)
-  acr.bicep                 Container Registry bootstrap
-  bootstrap.bicep
-.github/workflows/cd.yml    Build → Docker → Bicep deploy → bind unrealestate.au
-docker-compose.yml          Local dev infra (SQL, Redis, MailDev)
+.forgejo/workflows/build-push.yml  Forgejo Actions: build + push to git.aloomu.au
+.github/workflows/ci.yml    GitHub Actions: PR build + test (no deploy side)
+docker-compose.yml          Local dev infra (Postgres, Redis, MailDev)
+docker-compose.aloomu.yml   Stage-0 stanza for AloomU's compose stack
 ```
 
 ---
@@ -322,7 +320,7 @@ URLs in `Hero.razor`, `Agents.razor`, `CONTRIBUTING.md`, `SETUP.md`, `docs/agent
 - [ ] DNS: confirm GoDaddy MX/SPF/DKIM/DMARC records on `unrealestate.au` (AloomU side)
 - [ ] DNS: point `unrealestate.au` A record + `www` CNAME to AloomU edge once Caddy snippet flips
 - [x] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs (done 2026-05-13)
-- [ ] Remove Azure Bicep (`infra/`) + `scripts/setup-cicd.ps1` Azure-era pieces — no longer needed
+- [x] Remove Azure Bicep (`infra/`) + Azure-era scripts (`setup-cicd.{ps1,sh}`, `bootstrap-azure.{ps1,sh}`) — done 2026-05-15 in `claude/azure-era-cleanup`
 - [x] Update `CLAUDE.md` "Hosting" section *(done in `claude/forgejo-primary-build-ci`; split into Hosting + Source control + Build CI bullets, item 4 of "Recent platform-shape changes" rewritten for Forgejo-native CD)*
 
 ---

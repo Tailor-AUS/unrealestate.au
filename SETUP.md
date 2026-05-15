@@ -1,8 +1,20 @@
 # 🚀 Aigents - Complete Setup Guide
 
-**From zero to deployed in 30 minutes.**
+> ⚠️ **Most of this document is obsolete (Azure-era).** The deploy path is no
+> longer Azure Container Apps + Bicep + SQL Server. Production now runs on the
+> AloomU stage-0 rack (Postgres, Forgejo CI, Caddy reverse-proxy). See
+> [`docs/HANDOFF.md`](docs/HANDOFF.md) §8 for the current hosting + deploy flow,
+> and `customers/unrealestate-au/DEPLOYING.md` on the AloomU side for the
+> rack-side operator's how-to.
+>
+> The **Local Development** section near the bottom is still valid.
+> The **Azure setup**, **Bicep deploy**, **Google OAuth**, and **GitHub Secrets
+> for Azure** sections are dead — kept for now only until SETUP.md is rewritten
+> end-to-end. Don't follow them.
 
-**Using: Azure AI Foundry (GPT-4o) + Azure Container Apps + SQL Server + Redis**
+**From zero to deployed in 30 minutes.** *(legacy Azure path — obsolete)*
+
+**Using: Azure AI Foundry (GPT-4o) + Azure Container Apps + SQL Server + Redis** *(legacy)*
 
 ---
 
