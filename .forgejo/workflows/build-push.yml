@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════
+# unrealestate.au — Forgejo Actions CI (AloomU sovereign substrate)
+# ═══════════════════════════════════════════════════════════════
+# Canonical build/push pipeline. The GitHub repo
+# (github.com/Tailor-AUS/unrealestate.au) is the public OSS source of
+# truth; Forgejo (git.aloomu.au/unrealestate-au/unrealestate.au) is a
+# pull-mirror of it. On every mirror sync of `main`, this workflow runs
+# on the sovereign Forgejo Actions runner (`aloomu-stage0`) at Moorooka
+# and pushes images.
+#
+# Pushes web + api images to git.aloomu.au/unrealestate-au/{web,api}
+# tagged :latest + :<full-sha>. Does NOT promote to :prod — that's the
+# explicit human-gated act (customers/unrealestate-au/promote.sh on
+# the AloomU rack, or — once aloomu issue #17 lands — git tag vX.Y.Z).
+#
+# Execution:
+#   • Runs on the `aloomu-stage0` label → job container is
+#     git.aloomu.au/aloomu/ci-base:latest (docker:cli + git), with the
+#     host Docker socket passed through → `docker build` / `docker push`
+#     talk to the host daemon (docker-out-of-docker).
+#   • Raw-shell steps, no `uses:` action dependencies.
+#
+# Repo Actions secrets required:
+#   FORGEJO_CI_USERNAME   — `unrealestate-ci`
+#   FORGEJO_CI_TOKEN      — write:package on the unrealestate-au org
+# ═══════════════════════════════════════════════════════════════
+
+name: CD - Push images to git.aloomu.au
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  REGISTRY: git.aloomu.au
+  NAMESPACE: unrealestate-au
+
+jobs:
+  build:
+    runs-on: aloomu-stage0
+    steps:
+      - name: Checkout
+        run: |
+          git -c http.extraHeader="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            clone --depth 1 "https://${REGISTRY}/${{ github.repository }}.git" .
+          git -c http.extraHeader="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            fetch --depth 1 origin "${{ github.sha }}"
+          git checkout "${{ github.sha }}"
+
+      - name: Login to ${{ env.REGISTRY }}
+        run: |
+          echo "${{ secrets.FORGEJO_CI_TOKEN }}" | \
+            docker login "${REGISTRY}" -u "${{ secrets.FORGEJO_CI_USERNAME }}" --password-stdin
+
+      - name: Build & push  api
+        run: |
+          IMG="${REGISTRY}/${NAMESPACE}/api"
+          docker build -f src/Aigents.Api/Dockerfile \
+            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" \
+            --build-arg CACHE_BUST="${{ github.sha }}" .
+          docker push "${IMG}:${{ github.sha }}"
+          docker push "${IMG}:latest"
+
+      - name: Build & push  web
+        run: |
+          IMG="${REGISTRY}/${NAMESPACE}/web"
+          docker build -f src/Aigents.Web/Dockerfile \
+            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" \
+            --build-arg CACHE_BUST="${{ github.sha }}" .
+          docker push "${IMG}:${{ github.sha }}"
+          docker push "${IMG}:latest"
+
+      - name: Summary
+        run: |
+          echo "Images pushed:"
+          echo "  ${REGISTRY}/${NAMESPACE}/api:${{ github.sha }} + :latest"
+          echo "  ${REGISTRY}/${NAMESPACE}/web:${{ github.sha }} + :latest"
+          echo ""
+          echo "To deploy: on the AloomU rack ->"
+          echo "  cd ~/aloomu/customers/unrealestate-au && ./promote.sh ${{ github.sha }}"
+          echo "(Once aloomu issue #17 lands, this becomes 'git tag vX.Y.Z && git push --tags'.)"

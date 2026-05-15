@@ -163,16 +163,18 @@ service principal `unrealestate-ci` holds the `package:write` token.
 ### How deploy works
 
 ```
-git push main
-  → GitHub Actions cd.yml
-  → dotnet build + test
-  → docker buildx build+push:
+git push main (GitHub: public OSS source of truth)
+  → Forgejo pull-mirror sync (cron, AloomU-side)
+  → Forgejo Actions .forgejo/workflows/build-push.yml on `aloomu-stage0` runner
+  → docker build+push:
        git.aloomu.au/unrealestate-au/{web,api}:<sha>
        git.aloomu.au/unrealestate-au/{web,api}:latest
   ──────────────────────────────────────────────────────────
                   (manual promotion gate)
   ──────────────────────────────────────────────────────────
-  → GitHub Actions promote.yml (workflow_dispatch with SHA input)
+  → either: GitHub Actions promote.yml (workflow_dispatch with SHA input)
+    or:     customers/unrealestate-au/promote.sh <sha> on the AloomU rack
+            (soon to be: `git tag vX.Y.Z && git push --tags` — aloomu issue #17)
   → docker buildx imagetools create →
        git.aloomu.au/unrealestate-au/{web,api}:prod (atomic manifest update)
   → Forgejo "package updated" webhook fires
@@ -299,27 +301,29 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 
 ## 14. Migration Checklist (GitHub + Azure → Aloomu)
 
-> **AloomU status update (2026-05-14)** — deploy pipeline on the AloomU side
-> is built, tested, and live (CI build → promote → health-gated swap →
-> auto-rollback). **Gating prereq** for the end-to-end loop: the codebase
-> has to move onto `git.aloomu.au` (AloomU handles that migration). Until
-> the source repo is on Forgejo, CI builds still run from GitHub Actions
-> and push to `git.aloomu.au/unrealestate-au/{web,api}` via the Forgejo
-> token; deploys to `:prod` stay manual via `promote.yml`. Reference how-to:
+> **AloomU status update (2026-05-15)** — repo migrated to Forgejo
+> (`git.aloomu.au/unrealestate-au/unrealestate.au`, 2026-05-13; 8 branches
+> preserved). Forgejo CI principal `unrealestate-ci` wired; first build
+> off `main` produced `web:607a0bc…` + `api:607a0bc…` (+ `:latest`).
+> File-mounted secrets present + mounted on the rack; containers
+> `(healthy)`. Compose stanza in sync with `docker-compose.stage0.yml`.
+> Going forward: **GitHub is the public OSS source of truth; Forgejo
+> pull-mirrors from GitHub** (mirror flip happens once this PR's
+> workflow file lands on GitHub `main`). Reference how-to:
 > `git.aloomu.au/knox/aloomu/.../customers/unrealestate-au/DEPLOYING.md`.
 
 - [x] Migrate from SQL Server to Postgres (done in `claude/rebrand-unrealestate-au-szd3P`)
 - [x] Replace Google OAuth with sovereign Identity native + WebAuthn (done in `claude/aloomu-stage0-followup`)
 - [x] Wire AloomU SMTP for transactional email (done in `claude/aloomu-stage0-followup`)
-- [ ] Register Forgejo CI principal (`unrealestate-ci`) at `git.aloomu.au` and store the `package:write` token *(AloomU reports done 2026-05-14; confirm secret is wired on this repo's CI side)*
-- [ ] Build + push images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>` *(workflow exists in `.github/workflows/cd.yml`; verify end-to-end push once CI principal is wired)*
-- [ ] Provide stanza updates to AloomU – onboarding for merge into `docker-compose.stage0.yml`
-- [ ] **Migrate source repo to `git.aloomu.au/unrealestate-au/<repo>`** (gating prereq for the end-to-end deploy loop; AloomU-driven)
+- [x] Register Forgejo CI principal (`unrealestate-ci`) at `git.aloomu.au` and store the `package:write` token *(done 2026-05-13; first build SHA `607a0bc…` confirms wiring)*
+- [x] Build + push images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>` *(Forgejo Actions `.forgejo/workflows/build-push.yml` on `aloomu-stage0` runner; first end-to-end push 2026-05-13)*
+- [x] Provide stanza updates to AloomU – onboarding for merge into `docker-compose.stage0.yml` *(AloomU confirmed shape matches as of 2026-05-15; only diff is `:prod` pin vs. `<GIT_SHA>` template, which is the deploy contract)*
+- [x] Migrate source repo to `git.aloomu.au/unrealestate-au/unrealestate.au` *(done 2026-05-13; Forgejo to flip from "regular repo" to "pull-mirror of GitHub" once `.forgejo/workflows/build-push.yml` lands in GitHub `main`)*
 - [ ] DNS: confirm GoDaddy MX/SPF/DKIM/DMARC records on `unrealestate.au` (AloomU side)
 - [ ] DNS: point `unrealestate.au` A record + `www` CNAME to AloomU edge once Caddy snippet flips
 - [ ] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs
-- [ ] Remove Azure Bicep (`infra/`) or archive it — no longer needed
-- [ ] Update `CLAUDE.md` "Hosting" section
+- [ ] Remove Azure Bicep (`infra/`) + `scripts/setup-cicd.ps1` Azure-era pieces — no longer needed
+- [x] Update `CLAUDE.md` "Hosting" section *(done in `claude/forgejo-primary-build-ci`; split into Hosting + Source control + Build CI bullets, item 4 of "Recent platform-shape changes" rewritten for Forgejo-native CD)*
 
 ---
 
