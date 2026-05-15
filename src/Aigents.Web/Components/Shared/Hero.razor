@@ -804,13 +804,14 @@
     }
 
     // Demo image pairs for the AI staging slider on the homepage.
-    // Swap these URLs for real before/after photos once the AI staging pipeline ships.
+    // Outdoor is a real before/after; remaining rooms are Picsum placeholders
+    // until real photos land in /wwwroot/images/staging/.
     private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()
     {
         new BeforeAfterSlider.SliderItem(
             "Outdoor living",
-            "https://picsum.photos/seed/ue-outdoor-before/1400/900",
-            "https://picsum.photos/seed/ue-outdoor-after/1400/900",
+            "/images/staging/ue-outdoor-before.jpg",
+            "/images/staging/ue-outdoor-after.jpg",
             Icon: "🌿"),
         new BeforeAfterSlider.SliderItem(
             "Lounge",

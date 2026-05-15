@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components
+@inject IJSRuntime JS
 
 <div class="ba-wrap">
     @if (Items is { Count: > 1 })
@@ -85,5 +86,15 @@
     private void SetActive(int idx)
     {
         if (idx >= 0 && idx < Items.Count) _activeIndex = idx;
+    }
+
+    // Re-attach the drag handlers after every Blazor render. The auto-attach in
+    // before-after-slider.js fires on DOMContentLoaded and on Blazor enhancedload
+    // (static SSR navigation), but NOT on Blazor Server interactive SignalR DOM
+    // patches — so without this, drag silently dies after a thumb click switches
+    // the active pair. The JS guards on dataset.baInit so repeat calls are no-ops.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("beforeAfterSlider.initAll");
     }
 }
