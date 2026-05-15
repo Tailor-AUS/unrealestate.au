@@ -59,8 +59,7 @@ jobs:
         run: |
           IMG="${REGISTRY}/${NAMESPACE}/api"
           docker build -f src/Aigents.Api/Dockerfile \
-            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" \
-            --build-arg CACHE_BUST="${{ github.sha }}" .
+            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" .
           docker push "${IMG}:${{ github.sha }}"
           docker push "${IMG}:latest"
 
@@ -68,8 +67,7 @@ jobs:
         run: |
           IMG="${REGISTRY}/${NAMESPACE}/web"
           docker build -f src/Aigents.Web/Dockerfile \
-            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" \
-            --build-arg CACHE_BUST="${{ github.sha }}" .
+            -t "${IMG}:${{ github.sha }}" -t "${IMG}:latest" .
           docker push "${IMG}:${{ github.sha }}"
           docker push "${IMG}:latest"
 
