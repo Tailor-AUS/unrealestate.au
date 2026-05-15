@@ -193,6 +193,13 @@ the failing deploy (Identity tables have versioned columns; new schema
 forward. `/healthz` is the deploy health gate — keep it stable, public,
 and 200 on success.
 
+**Web deploys reset live SignalR sessions.** Blazor Server's render loop
+runs over a SignalR circuit; a `web` container swap kills every active
+circuit. Users mid-session see a "Reconnecting…" toast and lose unsaved
+client-side state (form drafts, scroll position, in-flight chat turns).
+Schedule web deploys for low-traffic hours until blue-green lands.
+API-only deploys (`promote.yml` with service=api) don't disturb circuits.
+
 ---
 
 ## 9. Docker Images
@@ -262,8 +269,18 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 
 ## 12. Known Schema Issues (fix before migrating data)
 
-1. **`ListingInquiry.AgentId` is required** — buyer enquiries and inspection bookings work around this by creating a throwaway `Agent` row. Make it nullable and add `BuyerName`, `BuyerEmail`, `BuyerPhone`, `InquiryType` fields. Needs one EF migration.
-2. **`/my-offers` not persisted** — currently fully in-memory mock. Hooks to `ListingInquiry` once item 1 lands.
+> **Expand-contract rule** — auto-rollback on AloomU is blocked when a
+> forward-only EF migration ran (see §8). So every schema change ships as
+> **two migrations across two deploys**: (1) additive/nullable expand —
+> code reads + writes the new shape, old shape still works, deploy is
+> rollback-safe; (2) destructive contract — drop the old column / FK /
+> table only once you've confirmed the expand deploy is stable. Never
+> bundle "add new + drop old" into a single migration.
+
+1. **`ListingInquiry.AgentId` is required** — buyer enquiries and inspection bookings work around this by creating a throwaway `Agent` row. Fix is **two migrations** under expand-contract:
+   - **Expand** — make `AgentId` nullable; add `BuyerName`, `BuyerEmail`, `BuyerPhone`, `InquiryType`. New code writes buyer fields and leaves `AgentId` null; old transient-Agent hack still works. Safely rollback-able.
+   - **Contract** — once item 2 lands and no code path needs the transient-Agent shim, drop the orphaned `Agent` rows in a follow-up migration.
+2. **`/my-offers` not persisted** — currently fully in-memory mock. Hooks to `ListingInquiry` once item 1's expand migration lands.
 
 ---
 
@@ -282,12 +299,22 @@ URLs in `Hero.razor`, `Agents.razor`, `CONTRIBUTING.md`, `SETUP.md`, `docs/agent
 
 ## 14. Migration Checklist (GitHub + Azure → Aloomu)
 
+> **AloomU status update (2026-05-14)** — deploy pipeline on the AloomU side
+> is built, tested, and live (CI build → promote → health-gated swap →
+> auto-rollback). **Gating prereq** for the end-to-end loop: the codebase
+> has to move onto `git.aloomu.au` (AloomU handles that migration). Until
+> the source repo is on Forgejo, CI builds still run from GitHub Actions
+> and push to `git.aloomu.au/unrealestate-au/{web,api}` via the Forgejo
+> token; deploys to `:prod` stay manual via `promote.yml`. Reference how-to:
+> `git.aloomu.au/knox/aloomu/.../customers/unrealestate-au/DEPLOYING.md`.
+
 - [x] Migrate from SQL Server to Postgres (done in `claude/rebrand-unrealestate-au-szd3P`)
 - [x] Replace Google OAuth with sovereign Identity native + WebAuthn (done in `claude/aloomu-stage0-followup`)
 - [x] Wire AloomU SMTP for transactional email (done in `claude/aloomu-stage0-followup`)
-- [ ] Register Forgejo CI principal (`unrealestate-ci`) at `git.aloomu.au` and store the `package:write` token
-- [ ] Build + push images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>`
+- [ ] Register Forgejo CI principal (`unrealestate-ci`) at `git.aloomu.au` and store the `package:write` token *(AloomU reports done 2026-05-14; confirm secret is wired on this repo's CI side)*
+- [ ] Build + push images to `git.aloomu.au/unrealestate-au/{web,api}:<sha>` *(workflow exists in `.github/workflows/cd.yml`; verify end-to-end push once CI principal is wired)*
 - [ ] Provide stanza updates to AloomU – onboarding for merge into `docker-compose.stage0.yml`
+- [ ] **Migrate source repo to `git.aloomu.au/unrealestate-au/<repo>`** (gating prereq for the end-to-end deploy loop; AloomU-driven)
 - [ ] DNS: confirm GoDaddy MX/SPF/DKIM/DMARC records on `unrealestate.au` (AloomU side)
 - [ ] DNS: point `unrealestate.au` A record + `www` CNAME to AloomU edge once Caddy snippet flips
 - [x] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs (done 2026-05-13)
