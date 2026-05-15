@@ -109,11 +109,9 @@ Aigents/
 │   ├── Aigents.Web/              # 🖥️ Blazor frontend
 │   ├── Aigents.Domain/           # 📋 Domain entities
 │   └── Aigents.Infrastructure/   # 🔧 EF Core, Azure AI
-├── infra/                        # 🏗️ Bicep templates
 ├── scripts/
 │   ├── setup-local.ps1          # Windows setup
-│   ├── setup-local.sh           # Mac/Linux setup
-│   └── bootstrap-azure.sh       # Azure bootstrap
+│   └── setup-local.sh           # Mac/Linux setup
 └── docker-compose.yml           # ARM64 containers
 ```
 
