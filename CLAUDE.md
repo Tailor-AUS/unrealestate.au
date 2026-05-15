@@ -125,11 +125,15 @@ Now on `main`:
    `aloomu-stage0` runner at Moorooka and pushes
    `unrealestate-au/{web,api}:<sha>` + `:latest`. The legacy GitHub
    `cd.yml` and the Azure Bicep / Container Apps deploy steps are gone.
-5. **`:prod` is the AloomU deploy trigger.** `.github/workflows/promote.yml`
-   (`workflow_dispatch`) is the only thing that ever writes the `:prod` tag.
-   Atomic via `docker buildx imagetools create`. CD never pushes `:prod`.
-   Promotion fires the deployer sidecar on AloomU which health-gates the
-   swap; auto-rollback is blocked when a forward-only EF migration ran.
+5. **`:prod` is the AloomU deploy trigger.** Rack-side
+   `customers/unrealestate-au/promote.sh <sha>` (run by Knox/AloomU) is the
+   only thing that writes the `:prod` tag. Atomic via
+   `docker buildx imagetools create`. CD never pushes `:prod`. Promotion
+   fires the deployer sidecar on AloomU which health-gates the swap;
+   auto-rollback is blocked when a forward-only EF migration ran. (A
+   GitHub Actions `promote.yml` existed briefly but was retired —
+   Forgejo 7.0.16 has a webhook bug that makes any GitHub-side retag
+   unable to notify the rack deployer; see HANDOFF.md §8.)
 6. **EF migration regenerated** for Postgres; auto-applied on API start.
    Includes Identity tables (`AspNetUsers`, etc.) + new `Fido2Credentials`.
    `/healthz` is the deploy health gate — accepts GET + HEAD, must stay

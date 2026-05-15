@@ -170,9 +170,8 @@ git push main (GitHub: public OSS source of truth)
   ──────────────────────────────────────────────────────────
                   (manual promotion gate)
   ──────────────────────────────────────────────────────────
-  → either: GitHub Actions promote.yml (workflow_dispatch with SHA input)
-    or:     customers/unrealestate-au/promote.sh <sha> on the AloomU rack
-            (soon to be: `git tag vX.Y.Z && git push --tags` — aloomu issue #17)
+  → customers/unrealestate-au/promote.sh <sha> on the AloomU rack
+    (soon to be: `git tag vX.Y.Z && git push --tags` — aloomu issue #17)
   → docker buildx imagetools create →
        git.aloomu.au/unrealestate-au/{web,api}:prod (atomic manifest update)
   → Forgejo "package updated" webhook fires
@@ -181,11 +180,17 @@ git push main (GitHub: public OSS source of truth)
        audit-log → rollback if unhealthy (BLOCKED if EF migration ran)
 ```
 
-`:prod` is never pushed by CD — only by `promote.yml`. This is the
-explicit promotion gate: a human in Actions picks the SHA, optionally
-which services (web/api/both), and a reason for the audit log. The
-`production-promotion` GitHub environment can require a reviewer for
-two-eyes promotion.
+`:prod` is never pushed by CD — only by **`customers/unrealestate-au/promote.sh <sha>`
+run on the AloomU rack by Knox/AloomU**. This is the explicit promotion gate.
+
+> **Why not `.github/workflows/promote.yml`?** It used to exist (PR #6) but was
+> retired in `claude/forgejo-build-cleanup` once Option B (GitHub-canonical,
+> Forgejo-mirror) landed. Forgejo 7.0.16 has a bug where the deployer's
+> org-level package webhook persists `events: []` even after explicit
+> `events: ["package"]` POST/PATCH calls — so even if `promote.yml` retagged
+> `:prod` from the GitHub side, the deployer sidecar on the rack wouldn't be
+> notified to pull + swap. Until Forgejo upgrades (or aloomu issue #17 lands
+> the `git tag vX.Y.Z` flow), rack-side `promote.sh` is the only viable path.
 
 Auto-rollback is **blocked** when a forward-only EF migration ran in
 the failing deploy (Identity tables have versioned columns; new schema
@@ -198,7 +203,7 @@ runs over a SignalR circuit; a `web` container swap kills every active
 circuit. Users mid-session see a "Reconnecting…" toast and lose unsaved
 client-side state (form drafts, scroll position, in-flight chat turns).
 Schedule web deploys for low-traffic hours until blue-green lands.
-API-only deploys (`promote.yml` with service=api) don't disturb circuits.
+API-only promotions (`promote.sh --service=api <sha>`) don't disturb circuits.
 
 ---
 
