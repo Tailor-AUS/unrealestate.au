@@ -33,8 +33,15 @@ Stage-0 deployment + auth detail: `docs/HANDOFF.md`.
 - **Local dev** — Aspire AppHost spins up Postgres, Redis, MailDev via `docker-compose.yml`.
 - **Hosting** — AloomU rack (Docker Compose stack: `unrealestate-{web,api}` +
   shared Postgres / Redis / MinIO / Caddy). Images in
-  `git.aloomu.au/unrealestate-au/{web,api}:<sha>`, pushed by GitHub Actions
-  (`.github/workflows/cd.yml`) on merge to `main`.
+  `git.aloomu.au/unrealestate-au/{web,api}:<sha>`.
+- **Source control** — GitHub (`github.com/Tailor-AUS/unrealestate.au`) is the
+  public OSS source of truth. Forgejo (`git.aloomu.au/unrealestate-au/unrealestate.au`)
+  is a pull-mirror of GitHub `main`. Open PRs against GitHub; the mirror
+  picks up merges automatically.
+- **Build CI** — Forgejo Actions (`.forgejo/workflows/build-push.yml`)
+  fires on mirrored push to `main` and pushes `web/api:<sha>` + `:latest`
+  to the registry. GitHub Actions only runs the PR-side `ci.yml`
+  (build + test). The legacy GitHub `cd.yml` has been removed.
 
 ## Run it locally
 
@@ -112,9 +119,12 @@ Now on `main`:
    stanza Knox feeds into the AloomU compose stack.
 3. **Transactional email via AloomU SMTP.** MailKit-backed sender with branded
    templates for confirmation, reset, login alerts, and passkey-added notices.
-4. **CD pipeline points at Forgejo.** `.github/workflows/cd.yml` now logs in
-   to `git.aloomu.au` and pushes `unrealestate-au/{web,api}:<sha>` + `:latest`.
-   The Azure Bicep / Container Apps deploy steps are gone.
+4. **CD pipeline is Forgejo-native.** Repo is now on Forgejo
+   (`git.aloomu.au/unrealestate-au/unrealestate.au`) as a pull-mirror of
+   GitHub. `.forgejo/workflows/build-push.yml` runs on the sovereign
+   `aloomu-stage0` runner at Moorooka and pushes
+   `unrealestate-au/{web,api}:<sha>` + `:latest`. The legacy GitHub
+   `cd.yml` and the Azure Bicep / Container Apps deploy steps are gone.
 5. **`:prod` is the AloomU deploy trigger.** `.github/workflows/promote.yml`
    (`workflow_dispatch`) is the only thing that ever writes the `:prod` tag.
    Atomic via `docker buildx imagetools create`. CD never pushes `:prod`.
