@@ -89,23 +89,37 @@
             <div class="audience-cards">
                 @if (_audience == "sellers")
                 {
-                    <div class="audience-card">
-                        <div class="audience-card-icon">📝</div>
-                        <h3>List your home free in 3 minutes</h3>
-                        <p>Drop your address, snap your photos. Our AI writes the listing copy and stages your photos in seconds. No marketing tax, no Premiere upsell, no $3,000 cheque to a US company.</p>
-                        <a class="audience-card-cta" href="/list">Start a free listing →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">📊</div>
-                        <h3>Get an instant AI valuation</h3>
-                        <p>Comparable sales analysis from Australian data. Know what your home is worth before you sign anything — no agent appointment required.</p>
-                        <a class="audience-card-cta" href="/chat?mode=sell">Ask the AI →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">🤝</div>
-                        <h3>DIY, open agency, or exclusive — your call</h3>
-                        <p>Manage the sale yourself, or invite multiple agents to compete (whoever brings the buyer wins) — or pick one exclusive agent. We shortlist agents by recent sales near you and show their estimated live buyer database.</p>
-                        <a class="audience-card-cta" href="/sell/manage">See your agent shortlist →</a>
+                    @* One consolidated seller pitch (was 3 tiles): list free in 3
+                       min → see what AI staging does → choose open vs exclusive
+                       once real buyer interest lands. Valuation tile dropped —
+                       that's a generic action available anywhere. *@
+                    <div class="seller-pitch">
+                        <div class="seller-pitch-copy">
+                            <div class="seller-pitch-eyebrow">Free AI for sellers</div>
+                            <h3 class="seller-pitch-headline">List your home free in 3 minutes</h3>
+                            <p class="seller-pitch-sub">
+                                Drop your address, snap your photos on your phone. Our AI writes
+                                the listing copy and stages every room in seconds — the kind of
+                                marketing agencies charge $300+ a room for. No marketing tax,
+                                no Premiere upsell, no $3,000 cheque to a US company.
+                            </p>
+                            <p class="seller-pitch-sub">
+                                Once it's live and buyers start showing interest, it's your call:
+                                keep it open and let agents compete for the sale, or lock in one
+                                exclusive agent. You decide <em>after</em> you've seen real demand —
+                                not before.
+                            </p>
+                            <div class="seller-pitch-cta">
+                                <a class="rea-btn-primary seller-pitch-primary" href="/list">Start a free listing →</a>
+                                <a class="seller-pitch-secondary" href="/sell/manage">Open vs. exclusive — how it works →</a>
+                            </div>
+                        </div>
+                        <div class="seller-pitch-slider">
+                            <BeforeAfterSlider Items="_stagingDemo"
+                                               BeforeLabel="Phone snap"
+                                               AfterLabel="AI-staged ✨"
+                                               Caption="Drag the divider — same room, AI-restyled in seconds." />
+                        </div>
                     </div>
                 }
                 else if (_audience == "agents")
@@ -563,6 +577,69 @@
         color: #4f46e5;
     }
 
+    /* ─── Seller pitch (consolidated single card, spans full grid) ─── */
+    .seller-pitch {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        gap: 44px;
+        align-items: center;
+        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+        border: 1px solid rgba(99, 102, 241, 0.14);
+        border-radius: 20px;
+        padding: 44px;
+    }
+    .seller-pitch-eyebrow {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #6366f1;
+        margin-bottom: 14px;
+    }
+    .seller-pitch-headline {
+        font-size: clamp(26px, 3vw, 36px);
+        font-weight: 800;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.02em;
+        color: #1a1a2e;
+    }
+    .seller-pitch-sub {
+        font-size: 15px;
+        line-height: 1.65;
+        color: #4b5563;
+        margin: 0 0 16px 0;
+    }
+    .seller-pitch-cta {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 24px;
+    }
+    .seller-pitch-primary {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        padding: 14px 28px;
+        font-size: 15px;
+    }
+    .seller-pitch-secondary {
+        font-size: 14px;
+        font-weight: 700;
+        color: #6366f1;
+        text-decoration: none;
+    }
+    .seller-pitch-secondary:hover { color: #4f46e5; }
+    .seller-pitch-slider { width: 100%; }
+    @@media (max-width: 968px) {
+        .seller-pitch {
+            grid-template-columns: 1fr;
+            gap: 28px;
+            padding: 28px;
+        }
+    }
+
     /* ─── Footer ─── */
     .rea-footer {
         background: #0b0b1a;
@@ -644,6 +721,34 @@
     private string _searchType = "buy";
     private string _searchQuery = "";
     private string _audience = "sellers";
+
+    // Demo image pairs for the AI staging slider in the Sellers tab.
+    // Outdoor is a real before/after; remaining rooms are Picsum placeholders
+    // until real photos land in /wwwroot/images/staging/.
+    private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()
+    {
+        new BeforeAfterSlider.SliderItem(
+            "Outdoor living",
+            "/images/staging/ue-outdoor-before.jpg",
+            "/images/staging/ue-outdoor-after.jpg",
+            Icon: "🌿"),
+        // TODO: drop real photos at /wwwroot/images/staging/ue-lounge-{before,after}.jpg and swap below.
+        new BeforeAfterSlider.SliderItem(
+            "Lounge",
+            "https://picsum.photos/seed/ue-lounge-before/1400/900",
+            "https://picsum.photos/seed/ue-lounge-after/1400/900",
+            Icon: "🛋️"),
+        new BeforeAfterSlider.SliderItem(
+            "Kitchen",
+            "https://picsum.photos/seed/ue-kitchen-before/1400/900",
+            "https://picsum.photos/seed/ue-kitchen-after/1400/900",
+            Icon: "🍳"),
+        new BeforeAfterSlider.SliderItem(
+            "Bedroom",
+            "https://picsum.photos/seed/ue-bedroom-before/1400/900",
+            "https://picsum.photos/seed/ue-bedroom-after/1400/900",
+            Icon: "🛏️")
+    };
 
     protected override void OnInitialized()
     {
