@@ -66,10 +66,10 @@
 
             @* Trust strip — woven Aussie / non-profit values *@
             <div class="rea-trust-strip">
-                <span class="rea-trust-item">🇦🇺 Australian-owned · operated by Tailor</span>
-                <span class="rea-trust-item">💚 Not-for-profit · no margin, no equity</span>
+                <span class="rea-trust-item">🇦🇺 Australian-owned · by Tailor</span>
+                <span class="rea-trust-item">💚 Not-for-profit · no margin</span>
                 <span class="rea-trust-item">📖 Open source · Apache 2.0</span>
-                <span class="rea-trust-item">🏠 Hosted in Australia · data stays here</span>
+                <span class="rea-trust-item">🏠 Hosted in Australia</span>
             </div>
         </div>
     </section>
@@ -80,6 +80,25 @@
             <div class="stats-eyebrow">Why we exist</div>
             <h2 class="stats-headline">A$1.7 billion leaves Australia every year just to advertise Australian homes — to two American companies.</h2>
             <PhotoTaxSankey />
+        </div>
+    </section>
+
+    @* ─── Browse by city — buyer entry point, sits above the seller pitch ─── *@
+    <section class="popular-cities-band">
+        <div class="popular-cities-container">
+            <div class="popular-cities-eyebrow">Find your next home</div>
+            <h2 class="popular-cities-headline">Browse Australian listings by city</h2>
+            <p class="popular-cities-sub">Free, no login, no foreign trackers. Just listings.</p>
+            <div class="popular-cities-grid">
+                @foreach (var city in _popularCities)
+                {
+                    <a class="city-tile" href="@($"/explore?type=buy&suburb={Uri.EscapeDataString(city.Name)}")">
+                        <div class="city-tile-name">@city.Name</div>
+                        <div class="city-tile-state">@city.State</div>
+                    </a>
+                }
+            </div>
+            <a class="popular-cities-all" href="/explore?type=buy">See every Australian suburb →</a>
         </div>
     </section>
 
@@ -98,7 +117,7 @@
                 <BeforeAfterSlider Items="_stagingDemo"
                                    BeforeLabel="Phone snap"
                                    AfterLabel="AI-staged ✨"
-                                   Caption="Demo placeholders — your real photos appear here once you upload them in /list." />
+                                   Caption="Drag the divider — same room, AI-restyled in seconds." />
             </div>
 
             <div class="ai-staging-cta">
@@ -438,8 +457,11 @@
         margin-top: 28px;
         display: flex;
         flex-wrap: wrap;
-        gap: 18px;
+        gap: 10px;
         justify-content: center;
+        max-width: 980px;
+        margin-left: auto;
+        margin-right: auto;
     }
     .rea-trust-item {
         font-size: 13px;
@@ -448,9 +470,89 @@
         background: rgba(0,0,0,0.35);
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
-        padding: 8px 14px;
+        padding: 7px 13px;
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.18);
+        white-space: nowrap;
+    }
+
+    /* ─── Popular cities (buyer entry point) ─── */
+    .popular-cities-band {
+        padding: 72px 24px;
+        background: #ffffff;
+    }
+    .popular-cities-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .popular-cities-eyebrow {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6366f1;
+        margin-bottom: 14px;
+    }
+    .popular-cities-headline {
+        font-size: 32px;
+        font-weight: 800;
+        color: #0b0b1a;
+        margin: 0 0 10px;
+        line-height: 1.15;
+    }
+    .popular-cities-sub {
+        font-size: 15px;
+        color: #6b7280;
+        margin: 0 0 36px;
+    }
+    .popular-cities-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 28px;
+    }
+    .city-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 4px;
+        padding: 22px 20px;
+        min-height: 120px;
+        background: linear-gradient(135deg, #f9fafb 0%, #eef2ff 100%);
+        border: 1.5px solid rgba(99, 102, 241, 0.10);
+        border-radius: 14px;
+        text-decoration: none;
+        color: #0b0b1a;
+        transition: transform .15s ease, border-color .15s, box-shadow .15s;
+    }
+    .city-tile:hover {
+        transform: translateY(-2px);
+        border-color: #6366f1;
+        box-shadow: 0 12px 28px rgba(99, 102, 241, 0.18);
+    }
+    .city-tile-name {
+        font-size: 18px;
+        font-weight: 800;
+    }
+    .city-tile-state {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+    }
+    .popular-cities-all {
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 700;
+        color: #6366f1;
+        text-decoration: none;
+    }
+    .popular-cities-all:hover { text-decoration: underline; }
+    @@media (max-width: 900px) {
+        .popular-cities-grid { grid-template-columns: repeat(2, 1fr); }
+        .popular-cities-headline { font-size: 26px; }
     }
 
     /* ─── Stats band ─── */
@@ -752,6 +854,7 @@
             "/images/staging/ue-outdoor-before.jpg",
             "/images/staging/ue-outdoor-after.jpg",
             Icon: "🌿"),
+        // TODO: drop real photos at /wwwroot/images/staging/ue-lounge-{before,after}.jpg and swap below.
         new BeforeAfterSlider.SliderItem(
             "Lounge",
             "https://picsum.photos/seed/ue-lounge-before/1400/900",
@@ -767,6 +870,21 @@
             "https://picsum.photos/seed/ue-bedroom-before/1400/900",
             "https://picsum.photos/seed/ue-bedroom-after/1400/900",
             Icon: "🛏️")
+    };
+
+    // Top-of-funnel buyer entry: 8 largest Australian cities. Links to /explore
+    // with type=buy and the city pre-filled as the suburb query.
+    private sealed record PopularCity(string Name, string State);
+    private readonly List<PopularCity> _popularCities = new()
+    {
+        new("Sydney",      "NSW"),
+        new("Melbourne",   "VIC"),
+        new("Brisbane",    "QLD"),
+        new("Perth",       "WA"),
+        new("Adelaide",    "SA"),
+        new("Gold Coast",  "QLD"),
+        new("Canberra",    "ACT"),
+        new("Newcastle",   "NSW"),
     };
 
     private string GetHeroTitle() => _searchType switch
