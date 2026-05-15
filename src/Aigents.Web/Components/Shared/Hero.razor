@@ -74,6 +74,17 @@
         </div>
     </section>
 
+    @* ─── "Selling too?" secondary CTA, immediately below the search ─── *@
+    @* Same component as /explore and /property pages — buyer-context nudge   *@
+    @* toward also listing. Smaller / less polemical than the seller-framed   *@
+    @* ai-staging-band lower on the page; the two coexist (this is the hook,  *@
+    @* the lower section is the proper pitch).                                *@
+    <div class="home-promo-wrap">
+        <SellPromoBanner Headline="Selling too? List your home free in 3 minutes."
+                         Sub="Browsing for ideas? You can list your own place in three minutes. AI writes the copy, stages your photos, syndicates everywhere. $0."
+                         Meta="Drag the slider to see what AI staging does" />
+    </div>
+
     @* ─── Stats band — the photo tax in numbers ─── *@
     <section class="stats-band" id="why-we-exist">
         <div class="stats-container">
@@ -474,6 +485,17 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.18);
         white-space: nowrap;
+    }
+
+    /* ─── Homepage SellPromoBanner wrapper (sits between hero + Sankey) ─── */
+    .home-promo-wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 36px 24px 0 24px;
+        width: 100%;
+    }
+    @@media (max-width: 760px) {
+        .home-promo-wrap { padding: 24px 16px 0 16px; }
     }
 
     /* ─── Popular cities (buyer entry point) ─── */
