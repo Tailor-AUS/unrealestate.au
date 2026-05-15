@@ -26,8 +26,11 @@
     [Parameter] public string CtaHref { get; set; } = "/list";
     [Parameter] public string Meta { get; set; } = "No card. No upsell. ~3 minutes.";
     [Parameter] public string CssClass { get; set; } = "";
-    [Parameter] public string BeforeUrl { get; set; } = "https://picsum.photos/seed/ue-promo-before/900/600";
-    [Parameter] public string AfterUrl { get; set; } = "https://picsum.photos/seed/ue-promo-after/900/600";
+    // Defaults point at the real Outdoor before/after — same pair the homepage's
+    // larger ai-staging-band uses. Overridable per-page via the parameters if a
+    // different room/scene fits the surrounding copy better.
+    [Parameter] public string BeforeUrl { get; set; } = "/images/staging/ue-outdoor-before.jpg";
+    [Parameter] public string AfterUrl { get; set; } = "/images/staging/ue-outdoor-after.jpg";
 
     private IReadOnlyList<BeforeAfterSlider.SliderItem> _demoItem => new[]
     {
