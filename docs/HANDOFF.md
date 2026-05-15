@@ -269,14 +269,14 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 
 ## 13. Source Control State
 
-- **Repo**: `github.com/Tailor-AUS/aigents-dotnet` (rename pending → `unrealestate-au`)
+- **Repo**: `github.com/Tailor-AUS/unrealestate.au` (renamed from `aigents-dotnet` on 2026-05-13; GitHub redirects the old slug)
 - **Active feature branch**: `claude/rebrand-unrealestate-au-szd3P`
 - **Main branch**: `main` — CI deploys from here
 - **Convention**: `feat(scope): summary` commit messages, no push to `main` directly
 
-### Remaining hardcoded GitHub URLs (need updating post-rename)
+### Hardcoded GitHub URLs (updated 2026-05-13)
 
-8 URLs in `Hero.razor`, `Agents.razor`, `CONTRIBUTING.md`, `SETUP.md`, `docs/agents/FUNDAMENTALS.md` all still point to `github.com/Tailor-AUS/aigents-dotnet`. Update once repo is renamed or migrated.
+URLs in `Hero.razor`, `Agents.razor`, `CONTRIBUTING.md`, `SETUP.md`, `docs/agents/FUNDAMENTALS.md`, `scripts/setup-cicd.ps1` updated from `github.com/Tailor-AUS/aigents-dotnet` → `github.com/Tailor-AUS/unrealestate.au` in `claude/repo-rename-cleanup`. GitHub redirects the old slug, so anything missed still resolves.
 
 ---
 
@@ -290,7 +290,7 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 - [ ] Provide stanza updates to AloomU – onboarding for merge into `docker-compose.stage0.yml`
 - [ ] DNS: confirm GoDaddy MX/SPF/DKIM/DMARC records on `unrealestate.au` (AloomU side)
 - [ ] DNS: point `unrealestate.au` A record + `www` CNAME to AloomU edge once Caddy snippet flips
-- [ ] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs
+- [x] Rename/update remaining `github.com/Tailor-AUS/aigents-dotnet` links in code + docs (done 2026-05-13)
 - [ ] Remove Azure Bicep (`infra/`) or archive it — no longer needed
 - [ ] Update `CLAUDE.md` "Hosting" section
 
