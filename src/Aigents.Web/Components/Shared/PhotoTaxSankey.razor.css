@@ -1,0 +1,135 @@
+.sankey-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.sankey-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ── nodes ── */
+.node {
+    fill: rgba(255, 255, 255, 0.05);
+    stroke: rgba(255, 255, 255, 0.22);
+    stroke-width: 1.5;
+}
+.node-us {
+    fill: rgba(248, 113, 113, 0.10);
+    stroke: rgba(248, 113, 113, 0.45);
+}
+
+/* ── ribbons ── */
+.ribbon {
+    fill: url(#sankey-ribbon);
+    fill-opacity: 0.5;
+    stroke: url(#sankey-ribbon);
+    stroke-opacity: 0.65;
+    stroke-width: 1;
+}
+
+/* ── headline pill on the pipe ── */
+.pill {
+    fill: rgba(11, 11, 26, 0.78);
+    stroke: rgba(248, 113, 113, 0.55);
+    stroke-width: 1.5;
+}
+
+/* ── text ── */
+.sankey-svg text {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.t-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    fill: rgba(255, 255, 255, 0.6);
+}
+.t-figure {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    fill: #fff;
+}
+.t-title {
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    fill: #fff;
+}
+.t-sub {
+    font-size: 13.5px;
+    font-weight: 500;
+    fill: rgba(255, 255, 255, 0.72);
+}
+.t-sub.dim { fill: rgba(255, 255, 255, 0.42); }
+.t-pill-big {
+    font-size: 25px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    fill: #fff;
+}
+.t-pill-sub {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    fill: rgba(255, 255, 255, 0.7);
+}
+
+/* ── travelling coins ── */
+.coin {
+    fill: #fbbf24;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.75));
+}
+.coin-a {
+    offset-path: path("M288 177 C460 177 540 133 712 133");
+    animation: coin-flow 3.4s linear infinite;
+}
+.coin-a.d1 { animation-delay: 1.13s; }
+.coin-a.d2 { animation-delay: 2.27s; }
+.coin-b {
+    offset-path: path("M288 247 C460 247 540 302 712 302");
+    animation: coin-flow 3.9s linear infinite;
+    animation-delay: 0.6s;
+}
+.coin-b.d1 { animation-delay: 2.55s; }
+
+@keyframes coin-flow {
+    0%   { offset-distance: 0%;   opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .coin { display: none; }
+}
+
+/* ── caption + footnote (mirror the old .stats-* look) ── */
+.sankey-caption {
+    margin: 28px auto 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+}
+.sankey-caption strong {
+    color: #fff;
+    font-weight: 800;
+}
+.sankey-footnote {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.42);
+    margin-top: 18px;
+    line-height: 1.6;
+}
+.sankey-footnote a {
+    color: rgba(255, 255, 255, 0.62);
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.28);
+}
+.sankey-footnote a:hover { color: #fff; }
+
+@media (max-width: 560px) {
+    .sankey-caption { font-size: 13.5px; }
+}

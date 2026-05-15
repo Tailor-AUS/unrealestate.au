@@ -1,0 +1,65 @@
+@* The photo tax, as a flow: Australian sellers → A$1.7B/yr → two US companies. *@
+
+<div class="sankey-wrap">
+    <svg class="sankey-svg" viewBox="0 0 1000 400" role="img"
+         aria-labelledby="sankey-title sankey-desc" preserveAspectRatio="xMidYMid meet">
+        <title id="sankey-title">Where Australia's listing-advertising money goes</title>
+        <desc id="sankey-desc">
+            531,457 Australian families who sold a home in FY2024-25 paid roughly
+            A$1.7 billion in listing and advertising fees, which flows to two US-owned
+            companies: News Corp (realestate.com.au) and CoStar Group (Domain).
+        </desc>
+
+        <defs>
+            <linearGradient id="sankey-ribbon" gradientUnits="userSpaceOnUse" x1="288" y1="0" x2="712" y2="0">
+                <stop offset="0%"  stop-color="#a78bfa" />
+                <stop offset="55%" stop-color="#c084fc" />
+                <stop offset="100%" stop-color="#f87171" />
+            </linearGradient>
+        </defs>
+
+        @* ── ribbons (drawn first, behind the nodes) ── *@
+        <path class="ribbon" d="M288,130 C460,130 540,86 712,86 L712,181 C540,181 460,225 288,225 Z" />
+        <path class="ribbon" d="M288,225 C460,225 540,280 712,280 L712,325 C540,325 460,270 288,270 Z" />
+
+        @* ── travelling "coins" along the two flows ── *@
+        <circle class="coin coin-a" r="5" /><circle class="coin coin-a d1" r="5" /><circle class="coin coin-a d2" r="5" />
+        <circle class="coin coin-b" r="4" /><circle class="coin coin-b d1" r="4" />
+
+        @* ── source node ── *@
+        <rect class="node node-source" x="12" y="106" width="276" height="188" rx="18" />
+        <text class="t-eyebrow" x="150" y="148" text-anchor="middle">🇦🇺 AUSTRALIAN HOME SELLERS</text>
+        <text class="t-figure"  x="150" y="192" text-anchor="middle">531,457</text>
+        <text class="t-sub"     x="150" y="218" text-anchor="middle">families sold a home — FY2024-25</text>
+        <text class="t-sub dim" x="150" y="240" text-anchor="middle">listing &amp; advertising fees</text>
+
+        @* ── destination node A ── *@
+        <rect class="node node-us" x="712" y="62" width="276" height="150" rx="18" />
+        <text class="t-eyebrow" x="850" y="100"  text-anchor="middle">🇺🇸 NEWS CORP · USA</text>
+        <text class="t-title"   x="850" y="138" text-anchor="middle">realestate.com.au</text>
+        <text class="t-sub"     x="850" y="164" text-anchor="middle">Australia's #1 listing portal</text>
+        <text class="t-sub dim" x="850" y="186" text-anchor="middle">Premiere upsells · vendor-paid ads</text>
+
+        @* ── destination node B ── *@
+        <rect class="node node-us" x="712" y="246" width="276" height="124" rx="18" />
+        <text class="t-eyebrow" x="850" y="284" text-anchor="middle">🇺🇸 COSTAR GROUP · USA</text>
+        <text class="t-title"   x="850" y="322" text-anchor="middle">Domain</text>
+        <text class="t-sub"     x="850" y="348" text-anchor="middle">acquired Aug 2025 — now US-owned</text>
+
+        @* ── the headline number, riding the fat pipe ── *@
+        <rect class="pill" x="356" y="150" width="288" height="58" rx="14" />
+        <text class="t-pill-big" x="500" y="178" text-anchor="middle">A$1.7 billion</text>
+        <text class="t-pill-sub" x="500" y="198" text-anchor="middle">leaves Australia, every year</text>
+    </svg>
+
+    <p class="sankey-caption">
+        <strong>100%</strong> of major Australian listing portals are now US-owned ·
+        <strong>0</strong> Australian-owned, as of 27&nbsp;August&nbsp;2025
+    </p>
+    <p class="sankey-footnote">
+        Sources:
+        <a href="https://companiesmarketcap.com/rea-group/revenue/" target="_blank" rel="noopener">REA FY2025 revenue</a> ·
+        <a href="https://www.costargroup.com/press-room/2025/costar-group-completes-acquisition-domain-ushering-new-era-innovation-australias" target="_blank" rel="noopener">CoStar acquisition</a> ·
+        <a href="https://pages.corelogic.com/hubfs/CoreLogic%20AU/Article%20Reports/2507-Cotality-HousingChartPack-July-Report.pdf" target="_blank" rel="noopener">Cotality FY24-25 sales</a>
+    </p>
+</div>

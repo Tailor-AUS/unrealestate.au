@@ -152,30 +152,7 @@
     <section class="stats-band">
         <div class="stats-container">
             <div class="stats-eyebrow">Why we exist</div>
-            <div class="stats-grid">
-                <div class="stat-cell">
-                    <div class="stat-figure">A$1.7B</div>
-                    <div class="stat-label">Leaves Australia every year. Aussies paying foreign portals to advertise Australian homes.</div>
-                </div>
-                <div class="stat-cell">
-                    <div class="stat-figure">100%</div>
-                    <div class="stat-label">Of major Australian listing portals are now US-owned (News Corp + CoStar Group).</div>
-                </div>
-                <div class="stat-cell">
-                    <div class="stat-figure">531,457</div>
-                    <div class="stat-label">Australian families paid the foreign tax in FY2024-25 to sell their largest asset.</div>
-                </div>
-                <div class="stat-cell">
-                    <div class="stat-figure">0</div>
-                    <div class="stat-label">Australian-owned major listing portals as of 27 August 2025.</div>
-                </div>
-            </div>
-            <p class="stats-footnote">
-                Sources:
-                <a href="https://companiesmarketcap.com/rea-group/revenue/" target="_blank" rel="noopener">REA FY2025 revenue</a> ·
-                <a href="https://www.costargroup.com/press-room/2025/costar-group-completes-acquisition-domain-ushering-new-era-innovation-australias" target="_blank" rel="noopener">CoStar acquisition</a> ·
-                <a href="https://pages.corelogic.com/hubfs/CoreLogic%20AU/Article%20Reports/2507-Cotality-HousingChartPack-July-Report.pdf" target="_blank" rel="noopener">Cotality FY24-25 sales</a>
-            </p>
+            <PhotoTaxSankey />
         </div>
     </section>
 
@@ -1132,53 +1109,6 @@
     letter-spacing: 0.15em;
     color: #a78bfa;
     margin-bottom: 40px;
-}
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 40px;
-    margin-bottom: 40px;
-}
-.stat-cell {
-    text-align: center;
-}
-.stat-figure {
-    font-size: clamp(36px, 5vw, 56px);
-    font-weight: 800;
-    line-height: 1.1;
-    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 14px;
-    letter-spacing: -0.02em;
-}
-.stat-label {
-    font-size: 14px;
-    line-height: 1.5;
-    color: rgba(255, 255, 255, 0.72);
-    max-width: 240px;
-    margin: 0 auto;
-}
-.stats-footnote {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.42);
-    margin-top: 32px;
-    line-height: 1.6;
-}
-.stats-footnote a {
-    color: rgba(255, 255, 255, 0.62);
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(255, 255, 255, 0.28);
-}
-.stats-footnote a:hover {
-    color: white;
-}
-@@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 32px;
-    }
 }
 </style>
 
