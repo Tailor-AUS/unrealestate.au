@@ -4,6 +4,7 @@
 @using Aigents.Infrastructure.PropertyData
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
+@using System.Security.Claims
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject HttpClient Http
@@ -409,6 +410,10 @@
     private string _priceMax = "";
     private bool _agreeTerms = false;
     private string _userMobile = ""; // Captured in wizard
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+    private Guid _userId = Guid.Empty;
     
     // Edit Mode State
     private bool _isEditing = false;
@@ -521,9 +526,26 @@
         }
     }
     
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         GetAddressFromQuery();
+
+        // Listing requires a signed-in seller — bind the row to the
+        // authenticated account, never a throwaway id. Router uses a plain
+        // RouteView (no AuthorizeRouteView), so guard in-page.
+        if (AuthState is not null)
+        {
+            var principal = (await AuthState).User;
+            if (principal.Identity?.IsAuthenticated == true
+                && Guid.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+            {
+                _userId = uid;
+            }
+            else
+            {
+                Navigation.NavigateTo("/Account/Login?returnUrl=%2Flist", forceLoad: true);
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -551,6 +573,14 @@
     
     private async Task PublishListing()
     {
+        // Persistence + security boundary: never create a listing without a
+        // resolved authenticated owner.
+        if (_userId == Guid.Empty)
+        {
+            Navigation.NavigateTo("/Account/Login?returnUrl=%2Flist", forceLoad: true);
+            return;
+        }
+
         // Resolve address components — these are NOT NULL search keys on the
         // Listing row. Prefer the values the autocomplete/query supplied; fall
         // back to parsing the free-text address so a listing is never created
@@ -576,7 +606,7 @@
         var listing = new Listing
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(), // In a real app, this comes from auth
+            UserId = _userId,
             Address = _address,
             Suburb = suburb,
             State = state,
@@ -591,17 +621,7 @@
             EstimatedValue = TryParseDecimal(_priceMin),
             PriceDisplay = $"$ {(_priceMin)} - {(_priceMax)}",
             Status = Aigents.Domain.Entities.ListingStatus.Active,
-            CreatedAt = DateTime.UtcNow,
-            // Create a Ghost User for this session — they finish signup later
-            // via the email-confirmation flow if/when they choose a password.
-            User = new User
-            {
-                Id = Guid.NewGuid(),
-                Email = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
-                UserName = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
-                PhoneNumber = _userMobile,
-                Name = "Homeowner",
-            }
+            CreatedAt = DateTime.UtcNow
         };
 
         // 2. Persist to in-memory service
