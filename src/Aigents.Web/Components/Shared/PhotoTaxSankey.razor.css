@@ -20,13 +20,29 @@
     stroke: rgba(248, 113, 113, 0.45);
 }
 
-/* ── ribbons ── */
-.ribbon {
-    fill: url(#sankey-ribbon);
-    fill-opacity: 0.5;
-    stroke: url(#sankey-ribbon);
-    stroke-opacity: 0.65;
-    stroke-width: 1;
+/* ── the continent ── */
+.au-land {
+    fill: url(#au-fill);
+    stroke: rgba(251, 191, 36, 0.62);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.28));
+}
+
+/* ── source figure chip, over the interior ── */
+.map-chip {
+    fill: rgba(11, 11, 26, 0.66);
+    stroke: rgba(251, 191, 36, 0.34);
+    stroke-width: 1.5;
+}
+
+/* ── offshore money trails ── */
+.flow-arc {
+    fill: none;
+    stroke: url(#flow-grad);
+    stroke-width: 2;
+    stroke-dasharray: 2 7;
+    stroke-linecap: round;
 }
 
 /* ── headline pill on the pipe ── */
@@ -83,13 +99,13 @@
     filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.75));
 }
 .coin-a {
-    offset-path: path("M288 177 C460 177 540 133 712 133");
+    offset-path: path("M330 205 C470 190 590 150 712 140");
     animation: coin-flow 3.4s linear infinite;
 }
 .coin-a.d1 { animation-delay: 1.13s; }
 .coin-a.d2 { animation-delay: 2.27s; }
 .coin-b {
-    offset-path: path("M288 247 C460 247 540 302 712 302");
+    offset-path: path("M332 250 C490 268 600 300 712 300");
     animation: coin-flow 3.9s linear infinite;
     animation-delay: 0.6s;
 }

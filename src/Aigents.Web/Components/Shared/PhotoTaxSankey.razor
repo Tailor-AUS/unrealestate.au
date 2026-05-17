@@ -1,4 +1,4 @@
-@* The photo tax, as a flow: Australian sellers → A$1.7B/yr → two US companies. *@
+@* The photo tax, as a map: money leaves Australian shores → two US companies. *@
 
 <div class="sankey-wrap">
     <svg class="sankey-svg" viewBox="0 0 1000 400" role="img"
@@ -6,50 +6,73 @@
         <title id="sankey-title">Where Australia's listing-advertising money goes</title>
         <desc id="sankey-desc">
             531,457 Australian families who sold a home in FY2024-25 paid roughly
-            A$1.7 billion in listing and advertising fees, which flows to two US-owned
-            companies: News Corp (realestate.com.au) and CoStar Group (Domain).
+            A$1.7 billion in listing and advertising fees. The money leaves Australian
+            shores and flows offshore to two US-owned companies: News Corp
+            (realestate.com.au) and CoStar Group (Domain).
         </desc>
 
         <defs>
-            <linearGradient id="sankey-ribbon" gradientUnits="userSpaceOnUse" x1="288" y1="0" x2="712" y2="0">
-                <stop offset="0%"  stop-color="#a78bfa" />
-                <stop offset="55%" stop-color="#c084fc" />
-                <stop offset="100%" stop-color="#f87171" />
+            <radialGradient id="au-fill" cx="42%" cy="44%" r="68%">
+                <stop offset="0%"  stop-color="#fbbf24" stop-opacity="0.34" />
+                <stop offset="62%" stop-color="#f59e0b" stop-opacity="0.20" />
+                <stop offset="100%" stop-color="#f87171" stop-opacity="0.14" />
+            </radialGradient>
+            <linearGradient id="flow-grad" gradientUnits="userSpaceOnUse" x1="385" y1="0" x2="712" y2="0">
+                <stop offset="0%"  stop-color="#fbbf24" stop-opacity="0.0" />
+                <stop offset="35%" stop-color="#fbbf24" stop-opacity="0.55" />
+                <stop offset="100%" stop-color="#f87171" stop-opacity="0.65" />
             </linearGradient>
         </defs>
 
-        @* ── ribbons (drawn first, behind the nodes) ── *@
-        <path class="ribbon" d="M288,130 C460,130 540,86 712,86 L712,181 C540,181 460,225 288,225 Z" />
-        <path class="ribbon" d="M288,225 C460,225 540,280 712,280 L712,325 C540,325 460,270 288,270 Z" />
+        @* ── the continent ── *@
+        <g class="au-map">
+            <path class="au-land" d="M104,286 C92,272 88,258 90,250 C86,230 84,210 86,205
+                C90,185 94,172 96,168 C102,156 110,150 116,150 C122,150 126,156 128,160
+                C132,164 136,152 138,150 C150,140 162,134 170,132 C184,127 196,124 200,124
+                C208,122 213,118 216,116 C219,122 221,130 224,134 C229,143 233,152 236,156
+                C240,150 245,142 248,138 C251,131 254,126 256,122 C261,114 266,110 270,108
+                L280,96 L288,110 C294,122 300,132 304,140 C311,154 315,166 318,176
+                C323,193 327,205 328,214 C330,226 331,238 330,244 C329,255 326,262 324,266
+                C320,272 315,276 312,278 C304,282 295,283 288,284 C274,287 266,289 260,290
+                C247,289 238,288 232,288 C223,284 215,280 210,278 C204,281 197,284 192,286
+                C184,289 175,291 168,292 C159,292 149,292 142,292 C133,291 125,289 120,288
+                C112,288 107,287 104,286 Z" />
+            <path class="au-land" d="M296,300 C306,298 314,304 314,314 C314,323 306,328 297,327
+                C289,326 285,318 288,309 C290,303 292,300 296,300 Z" />
+        </g>
 
-        @* ── travelling "coins" along the two flows ── *@
+        @* ── source figure, sitting over the interior ── *@
+        <rect class="map-chip" x="94" y="158" width="238" height="116" rx="16" />
+        <text class="t-eyebrow" x="213" y="186" text-anchor="middle">🇦🇺 AUSTRALIAN HOME SELLERS</text>
+        <text class="t-figure"  x="213" y="224" text-anchor="middle">531,457</text>
+        <text class="t-sub"     x="213" y="248" text-anchor="middle">families sold a home — FY2024-25</text>
+        <text class="t-sub dim" x="213" y="268" text-anchor="middle">listing &amp; advertising fees</text>
+
+        @* ── offshore money trails (drawn under the coins) ── *@
+        <path class="flow-arc" d="M330,205 C470,190 590,150 712,140" />
+        <path class="flow-arc" d="M332,250 C490,268 600,300 712,300" />
+
+        @* ── travelling money, leaving the coastline ── *@
         <circle class="coin coin-a" r="5" /><circle class="coin coin-a d1" r="5" /><circle class="coin coin-a d2" r="5" />
-        <circle class="coin coin-b" r="4" /><circle class="coin coin-b d1" r="4" />
-
-        @* ── source node ── *@
-        <rect class="node node-source" x="12" y="106" width="276" height="188" rx="18" />
-        <text class="t-eyebrow" x="150" y="148" text-anchor="middle">🇦🇺 AUSTRALIAN HOME SELLERS</text>
-        <text class="t-figure"  x="150" y="192" text-anchor="middle">531,457</text>
-        <text class="t-sub"     x="150" y="218" text-anchor="middle">families sold a home — FY2024-25</text>
-        <text class="t-sub dim" x="150" y="240" text-anchor="middle">listing &amp; advertising fees</text>
+        <circle class="coin coin-b" r="4.5" /><circle class="coin coin-b d1" r="4.5" />
 
         @* ── destination node A ── *@
-        <rect class="node node-us" x="712" y="62" width="276" height="150" rx="18" />
-        <text class="t-eyebrow" x="850" y="100"  text-anchor="middle">🇺🇸 NEWS CORP · USA</text>
-        <text class="t-title"   x="850" y="138" text-anchor="middle">realestate.com.au</text>
-        <text class="t-sub"     x="850" y="164" text-anchor="middle">Australia's #1 listing portal</text>
-        <text class="t-sub dim" x="850" y="186" text-anchor="middle">Premiere upsells · vendor-paid ads</text>
+        <rect class="node node-us" x="712" y="64" width="276" height="150" rx="18" />
+        <text class="t-eyebrow" x="850" y="102"  text-anchor="middle">🇺🇸 NEWS CORP · USA</text>
+        <text class="t-title"   x="850" y="140" text-anchor="middle">realestate.com.au</text>
+        <text class="t-sub"     x="850" y="166" text-anchor="middle">Australia's #1 listing portal</text>
+        <text class="t-sub dim" x="850" y="188" text-anchor="middle">Premiere upsells · vendor-paid ads</text>
 
         @* ── destination node B ── *@
-        <rect class="node node-us" x="712" y="246" width="276" height="124" rx="18" />
-        <text class="t-eyebrow" x="850" y="284" text-anchor="middle">🇺🇸 COSTAR GROUP · USA</text>
-        <text class="t-title"   x="850" y="322" text-anchor="middle">Domain</text>
-        <text class="t-sub"     x="850" y="348" text-anchor="middle">acquired Aug 2025 — now US-owned</text>
+        <rect class="node node-us" x="712" y="248" width="276" height="118" rx="18" />
+        <text class="t-eyebrow" x="850" y="286" text-anchor="middle">🇺🇸 COSTAR GROUP · USA</text>
+        <text class="t-title"   x="850" y="324" text-anchor="middle">Domain</text>
+        <text class="t-sub"     x="850" y="350" text-anchor="middle">acquired Aug 2025 — now US-owned</text>
 
-        @* ── the headline number, riding the fat pipe ── *@
-        <rect class="pill" x="356" y="150" width="288" height="58" rx="14" />
-        <text class="t-pill-big" x="500" y="178" text-anchor="middle">A$1.7 billion</text>
-        <text class="t-pill-sub" x="500" y="198" text-anchor="middle">leaves Australia, every year</text>
+        @* ── the headline number, riding the offshore flow ── *@
+        <rect class="pill" x="470" y="168" width="268" height="58" rx="14" />
+        <text class="t-pill-big" x="604" y="196" text-anchor="middle">A$1.7 billion</text>
+        <text class="t-pill-sub" x="604" y="216" text-anchor="middle">leaves Australia, every year</text>
     </svg>
 
     <p class="sankey-caption">
