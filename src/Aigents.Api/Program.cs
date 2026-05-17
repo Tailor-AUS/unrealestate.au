@@ -98,7 +98,13 @@ builder.Services.AddCarter();
 builder.Services.AddAigentsAuthCore(builder.Configuration);
 builder.Services.AddAigentsIdentityCore();
 
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "dev-secret-change-me-min-32-bytes-please";
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? (builder.Environment.IsDevelopment()
+        ? "dev-secret-change-me-min-32-bytes-please"
+        : throw new InvalidOperationException(
+            "Jwt:Secret is not configured. Set Jwt__Secret (or Jwt__Secret_FILE) in the environment. " +
+            "Refusing to start with a known fallback secret in a non-Development environment — " +
+            "tokens would be forgeable."));
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "unrealestate.au";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "unrealestate.au";
 
@@ -139,13 +145,17 @@ builder.Services.AddSingleton<IFido2>(sp =>
 // CORS
 // ───────────────────────────────────────────────────────────────
 
+var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "https://unrealestate.au")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
+        if (builder.Environment.IsDevelopment())
+            policy.SetIsOriginAllowed(_ => true).AllowAnyMethod().AllowAnyHeader();
+        else
+            policy.WithOrigins(corsOrigins).AllowAnyMethod().AllowAnyHeader();
     });
 });
 

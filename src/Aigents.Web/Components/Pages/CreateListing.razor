@@ -4,6 +4,7 @@
 @using Aigents.Infrastructure.PropertyData
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
+@using System.Security.Claims
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject HttpClient Http
@@ -397,6 +398,9 @@
 @code {
     private int _currentStep = 1;
     private string _address = "";
+    private string _suburb = "";
+    private string _postcode = "";
+    private string _state = "QLD";
     private string _propertyType = "house";
     private int _bedrooms = 4;
     private int _bathrooms = 2;
@@ -406,6 +410,10 @@
     private string _priceMax = "";
     private bool _agreeTerms = false;
     private string _userMobile = ""; // Captured in wizard
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+    private Guid _userId = Guid.Empty;
     
     // Edit Mode State
     private bool _isEditing = false;
@@ -463,6 +471,9 @@
         _address = result.FullAddress;
         _lat = result.Lat;
         _lng = result.Lng;
+        if (!string.IsNullOrWhiteSpace(result.Suburb)) _suburb = result.Suburb.Trim();
+        if (!string.IsNullOrWhiteSpace(result.Postcode)) _postcode = result.Postcode.Trim();
+        if (!string.IsNullOrWhiteSpace(result.State)) _state = result.State.Trim();
         StateHasChanged();
         
         await Task.Delay(100);
@@ -496,11 +507,45 @@
         if (!string.IsNullOrEmpty(address)) _address = address;
         if (double.TryParse(latStr, out var lat)) _lat = lat;
         if (double.TryParse(lngStr, out var lng)) _lng = lng;
+
+        var suburb = query["suburb"];
+        var postcode = query["postcode"];
+        var state = query["state"];
+        if (!string.IsNullOrWhiteSpace(suburb)) _suburb = suburb.Trim();
+        if (!string.IsNullOrWhiteSpace(postcode)) _postcode = postcode.Trim();
+        if (!string.IsNullOrWhiteSpace(state)) _state = state.Trim();
+
+        // Best-effort fallback when the address arrived as free text only
+        // (e.g. the homepage CTA passes ?address= without parsed components).
+        if (string.IsNullOrWhiteSpace(_suburb) && !string.IsNullOrEmpty(_address))
+            _suburb = ExtractSuburb(_address);
+        if (string.IsNullOrWhiteSpace(_postcode) && !string.IsNullOrEmpty(_address))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(_address, @"\b(\d{4})\b");
+            if (m.Success) _postcode = m.Groups[1].Value;
+        }
     }
     
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         GetAddressFromQuery();
+
+        // Listing requires a signed-in seller — bind the row to the
+        // authenticated account, never a throwaway id. Router uses a plain
+        // RouteView (no AuthorizeRouteView), so guard in-page.
+        if (AuthState is not null)
+        {
+            var principal = (await AuthState).User;
+            if (principal.Identity?.IsAuthenticated == true
+                && Guid.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+            {
+                _userId = uid;
+            }
+            else
+            {
+                Navigation.NavigateTo("/Account/Login?returnUrl=%2Flist", forceLoad: true);
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -528,35 +573,55 @@
     
     private async Task PublishListing()
     {
+        // Persistence + security boundary: never create a listing without a
+        // resolved authenticated owner.
+        if (_userId == Guid.Empty)
+        {
+            Navigation.NavigateTo("/Account/Login?returnUrl=%2Flist", forceLoad: true);
+            return;
+        }
+
+        // Resolve address components — these are NOT NULL search keys on the
+        // Listing row. Prefer the values the autocomplete/query supplied; fall
+        // back to parsing the free-text address so a listing is never created
+        // with a blank suburb/postcode (which makes it unfindable in search).
+        var suburb = string.IsNullOrWhiteSpace(_suburb) ? ExtractSuburb(_address) : _suburb;
+        var postcode = _postcode;
+        if (string.IsNullOrWhiteSpace(postcode) && !string.IsNullOrEmpty(_address))
+        {
+            var pcMatch = System.Text.RegularExpressions.Regex.Match(_address, @"\b(\d{4})\b");
+            if (pcMatch.Success) postcode = pcMatch.Groups[1].Value;
+        }
+        var state = string.IsNullOrWhiteSpace(_state) ? "QLD" : _state;
+
+        var landSqm = TryParseInt(_landSize);
+        var description =
+            $"{char.ToUpper(_propertyType[0])}{_propertyType[1..]} at {_address}. " +
+            $"{_bedrooms} bedroom{(_bedrooms == 1 ? "" : "s")}, {_bathrooms} bathroom{(_bathrooms == 1 ? "" : "s")}" +
+            $"{(_carSpaces > 0 ? $", {_carSpaces} car space{(_carSpaces == 1 ? "" : "s")}" : "")}" +
+            $"{(landSqm.HasValue ? $", {landSqm} sqm land" : "")}. " +
+            $"Located in {suburb}{(string.IsNullOrWhiteSpace(postcode) ? "" : $" {postcode}")}, {state}.";
+
         // 1. Create the listing object
         var listing = new Listing
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(), // In a real app, this comes from auth
+            UserId = _userId,
             Address = _address,
+            Suburb = suburb,
+            State = state,
+            Postcode = postcode,
             PropertyType = _propertyType ?? "House",
             Bedrooms = _bedrooms,
             Bathrooms = _bathrooms,
             CarSpaces = _carSpaces,
-            // Parse land size cleanly if possible, storing raw string in Description for now or custom field if needed
-            // Listing entity has LandSize as int? (sqm). Let's try to parse.
-            LandSize = TryParseInt(_landSize),
-            Headline = $"Stunning {_propertyType} in {ExtractSuburb(_address)}",
-            Description = $"Discover this exceptional property featuring {_bedrooms} bedrooms and {_bathrooms} bathrooms...",
+            LandSize = landSqm,
+            Headline = $"Stunning {_propertyType} in {suburb}",
+            Description = description,
             EstimatedValue = TryParseDecimal(_priceMin),
             PriceDisplay = $"$ {(_priceMin)} - {(_priceMax)}",
             Status = Aigents.Domain.Entities.ListingStatus.Active,
-            CreatedAt = DateTime.UtcNow,
-            // Create a Ghost User for this session — they finish signup later
-            // via the email-confirmation flow if/when they choose a password.
-            User = new User
-            {
-                Id = Guid.NewGuid(),
-                Email = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
-                UserName = $"{_userMobile.Replace(" ", "")}@sms.unrealestate.au",
-                PhoneNumber = _userMobile,
-                Name = "Homeowner",
-            }
+            CreatedAt = DateTime.UtcNow
         };
 
         // 2. Persist to in-memory service

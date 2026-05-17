@@ -5,6 +5,7 @@
 // Like Facebook Marketplace but for real estate!
 // ═══════════════════════════════════════════════════════════════
 
+using System.Security.Claims;
 using System.Text.Json;
 using Aigents.Domain.Entities;
 using Aigents.Infrastructure.Data;
@@ -24,10 +25,16 @@ public class CreateListingEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/listings", async (CreateListingRequest request, ISender sender) =>
+        app.MapPost("/api/listings", async (CreateListingRequest request, ClaimsPrincipal principal, ISender sender) =>
         {
+            // UserId comes from the authenticated principal, never the request
+            // body — a client must not be able to attribute a listing to another
+            // account.
+            if (!Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                return Results.Unauthorized();
+
             var result = await sender.Send(new CreateListingCommand(
-                request.UserId,
+                userId,
                 request.Address,
                 request.Suburb,
                 request.Postcode,
@@ -37,9 +44,10 @@ public class CreateListingEndpoint : ICarterModule
                 request.LandSize,
                 request.PropertyType
             ));
-            
+
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("CreateListing")
         .WithTags("Listings")
         .WithOpenApi()
@@ -52,7 +60,6 @@ public class CreateListingEndpoint : ICarterModule
 // ───────────────────────────────────────────────────────────────
 
 public record CreateListingRequest(
-    Guid UserId,
     string Address,
     string Suburb,
     string Postcode,

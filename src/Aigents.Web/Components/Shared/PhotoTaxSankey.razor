@@ -1,65 +1,74 @@
-@* The photo tax, as a flow: Australian sellers → A$1.7B/yr → two US companies. *@
+@* Tier-1 corporate funds-flow hero: AU sellers → agents → portal products *@
+@* → operating groups → ownership vehicles → US parents. Self-contained.  *@
 
-<div class="sankey-wrap">
-    <svg class="sankey-svg" viewBox="0 0 1000 400" role="img"
-         aria-labelledby="sankey-title sankey-desc" preserveAspectRatio="xMidYMid meet">
-        <title id="sankey-title">Where Australia's listing-advertising money goes</title>
-        <desc id="sankey-desc">
-            531,457 Australian families who sold a home in FY2024-25 paid roughly
-            A$1.7 billion in listing and advertising fees, which flows to two US-owned
-            companies: News Corp (realestate.com.au) and CoStar Group (Domain).
-        </desc>
+<svg class="funds-flow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"
+     role="img" aria-labelledby="ff-title ff-desc" preserveAspectRatio="xMidYMid meet">
+<title id="ff-title">Tier-1 animated corporate funds-flow hero</title>
+<desc id="ff-desc">Animated hero showing seller-paid real-estate advertising spend flowing from Australian home sellers through local agents into realestate.com.au / REA Group and Domain, then through corporate structures to News Corp and CoStar Group.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040918"/><stop offset="1" stop-color="#07182f"/></linearGradient>
+  <radialGradient id="leftGlow" cx="0.22" cy="0.52" r="0.48"><stop offset="0" stop-color="#ffae32" stop-opacity=".18"/><stop offset=".6" stop-color="#ffae32" stop-opacity=".04"/><stop offset="1" stop-color="#ffae32" stop-opacity="0"/></radialGradient>
+  <radialGradient id="rightGlow" cx="0.79" cy="0.49" r="0.58"><stop offset="0" stop-color="#286dff" stop-opacity=".13"/><stop offset=".7" stop-color="#286dff" stop-opacity=".03"/><stop offset="1" stop-color="#286dff" stop-opacity="0"/></radialGradient>
+  <radialGradient id="coinGrad"><stop offset="0" stop-color="#fff8cf"/><stop offset=".55" stop-color="#ffd477"/><stop offset="1" stop-color="#f0912c"/></radialGradient>
+  <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="25" flood-color="#000" flood-opacity=".48"/></filter>
+  <filter id="goldShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="13" flood-color="#ffb84a" flood-opacity=".28"/><feDropShadow dx="0" dy="18" stdDeviation="27" flood-color="#000" flood-opacity=".45"/></filter>
+  <filter id="parentGlow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="16" flood-color="#ffb84a" flood-opacity=".34"/><feDropShadow dx="0" dy="18" stdDeviation="25" flood-color="#000" flood-opacity=".42"/></filter>
+  <filter id="nodeGlow" x="-200%" y="-200%" width="500%" height="500%"><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#ffbd53" flood-opacity=".96"/></filter>
+  <filter id="railGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <path id="pathCommon" d="M520 398 C610 416 600 578 520 588 C552 594 535 516 560 516 L560 516"/>
+  <path id="pathTop" d="M860 516 C925 516 850 405 900 405 L1200 405 L1230 405 L1510 405 L1540 405 L1850 405"/>
+  <path id="pathBottom" d="M860 516 C925 516 850 735 900 735 L1200 735 L1230 735 L1510 735 L1540 735 L1850 735"/>
+</defs>
+<rect width="1920" height="1080" fill="url(#bg)"/><rect width="1920" height="1080" fill="url(#leftGlow)"/><rect width="1920" height="1080" fill="url(#rightGlow)"/>
+<rect x="86" y="52" width="1748" height="968" rx="34" fill="rgba(4,10,24,.49)" stroke="rgba(255,255,255,.055)"/>
 
-        <defs>
-            <linearGradient id="sankey-ribbon" gradientUnits="userSpaceOnUse" x1="288" y1="0" x2="712" y2="0">
-                <stop offset="0%"  stop-color="#a78bfa" />
-                <stop offset="55%" stop-color="#c084fc" />
-                <stop offset="100%" stop-color="#f87171" />
-            </linearGradient>
-        </defs>
+<!-- abstract Australia contour -->
+<g class="float" opacity=".62"><path d="M102 456 C150 359 272 315 390 342 C467 360 534 421 558 508 C502 623 378 669 248 635 C143 608 72 542 102 456Z" fill="none" stroke="#ffb84a" stroke-width="1.4" opacity=".27"/><path d="M126 468 C175 384 284 359 382 379 C451 395 507 449 523 512 C472 600 365 630 255 600 C170 576 106 526 126 468Z" fill="none" stroke="#ffb84a" stroke-width="1.6" opacity=".35"/><path d="M148 478 L184 430 L236 411 L295 414 L332 392 L390 430 L424 407 L455 478 L501 505 L464 555 L408 589 L331 596 L276 628 L208 612 L160 565 Z" fill="none" stroke="#ffb84a" stroke-width="2.6" opacity=".78"/><circle cx="152" cy="468" r="4" fill="#ffd477"/><circle cx="410" cy="399" r="3" fill="#ffd477" opacity=".7"/><circle cx="492" cy="505" r="3" fill="#ffd477" opacity=".65"/></g>
 
-        @* ── ribbons (drawn first, behind the nodes) ── *@
-        <path class="ribbon" d="M288,130 C460,130 540,86 712,86 L712,181 C540,181 460,225 288,225 Z" />
-        <path class="ribbon" d="M288,225 C460,225 540,280 712,280 L712,325 C540,325 460,270 288,270 Z" />
+<!-- header -->
+<text x="960" y="102" text-anchor="middle" class="eyebrow">FLOW OF FUNDS</text><line x1="742" y1="126" x2="928" y2="126" stroke="#ffb84a" opacity=".34"/><line x1="992" y1="126" x2="1178" y2="126" stroke="#ffb84a" opacity=".34"/><circle cx="960" cy="126" r="5" fill="#ffd477" filter="url(#nodeGlow)"/>
+<text x="905" y="178" text-anchor="end" class="h1 gold">A$1.7B/year</text><text x="918" y="178" text-anchor="start" class="h1">seller-ad spend</text>
+<text x="960" y="236" text-anchor="middle" class="h1">flows through two U.S.-controlled portal structures.</text>
+<text x="960" y="280" text-anchor="middle" class="subtitle">Ownership-aware revenue path: sellers → agents → portal products → operating groups → parent companies</text>
 
-        @* ── travelling "coins" along the two flows ── *@
-        <circle class="coin coin-a" r="5" /><circle class="coin coin-a d1" r="5" /><circle class="coin coin-a d2" r="5" />
-        <circle class="coin coin-b" r="4" /><circle class="coin coin-b d1" r="4" />
+<!-- rails -->
+<use href="#pathCommon" class="railGhost"/><use href="#pathTop" class="railGhost"/><use href="#pathBottom" class="railGhost"/>
+<use href="#pathCommon" class="rail"/><use href="#pathTop" class="rail"/><use href="#pathBottom" class="rail"/>
+<use href="#pathTop" class="railActive"/><use href="#pathBottom" class="railActive alt"/>
+<g>
+  <circle r="8" class="coin"><animateMotion dur="2.7s" begin="0s" repeatCount="indefinite"><mpath href="#pathCommon"/></animateMotion></circle>
+  <circle r="5" class="coin2"><animateMotion dur="2.7s" begin=".9s" repeatCount="indefinite"><mpath href="#pathCommon"/></animateMotion></circle>
+  <circle r="8" class="coin"><animateMotion dur="4.5s" begin="0s" repeatCount="indefinite"><mpath href="#pathTop"/></animateMotion></circle>
+  <circle r="5" class="coin2"><animateMotion dur="4.5s" begin=".8s" repeatCount="indefinite"><mpath href="#pathTop"/></animateMotion></circle>
+  <circle r="5" class="coin2"><animateMotion dur="4.5s" begin="1.6s" repeatCount="indefinite"><mpath href="#pathTop"/></animateMotion></circle>
+  <circle r="8" class="coin"><animateMotion dur="4.5s" begin=".35s" repeatCount="indefinite"><mpath href="#pathBottom"/></animateMotion></circle>
+  <circle r="5" class="coin2"><animateMotion dur="4.5s" begin="1.15s" repeatCount="indefinite"><mpath href="#pathBottom"/></animateMotion></circle>
+  <circle r="5" class="coin2"><animateMotion dur="4.5s" begin="1.95s" repeatCount="indefinite"><mpath href="#pathBottom"/></animateMotion></circle>
+</g>
 
-        @* ── source node ── *@
-        <rect class="node node-source" x="12" y="106" width="276" height="188" rx="18" />
-        <text class="t-eyebrow" x="150" y="148" text-anchor="middle">🇦🇺 AUSTRALIAN HOME SELLERS</text>
-        <text class="t-figure"  x="150" y="192" text-anchor="middle">531,457</text>
-        <text class="t-sub"     x="150" y="218" text-anchor="middle">families sold a home — FY2024-25</text>
-        <text class="t-sub dim" x="150" y="240" text-anchor="middle">listing &amp; advertising fees</text>
+<!-- left cards -->
+<rect x="120" y="330" width="400" height="136" rx="28" class="cardGold"/><text x="154" y="372" class="smallcap">AUSTRALIAN HOME SELLERS</text><line x1="154" y1="389" x2="488" y2="389" stroke="rgba(255,255,255,.17)"/><text x="154" y="437" class="brand" font-size="56">531,457</text><text x="154" y="461" class="fine">families sold a home · FY2024–25</text>
+<rect x="120" y="518" width="400" height="136" rx="28" class="cardGold"/><text x="154" y="560" class="smallcap">LOCAL AGENTS &amp; AGENCIES</text><text x="154" y="599" class="body">authorise listing packages</text><text x="154" y="627" class="body">vendor-paid ads · portal subscriptions</text><text x="154" y="650" class="fine">payments are billed through portal products</text>
 
-        @* ── destination node A ── *@
-        <rect class="node node-us" x="712" y="62" width="276" height="150" rx="18" />
-        <text class="t-eyebrow" x="850" y="100"  text-anchor="middle">🇺🇸 NEWS CORP · USA</text>
-        <text class="t-title"   x="850" y="138" text-anchor="middle">realestate.com.au</text>
-        <text class="t-sub"     x="850" y="164" text-anchor="middle">Australia's #1 listing portal</text>
-        <text class="t-sub dim" x="850" y="186" text-anchor="middle">Premiere upsells · vendor-paid ads</text>
+<!-- metric pool -->
+<rect x="560" y="440" width="300" height="150" rx="32" class="cardGold metricPulse"/><rect x="596" y="464" width="146" height="30" rx="15" fill="rgba(255,184,74,.16)" stroke="rgba(255,184,74,.32)"/><text x="613" y="484" class="smallcap" font-size="14">ANNUAL POOL</text><text x="710" y="531" text-anchor="middle" class="brand" font-size="58" fill="#ffd477">A$1.7B</text><text x="710" y="564" text-anchor="middle" class="body">listing + advertising revenue</text><line x1="610" y1="578" x2="832" y2="578" stroke="rgba(255,184,74,.22)"/><line x1="610" y1="578" x2="716" y2="578" stroke="#ffd477" stroke-width="3" class="ticker"/>
 
-        @* ── destination node B ── *@
-        <rect class="node node-us" x="712" y="246" width="276" height="124" rx="18" />
-        <text class="t-eyebrow" x="850" y="284" text-anchor="middle">🇺🇸 COSTAR GROUP · USA</text>
-        <text class="t-title"   x="850" y="322" text-anchor="middle">Domain</text>
-        <text class="t-sub"     x="850" y="348" text-anchor="middle">acquired Aug 2025 — now US-owned</text>
+<!-- top branch -->
+<text x="900" y="316" class="kicker">REA / realestate.com.au route</text>
+<rect x="900" y="330" width="300" height="150" rx="26" class="card"/><text x="930" y="372" class="smallcap">AU PORTAL PRODUCT</text><text x="930" y="418" class="brand">realestate.com.au</text><text x="930" y="447" class="fine">Premiere upsells · vendor-paid ads</text><text x="930" y="466" class="fine">front door for seller/agent spend</text>
+<rect x="1230" y="330" width="280" height="150" rx="26" class="card"/><text x="1260" y="372" class="smallcap">OPERATING GROUP</text><text x="1260" y="418" class="brand2">REA Group Ltd</text><text x="1260" y="447" class="fine">ASX: REA</text><text x="1260" y="466" class="fine">Australian listed entity</text>
+<rect x="1540" y="300" width="310" height="205" rx="28" class="stack"/><text x="1572" y="339" class="smallcap">OWNERSHIP VEHICLE</text><text x="1572" y="378" class="brand2">News Australia</text><text x="1572" y="406" class="fine">Pty Ltd · wholly owned by News Corp</text><line x1="1572" y1="428" x2="1818" y2="428" stroke="rgba(255,184,74,.25)"/><text x="1572" y="457" class="smallcap">U.S. PARENT</text><text x="1572" y="491" class="brand2">News Corp</text><text x="1748" y="491" class="fine">61.42% owner of REA</text>
 
-        @* ── the headline number, riding the fat pipe ── *@
-        <rect class="pill" x="356" y="150" width="288" height="58" rx="14" />
-        <text class="t-pill-big" x="500" y="178" text-anchor="middle">A$1.7 billion</text>
-        <text class="t-pill-sub" x="500" y="198" text-anchor="middle">leaves Australia, every year</text>
-    </svg>
+<!-- bottom branch -->
+<text x="900" y="646" class="kicker">Domain route</text>
+<rect x="900" y="660" width="300" height="150" rx="26" class="card"/><text x="930" y="702" class="smallcap">AU PORTAL PRODUCT</text><text x="930" y="748" class="brand">Domain</text><text x="930" y="777" class="fine">paid listings · subscriptions · data</text><text x="930" y="796" class="fine">acquired by CoStar · 27 Aug 2025</text>
+<rect x="1230" y="660" width="280" height="150" rx="26" class="card"/><text x="1260" y="702" class="smallcap">OPERATING GROUP</text><text x="1260" y="748" class="brand2">Domain Holdings</text><text x="1260" y="777" class="fine">Australia Ltd</text><text x="1260" y="796" class="fine">former ASX: DHG</text>
+<rect x="1540" y="630" width="310" height="215" rx="28" class="stack"/><text x="1572" y="669" class="smallcap">BIDDER SUB</text><text x="1572" y="708" class="brand2">Andromeda AU SubCo</text><text x="1572" y="736" class="fine">Pty Ltd · subsidiary of CoStar</text><line x1="1572" y1="760" x2="1818" y2="760" stroke="rgba(255,184,74,.25)"/><text x="1572" y="790" class="smallcap">U.S. PARENT</text><text x="1572" y="824" class="brand2">CoStar Group</text><text x="1572" y="842" class="fine">NASDAQ: CSGP · acquisition completed</text>
 
-    <p class="sankey-caption">
-        <strong>100%</strong> of major Australian listing portals are now US-owned ·
-        <strong>0</strong> Australian-owned, as of 27&nbsp;August&nbsp;2025
-    </p>
-    <p class="sankey-footnote">
-        Sources:
-        <a href="https://companiesmarketcap.com/rea-group/revenue/" target="_blank" rel="noopener">REA FY2025 revenue</a> ·
-        <a href="https://www.costargroup.com/press-room/2025/costar-group-completes-acquisition-domain-ushering-new-era-innovation-australias" target="_blank" rel="noopener">CoStar acquisition</a> ·
-        <a href="https://pages.corelogic.com/hubfs/CoreLogic%20AU/Article%20Reports/2507-Cotality-HousingChartPack-July-Report.pdf" target="_blank" rel="noopener">Cotality FY24-25 sales</a>
-    </p>
-</div>
+<!-- labels & pulses -->
+<text x="535" y="501" class="fine">portal invoices</text><text x="875" y="383" class="fine">REA fees</text><text x="876" y="716" class="fine">Domain fees</text><text x="1205" y="390" class="fine">operating revenue</text><text x="1516" y="390" class="fine">ownership economics</text><text x="1205" y="720" class="fine">operating revenue</text><text x="1516" y="720" class="fine">ownership economics</text>
+<circle cx="520" cy="398" r="5" class="pulse"/><circle cx="520" cy="588" r="5" class="pulse" style="animation-delay:.2s"/><circle cx="860" cy="516" r="5" class="pulse" style="animation-delay:.35s"/><circle cx="900" cy="405" r="5" class="pulse" style="animation-delay:.55s"/><circle cx="1200" cy="405" r="5" class="pulse" style="animation-delay:.75s"/><circle cx="1510" cy="405" r="5" class="pulse" style="animation-delay:.95s"/><circle cx="900" cy="735" r="5" class="pulse" style="animation-delay:.65s"/><circle cx="1200" cy="735" r="5" class="pulse" style="animation-delay:.85s"/><circle cx="1510" cy="735" r="5" class="pulse" style="animation-delay:1.05s"/>
+
+<!-- footer -->
+<rect x="235" y="958" width="1450" height="66" rx="29" fill="rgba(7,15,29,.74)" stroke="rgba(255,184,74,.28)"/><path d="M296 972 L323 984 L317 1011 L296 1023 L275 1011 L269 984 Z" fill="none" stroke="#ffd477" stroke-width="3"/><path d="M285 997 L294 1006 L312 984" fill="none" stroke="#ffd477" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="355" y="997" class="body"><tspan fill="#ffd477" font-weight="850">Website-ready animated SVG</tspan> · literal revenue/control pathway through portal products, operating groups, ownership vehicles and U.S. parents</text><text x="355" y="1019" class="micro">Illustrative map only — not an audited dollar-for-dollar dividend or same-day cash remittance schedule.</text><text x="1390" y="1048" class="micro">Animated SVG · 16:9 · looped website hero</text>
+</svg>
