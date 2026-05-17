@@ -1,151 +1,44 @@
-.sankey-wrap {
-    max-width: 1040px;
+.funds-flow-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 1180px;
     margin: 0 auto;
 }
 
-.sankey-svg {
-    width: 100%;
-    height: auto;
-    display: block;
-}
+text { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+.eyebrow { font-size: 22px; font-weight: 850; letter-spacing: .35em; fill: #ffd477; }
+.h1 { font-size: 50px; font-weight: 900; letter-spacing: -.035em; fill: #f6f8fc; }
+.gold { fill: #ffd477; }
+.subtitle { font-size: 23px; fill: #b7c2d0; }
+.smallcap { font-size: 14px; font-weight: 850; letter-spacing: .16em; fill: #ffd477; }
+.kicker { font-size: 14px; font-weight: 850; letter-spacing: .22em; fill: #ffd477; }
+.brand { font-size: 33px; font-weight: 900; letter-spacing: -.035em; fill: #f8fbff; }
+.brand2 { font-size: 28px; font-weight: 900; letter-spacing: -.035em; fill: #f8fbff; }
+.body { font-size: 19px; fill: #d6dde8; }
+.fine { font-size: 15px; fill: #8d98aa; }
+.micro { font-size: 13px; fill: #7e8798; }
+.card { fill: rgba(8,18,38,.88); stroke: rgba(255,255,255,.15); stroke-width: 1.25; filter: url(#cardShadow); }
+.cardGold { fill: rgba(9,19,38,.92); stroke: rgba(255,184,74,.65); stroke-width: 1.8; filter: url(#goldShadow); }
+.stack { fill: rgba(10,22,45,.92); stroke: rgba(255,184,74,.52); stroke-width: 1.7; filter: url(#parentGlow); }
+.railGhost { fill: none; stroke: rgba(255,184,74,.14); stroke-width: 13; stroke-linecap: round; filter: url(#railGlow); }
+.rail { fill: none; stroke: rgba(255,184,74,.42); stroke-width: 3.1; stroke-linecap: round; stroke-dasharray: 3 14; }
+.railActive { fill: none; stroke: rgba(255,221,134,.86); stroke-width: 4.6; stroke-linecap: round; stroke-dasharray: 150 1600; animation: dash 4.8s linear infinite; filter: url(#railGlow); }
+.railActive.alt { animation-delay: -2.35s; }
+.pulse { fill: #ffd477; filter: url(#nodeGlow); animation: pulse 1.8s ease-in-out infinite; transform-origin: center; }
+.coin { fill: url(#coinGrad); filter: url(#nodeGlow); }
+.coin2 { fill: url(#coinGrad); filter: url(#nodeGlow); opacity: .86; }
+.ticker { animation: ticker 2.1s linear infinite; }
+.float { animation: float 7.5s ease-in-out infinite; }
+.metricPulse { animation: metricPulse 2.5s ease-in-out infinite; }
 
-/* ── nodes ── */
-.node {
-    fill: rgba(255, 255, 255, 0.05);
-    stroke: rgba(255, 255, 255, 0.22);
-    stroke-width: 1.5;
-}
-.node-us {
-    fill: rgba(248, 113, 113, 0.10);
-    stroke: rgba(248, 113, 113, 0.45);
-}
-
-/* ── the continent ── */
-.au-land {
-    fill: url(#au-fill);
-    stroke: rgba(251, 191, 36, 0.62);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.28));
-}
-
-/* ── source figure chip, over the interior ── */
-.map-chip {
-    fill: rgba(11, 11, 26, 0.66);
-    stroke: rgba(251, 191, 36, 0.34);
-    stroke-width: 1.5;
-}
-
-/* ── offshore money trails ── */
-.flow-arc {
-    fill: none;
-    stroke: url(#flow-grad);
-    stroke-width: 2;
-    stroke-dasharray: 2 7;
-    stroke-linecap: round;
-}
-
-/* ── headline pill on the pipe ── */
-.pill {
-    fill: rgba(11, 11, 26, 0.78);
-    stroke: rgba(248, 113, 113, 0.55);
-    stroke-width: 1.5;
-}
-
-/* ── text ── */
-.sankey-svg text {
-    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-.t-eyebrow {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    fill: rgba(255, 255, 255, 0.6);
-}
-.t-figure {
-    font-size: 34px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    fill: #fff;
-}
-.t-title {
-    font-size: 23px;
-    font-weight: 800;
-    letter-spacing: -0.015em;
-    fill: #fff;
-}
-.t-sub {
-    font-size: 13.5px;
-    font-weight: 500;
-    fill: rgba(255, 255, 255, 0.72);
-}
-.t-sub.dim { fill: rgba(255, 255, 255, 0.42); }
-.t-pill-big {
-    font-size: 25px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    fill: #fff;
-}
-.t-pill-sub {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    fill: rgba(255, 255, 255, 0.7);
-}
-
-/* ── travelling coins ── */
-.coin {
-    fill: #fbbf24;
-    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.75));
-}
-.coin-a {
-    offset-path: path("M330 205 C470 190 590 150 712 140");
-    animation: coin-flow 3.4s linear infinite;
-}
-.coin-a.d1 { animation-delay: 1.13s; }
-.coin-a.d2 { animation-delay: 2.27s; }
-.coin-b {
-    offset-path: path("M332 250 C490 268 600 300 712 300");
-    animation: coin-flow 3.9s linear infinite;
-    animation-delay: 0.6s;
-}
-.coin-b.d1 { animation-delay: 2.55s; }
-
-@keyframes coin-flow {
-    0%   { offset-distance: 0%;   opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { offset-distance: 100%; opacity: 0; }
-}
+@keyframes dash { to { stroke-dashoffset: -1750; } }
+@keyframes pulse { 0%,100% { r: 5; opacity: 1; } 50% { r: 14; opacity: .32; } }
+@keyframes ticker { from { transform: translateX(-210px); } to { transform: translateX(210px); } }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes metricPulse { 0%,100% { stroke-opacity: .46; } 50% { stroke-opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-    .coin { display: none; }
-}
-
-/* ── caption + footnote (mirror the old .stats-* look) ── */
-.sankey-caption {
-    margin: 28px auto 0;
-    font-size: 15px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.72);
-}
-.sankey-caption strong {
-    color: #fff;
-    font-weight: 800;
-}
-.sankey-footnote {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.42);
-    margin-top: 18px;
-    line-height: 1.6;
-}
-.sankey-footnote a {
-    color: rgba(255, 255, 255, 0.62);
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(255, 255, 255, 0.28);
-}
-.sankey-footnote a:hover { color: #fff; }
-
-@media (max-width: 560px) {
-    .sankey-caption { font-size: 13.5px; }
+    .railActive, .pulse, .ticker, .float, .metricPulse { animation: none !important; }
+    animateMotion { display: none; }
 }
