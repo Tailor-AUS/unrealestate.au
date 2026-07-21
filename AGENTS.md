@@ -23,26 +23,35 @@ GitHub: `Tailor-AUS/unrealestate.au` (product brand: **Aigents**).
 gates marked `blocked` (or [holdings#4](https://github.com/TailorAU/tailor-holdings/issues/4)).
 **`file-don't-draft`** for all GTM. **`Refs #N` only**.
 
-## What Aigents is
+## What Aigents / unrealestate.au is
 
-Australian-owned, open-source, AI-powered alternative for real-estate agents
-done paying the REA/Domain photo tax. Buyer-side AI is distribution; **agent
-flat monthly fee** is the beachhead invoice. Stack: .NET 8, Aspire, Blazor,
-Azure AI Foundry, Australia East; consensus layer via [PACT](https://github.com/TailorAU/pact).
+Australian open-source property portal (Apache 2.0). Stack: **.NET 9**, Aspire,
+Blazor Server, Postgres, Redis, Azure OpenAI; prod on **AloomU stage-0**
+(`https://unrealestate.au`). See [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
+**Commercial model is unsettled** — VISION/CUSTOMERS say NFP cost-recovery (no
+subscription); README/Pillar 1 and epic #22 imply flat agent fee / $10k MRR.
+Owner must ratify before packaging — [`docs/gtm.md`](docs/gtm.md).
+
+## Truth surfaces
+
+| Surface | Role |
+|---|---|
+| `docs/HANDOFF.md` | Hosting, secrets keys, deploy, local Aspire |
+| `docs/DEV_CHECKLIST.md` | Last machine pass/fail |
+| `docs/gtm.md` | Pricing/ICP pointers (no PII) |
+| `SETUP.md` | **Partially obsolete** (Azure deploy / Google OAuth) — do not follow those sections |
+| Epic [#22](https://github.com/Tailor-AUS/unrealestate.au/issues/22) | North star |
 
 ## Run locally (summary)
 
-See `SETUP.md`. Prerequisites: Docker Desktop, .NET 8 SDK, Azure AI Foundry
-access, Google OAuth. Secrets via `dotnet user-secrets` on `src/Aigents.AppHost`
-— **never** paste values into GitHub issues.
-
 ```powershell
-.\scripts\setup-local.ps1
+.\scripts\setup-local.ps1          # Postgres/Redis/MinIO/MailDev + build
+# set AppHost user-secrets per HANDOFF §10 (never commit values)
 dotnet run --project src\Aigents.AppHost
 ```
 
 ## Commercial north star
 
-First **$10k MRR** = recognised recurring agent subscriptions. Agent files
-pricing + agency ICP **pointers** only; owner presses send. Agency contact
-lists live off-GitHub.
+First **$10k MRR** only after owner ratifies model in `docs/gtm.md`. Agent files
+pointers; owner presses send. Agency lists live off-GitHub.
