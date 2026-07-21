@@ -1,51 +1,68 @@
-# GTM pointers — path to first $10k MRR
+# Growth pointers — path to 100k active users
 
-Truth surface for commercial context. **Agent files pointers only; owner executes outreach** (`file-don't-draft`).
-No agency names, emails, or phones in this file.
+Truth surface for GTM/growth context. **Agent files pointers only; owner executes
+outreach** (`file-don't-draft`). No agency/person names, emails, or phones here.
 
 North-star epic: [#22](https://github.com/Tailor-AUS/unrealestate.au/issues/22).
 
-## Thesis conflict (needs owner ratification)
+**Owner directive (22 Jul 2026):** goal is **100,000 active users** — not $10k MRR.
+That aligns with the NFP / free-portal thesis in VISION + CUSTOMERS (cost-recovery
+AI only). Flat-fee packaging is **deferred** unless owner reopens it.
 
-Docs disagree on how money works:
+## Definition of "active user" (proposed — owner ratifies)
 
-| Source | Model |
-|---|---|
-| `docs/VISION.md` §Users + §Pillar 6 + `docs/CUSTOMERS/UNREALESTATE-AU.md` | **NFP / free portal** — no subscription, no tier upsell; agents pay **AI inference cost only, no margin** |
-| `docs/VISION.md` §Pillar 1 + root `README.md` | **Flat monthly fee** (+ token margin) to kill REA/Domain photo tax |
-| Epic #22 (this loop) | First **$10k recognised MRR** via recurring agent subscriptions |
+Until ratified, instrument all three; report the ratified one as the north-star KPI.
 
-**Until Knox picks one, packaging for $10k MRR is blocked.** Cost-recovery-with-no-margin cannot book $10k MRR by definition.
+| Candidate | Counts as active | Why |
+|---|---|---|
+| **A — MAU (recommended)** | Unique authenticated user with ≥1 meaningful action in rolling 30 days | Cleanest product KPI; resists bot inflation |
+| **B — WAU** | Same, rolling 7 days | Tighter ops pulse; noisier |
+| **C — Engaged visitor** | Unique device/cookie with ≥1 search, listing view, enquiry, or AI chat turn in 30 days | Captures pre-signup demand; weaker identity |
 
-### Decision options (owner)
+**Meaningful actions (proposed):** search/filter, view listing detail, start AI chat,
+submit enquiry, book inspection, create/edit listing, agent proposal.
 
-1. **A — Agent SaaS beachhead:** flat monthly seat/agency fee (README/Pillar 1). Path to $10k = e.g. 20 agencies × $500/mo or 40 × $250/mo (illustrative only).
-2. **B — Stay NFP cost-recovery:** redefine “$10k MRR” as something else (e.g. sponsored infra recovery, optional Pro tools, grants) — or drop the MRR target for this product.
-3. **C — Hybrid:** free listing portal + paid Pro agent toolkit (CRM sync, voice, bulk migration) as the recurring line.
+**100k MAU math (illustrative):** ~3.3k new retained actives/day net of churn over
+~30 days is the wrong framing — better: grow **supply (live listings)** and
+**demand (buyer sessions)** in lockstep in BNE/GC, then expand geo.
 
-## Packaging hypotheses (for ratification — not outreach)
+## Growth model (locked until owner changes it)
 
-| Package | Who pays | Recurring unit | Notes |
-|---|---|---|---|
-| Agency seat | Principal / office | $/seat/mo | Aligns with option A |
-| Office flat | Agency | $/office/mo uncapped seats | Simpler procurement |
-| Pro toolkit add-on | Agent on free portal | $/agent/mo | Aligns with option C |
-| AI cost-pass-through only | Agent | usage | Aligns with option B — **not MRR** |
+Free portal → two-sided network:
+
+1. **Supply** — sellers + agents publishing live listings (SEO pages)
+2. **Demand** — buyers searching, AI-chatting, enquiring, booking inspections
+3. **Loops** — shareable listing URLs, agent lead handoff, open-source forks (secondary)
+
+Revenue (AI cost pass-through) is **not** the north star; keep infra cost visible
+so growth does not bankrupt inference.
+
+## Beachhead → scale
+
+| Phase | Geo / segment | Exit criteria (order-of-magnitude) |
+|---|---|---|
+| 0 | Prod healthy + metrics live | Front door 200; active-user counter trusted |
+| 1 | Brisbane + Gold Coast | 1k MAU; ≥100 live listings |
+| 2 | SEQ / major QLD | 10k MAU |
+| 3 | National AU residential | 100k MAU |
+
+## Instrumentation gaps (product work)
+
+- Property activity counters are **mock** today (`PropertyDetails.razor` / HANDOFF §11).
+- Need durable events → warehouse/query for MAU (OpenTelemetry already in ServiceDefaults; product events not defined).
+- Public marketing analytics (privacy-respecting) separate from auth MAU.
 
 ## ICP criteria (pointers only — shortlists off-GitHub)
 
-Beachhead geography already in VISION/CUSTOMERS: **Brisbane + Gold Coast** residential agencies.
+Primary for 100k users: **buyers + DIY sellers** in BNE/GC, with agents as supply
+accelerators (not the only invoice).
 
-Store owner-held shortlists off-repo (e.g. Notion / local folder). Issue [#28](https://github.com/Tailor-AUS/unrealestate.au/issues/28) holds only the pointer to that location once owner names it.
+Owner-held shortlists stay off-repo. [#28](https://github.com/Tailor-AUS/unrealestate.au/issues/28)
+gets a storage-location pointer only.
 
-ICP filters (no identities here):
+## Owner gates that block growth
 
-- Independent or small-group agencies feeling REA/Domain fee pressure
-- Already producing their own photography (photo-tax thesis)
-- Willing to trial buyer-lead handoff without portal exclusivity lock-in
-
-## Funnel (once model ratified)
-
-`signup → first listing → AI copy accepted → publish → buyer enquiry → agent retained`
-
-Instrumentation and Baink invoice path spawn after pricing decision.
+- holdings#4 **K32** — `unrealestate.au` / API timed out from orchestrator (22 Jul)
+- holdings#4 **K33** — local AppHost secrets for agent smoke
+- Ratify active-user definition (this doc)
+- SEO/indexability of public listing pages (ship + verify)

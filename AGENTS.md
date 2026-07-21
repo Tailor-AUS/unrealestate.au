@@ -6,16 +6,17 @@
 ## Product agent (delivery ownership)
 
 A dedicated **Aigents product agent** owns this repo's delivery loop. North-star
-epic: [`#22`](https://github.com/Tailor-AUS/unrealestate.au/issues/22) — first **$10k MRR**.
+epic: [`#22`](https://github.com/Tailor-AUS/unrealestate.au/issues/22) —
+**100,000 active users**.
 
 Local clone (orchestrator home): `C:\tailor_OS\unrealestate.au`.
-GitHub: `Tailor-AUS/unrealestate.au` (product brand: **Aigents**).
+GitHub: `Tailor-AUS/unrealestate.au` (product brand: **Aigents** / **unrealestate.au**).
 
 | Role | Does | Does not |
 |---|---|---|
-| **Aigents product agent** | Pull `ready` issues; ship product; file GTM context (pricing/ICP pointers) | Draft outreach / press send; put Azure/OAuth secrets in issues |
+| **Aigents product agent** | Pull `ready` issues; ship product; file growth/GTM context (metrics, ICP pointers) | Draft outreach / press send; put secrets in issues |
 | **Global orchestrator** | Shape + label; stock `ready`; drain holdings#6 | Bypass this agent for Aigents product work |
-| **Owner (Knox)** | Azure AI + OAuth secrets, DNS, legal copy, agency outreach | — |
+| **Owner (Knox)** | Rack/DNS, secrets, legal copy, outreach execution | — |
 
 **Labels:** `requirement` · `ready` · `blocked` · `needs-human-review` · `epic`.
 
@@ -29,9 +30,8 @@ Australian open-source property portal (Apache 2.0). Stack: **.NET 9**, Aspire,
 Blazor Server, Postgres, Redis, Azure OpenAI; prod on **AloomU stage-0**
 (`https://unrealestate.au`). See [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
-**Commercial model is unsettled** — VISION/CUSTOMERS say NFP cost-recovery (no
-subscription); README/Pillar 1 and epic #22 imply flat agent fee / $10k MRR.
-Owner must ratify before packaging — [`docs/gtm.md`](docs/gtm.md).
+**North star:** 100k active users on the free portal (NFP / cost-recovery AI).
+Pricing/MRR packaging is deferred — see [`docs/gtm.md`](docs/gtm.md).
 
 ## Truth surfaces
 
@@ -39,7 +39,7 @@ Owner must ratify before packaging — [`docs/gtm.md`](docs/gtm.md).
 |---|---|
 | `docs/HANDOFF.md` | Hosting, secrets keys, deploy, local Aspire |
 | `docs/DEV_CHECKLIST.md` | Last machine pass/fail |
-| `docs/gtm.md` | Pricing/ICP pointers (no PII) |
+| `docs/gtm.md` | Growth model, active-user definition, ICP pointers |
 | `SETUP.md` | **Partially obsolete** (Azure deploy / Google OAuth) — do not follow those sections |
 | Epic [#22](https://github.com/Tailor-AUS/unrealestate.au/issues/22) | North star |
 
@@ -51,7 +51,7 @@ Owner must ratify before packaging — [`docs/gtm.md`](docs/gtm.md).
 dotnet run --project src\Aigents.AppHost
 ```
 
-## Commercial north star
+## Growth north star
 
-First **$10k MRR** only after owner ratifies model in `docs/gtm.md`. Agent files
-pointers; owner presses send. Agency lists live off-GitHub.
+**100k active users** (definition in `docs/gtm.md` — owner ratifies). Agent ships
+product + instrumentation and files growth context; owner presses send on outreach.
