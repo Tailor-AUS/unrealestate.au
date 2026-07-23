@@ -61,6 +61,7 @@ gets a storage-location pointer only.
 
 ## Owner gates that block growth
 
-- holdings#4 **K32** — `unrealestate.au` / API timed out from orchestrator (22 Jul)
-- holdings#4 **K33** — local AppHost secrets for agent smoke
-- Deploy and verify SEO/indexability on the live front door
+- holdings#4 **K32** — `unrealestate.au` / API timed out from orchestrator (re-probed 24 Jul)
+- holdings#4 **K34** — rotate formerly embedded Google Maps browser key (referrer-restricted)
+- Merge + deploy [PR #32](https://github.com/Tailor-AUS/unrealestate.au/pull/32), then verify SEO/indexability and MAU query on the live front door
+- [#28](https://github.com/Tailor-AUS/unrealestate.au/issues/28) — owner storage-location pointer for BNE/GC ICP shortlists (no PII in-issue)

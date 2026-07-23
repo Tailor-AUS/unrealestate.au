@@ -8,11 +8,13 @@
 @using System.Net.Mail
 @using System.Security.Claims
 @using System.Text.Json
+@using Microsoft.JSInterop
 @inject IListingService ListingService
 @inject IProductEventRecorder ProductEvents
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IConfiguration Configuration
+@inject IJSRuntime JS
 
 <PageTitle>@(_listing is null ? "Property | unrealestate.au" : $"{_listing.Headline} | unrealestate.au")</PageTitle>
 
@@ -122,13 +124,16 @@ else
                     <h2>About this property</h2>
                     <p>@_listing.Description</p>
                     
-                    <h3>Property Features</h3>
-                    <ul class="features-list">
-                        <li>Premium Location</li>
-                        <li>Modern Design</li>
-                        <li>Spacious Living Areas</li>
-                        <li>Close to Transport</li>
-                    </ul>
+                    @if (ListingFeatures.Count > 0)
+                    {
+                        <h3>Property Features</h3>
+                        <ul class="features-list">
+                            @foreach (var feature in ListingFeatures)
+                            {
+                                <li>@feature</li>
+                            }
+                        </ul>
+                    }
                 </div>
             </div>
 
@@ -153,6 +158,19 @@ else
                     <button class="ghost-btn" @onclick="ChatAboutProperty">
                         Chat about this property
                     </button>
+
+                    <div class="share-block">
+                        <p>Share this listing</p>
+                        <div class="share-buttons">
+                            <button type="button" class="ghost-btn" @onclick="CopyShareLinkAsync">Copy link</button>
+                            <a class="ghost-btn" href="@SmsShareLink">SMS</a>
+                            <a class="ghost-btn" href="@EmailShareLink">Email</a>
+                        </div>
+                        @if (_shareStatus is not null)
+                        {
+                            <p class="share-status" role="status">@_shareStatus</p>
+                        }
+                    </div>
 
                     <div class="agent-profile">
                         <div class="avatar">H</div>
@@ -506,6 +524,36 @@ else
         margin: 0;
     }
 
+    .share-block {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .share-block > p {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    .share-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .share-buttons .ghost-btn {
+        text-decoration: none;
+        text-align: center;
+    }
+
+    .share-status {
+        margin: 10px 0 0;
+        font-size: 13px;
+        color: #047857;
+    }
+
     .modal-actions {
         display: flex;
         gap: 12px;
@@ -719,11 +767,51 @@ else
 
     private string? _toast;
     private string? _formError;
+    private string? _shareStatus;
 
     private string PublicBaseUrl =>
         (Configuration["App:PublicUrl"] ?? "https://unrealestate.au").TrimEnd('/');
 
     private string CanonicalUrl => $"{PublicBaseUrl}/property/{Id}";
+
+    private string ShareUrl =>
+        $"{CanonicalUrl}?utm_source=share&utm_medium=listing&utm_campaign=organic";
+
+    private string ShareText =>
+        _listing is null
+            ? $"See this property on unrealestate.au: {ShareUrl}"
+            : $"{_listing.Headline} — {_listing.Suburb}: {ShareUrl}";
+
+    private string SmsShareLink => $"sms:?body={Uri.EscapeDataString(ShareText)}";
+
+    private string EmailShareLink =>
+        $"mailto:?subject={Uri.EscapeDataString(_listing?.Headline ?? "Property on unrealestate.au")}"
+        + $"&body={Uri.EscapeDataString(ShareText)}";
+
+    private IReadOnlyList<string> ListingFeatures
+    {
+        get
+        {
+            if (_listing is null || string.IsNullOrWhiteSpace(_listing.Features))
+            {
+                return Array.Empty<string>();
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(_listing.Features)
+                    ?.Where(feature => !string.IsNullOrWhiteSpace(feature))
+                    .Select(feature => feature.Trim())
+                    .Take(12)
+                    .ToList()
+                    ?? (IReadOnlyList<string>)Array.Empty<string>();
+            }
+            catch (JsonException)
+            {
+                return Array.Empty<string>();
+            }
+        }
+    }
 
     private string MetaDescription
     {
@@ -844,6 +932,17 @@ else
         }
 
         Navigation.NavigateTo(chatUrl);
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (_listing is null)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+        _shareStatus = "Link copied.";
     }
 
     private async Task SubmitEnquiry()
