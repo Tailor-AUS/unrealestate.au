@@ -13,7 +13,7 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     private readonly HttpClient _httpClient;
     private readonly ILogger<AgentBoxCrmAdapter> _logger;
     private const string DefaultBaseUrl = "https://platform.reapit.cloud";
-    
+
     public string CrmId => "agentbox";
     public string DisplayName => "AgentBox";
 
@@ -29,7 +29,7 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         {
             using var request = CreateRequest(HttpMethod.Get, "/negotiators/me", credentials);
             var response = await _httpClient.SendAsync(request, ct);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 return new CrmConnectionResult
@@ -38,9 +38,9 @@ public class AgentBoxCrmAdapter : ICrmAdapter
                     ErrorMessage = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}"
                 };
             }
-            
+
             var negotiator = await response.Content.ReadFromJsonAsync<AgentBoxNegotiator>(cancellationToken: ct);
-            
+
             return new CrmConnectionResult
             {
                 Success = true,
@@ -60,9 +60,9 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     }
 
     public async Task<CrmPagedResult<CrmContact>> GetContactsAsync(
-        CrmCredentials credentials, 
-        int page = 1, 
-        int pageSize = 100, 
+        CrmCredentials credentials,
+        int page = 1,
+        int pageSize = 100,
         DateTimeOffset? modifiedSince = null,
         CancellationToken ct = default)
     {
@@ -71,13 +71,13 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         {
             url += $"&modifiedFrom={modifiedSince.Value:O}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var abResponse = await response.Content.ReadFromJsonAsync<AgentBoxPagedResponse<AgentBoxContact>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmContact>
         {
             Items = abResponse?._embedded?.Select(MapToContact).ToList() ?? [],
@@ -91,12 +91,12 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/contacts/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var contact = await response.Content.ReadFromJsonAsync<AgentBoxContact>(cancellationToken: ct);
         return contact != null ? MapToContact(contact) : null;
     }
@@ -107,7 +107,7 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/contacts?mobilePhone={Uri.EscapeDataString(normalizedPhone)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var abResponse = await response.Content.ReadFromJsonAsync<AgentBoxPagedResponse<AgentBoxContact>>(cancellationToken: ct);
         return abResponse?._embedded?.Select(MapToContact).ToList() ?? [];
     }
@@ -115,13 +115,13 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     public async Task<CrmContact> CreateContactAsync(CrmCredentials credentials, CrmContact contact, CancellationToken ct = default)
     {
         var abContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/contacts", credentials);
         request.Content = JsonContent.Create(abContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<AgentBoxContact>(cancellationToken: ct);
         return MapToContact(created!);
     }
@@ -129,13 +129,13 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     public async Task<CrmContact> UpdateContactAsync(CrmCredentials credentials, string externalId, CrmContact contact, CancellationToken ct = default)
     {
         var abContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Patch, $"/contacts/{externalId}", credentials);
         request.Content = JsonContent.Create(abContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var updated = await response.Content.ReadFromJsonAsync<AgentBoxContact>(cancellationToken: ct);
         return MapToContact(updated!);
     }
@@ -145,9 +145,9 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/properties?pageNumber={page}&pageSize={pageSize}&marketingMode=selling", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var abResponse = await response.Content.ReadFromJsonAsync<AgentBoxPagedResponse<AgentBoxProperty>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmProperty>
         {
             Items = abResponse?._embedded?.Select(MapToProperty).ToList() ?? [],
@@ -161,12 +161,12 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/properties/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var property = await response.Content.ReadFromJsonAsync<AgentBoxProperty>(cancellationToken: ct);
         return property != null ? MapToProperty(property) : null;
     }
@@ -176,7 +176,7 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/properties?address={Uri.EscapeDataString(addressQuery)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var abResponse = await response.Content.ReadFromJsonAsync<AgentBoxPagedResponse<AgentBoxProperty>>(cancellationToken: ct);
         return abResponse?._embedded?.Select(MapToProperty).ToList() ?? [];
     }
@@ -192,13 +192,13 @@ public class AgentBoxCrmAdapter : ICrmAdapter
             Description = $"{activity.Subject}\n\n{activity.Description}",
             Timestamp = activity.Timestamp
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/journalEntries", credentials);
         request.Content = JsonContent.Create(journalEntry);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<AgentBoxJournalEntryResponse>(cancellationToken: ct);
         return created?.Id ?? "";
     }
@@ -214,13 +214,13 @@ public class AgentBoxCrmAdapter : ICrmAdapter
             Activate = task.DueDate,
             NegotiatorId = task.AssignedToAgentId
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/tasks", credentials);
         request.Content = JsonContent.Create(abTask);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<AgentBoxTaskResponse>(cancellationToken: ct);
         return created?.Id ?? "";
     }
@@ -233,11 +233,11 @@ public class AgentBoxCrmAdapter : ICrmAdapter
         {
             url += $"&negotiatorId={agentId}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var abResponse = await response.Content.ReadFromJsonAsync<AgentBoxPagedResponse<AgentBoxAppointment>>(cancellationToken: ct);
         return abResponse?._embedded?.Select(MapToInspection).ToList() ?? [];
     }
@@ -250,10 +250,10 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     {
         var baseUrl = credentials.BaseUrl ?? DefaultBaseUrl;
         var request = new HttpRequestMessage(method, $"{baseUrl}{path}");
-        
+
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credentials.AccessToken);
         request.Headers.Add("api-version", "2021-08-01");
-        
+
         return request;
     }
 
@@ -291,7 +291,7 @@ public class AgentBoxCrmAdapter : ICrmAdapter
     {
         ExternalId = ab.Id ?? "",
         CrmSource = CrmId,
-        Address = ab.Address?.BuildingNumber != null 
+        Address = ab.Address?.BuildingNumber != null
             ? $"{ab.Address.BuildingNumber} {ab.Address.Line1}".Trim()
             : ab.Address?.Line1 ?? "",
         Suburb = ab.Address?.Line3,

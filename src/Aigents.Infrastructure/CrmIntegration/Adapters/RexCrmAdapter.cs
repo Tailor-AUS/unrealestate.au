@@ -14,7 +14,7 @@ public class RexCrmAdapter : ICrmAdapter
     private readonly HttpClient _httpClient;
     private readonly ILogger<RexCrmAdapter> _logger;
     private const string DefaultBaseUrl = "https://api.rexsoftware.com/v1";
-    
+
     public string CrmId => "rex";
     public string DisplayName => "Rex";
 
@@ -30,7 +30,7 @@ public class RexCrmAdapter : ICrmAdapter
         {
             using var request = CreateRequest(HttpMethod.Get, "/account", credentials);
             var response = await _httpClient.SendAsync(request, ct);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 return new CrmConnectionResult
@@ -39,9 +39,9 @@ public class RexCrmAdapter : ICrmAdapter
                     ErrorMessage = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}"
                 };
             }
-            
+
             var account = await response.Content.ReadFromJsonAsync<RexAccountResponse>(cancellationToken: ct);
-            
+
             return new CrmConnectionResult
             {
                 Success = true,
@@ -61,9 +61,9 @@ public class RexCrmAdapter : ICrmAdapter
     }
 
     public async Task<CrmPagedResult<CrmContact>> GetContactsAsync(
-        CrmCredentials credentials, 
-        int page = 1, 
-        int pageSize = 100, 
+        CrmCredentials credentials,
+        int page = 1,
+        int pageSize = 100,
         DateTimeOffset? modifiedSince = null,
         CancellationToken ct = default)
     {
@@ -72,13 +72,13 @@ public class RexCrmAdapter : ICrmAdapter
         {
             url += $"&modified_since={modifiedSince.Value:O}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var rexResponse = await response.Content.ReadFromJsonAsync<RexPagedResponse<RexContact>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmContact>
         {
             Items = rexResponse?.Data?.Select(MapToContact).ToList() ?? [],
@@ -92,12 +92,12 @@ public class RexCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/contacts/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var rexContact = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexContact>>(cancellationToken: ct);
         return rexContact?.Data != null ? MapToContact(rexContact.Data) : null;
     }
@@ -108,7 +108,7 @@ public class RexCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/contacts?phone={Uri.EscapeDataString(normalizedPhone)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var rexResponse = await response.Content.ReadFromJsonAsync<RexPagedResponse<RexContact>>(cancellationToken: ct);
         return rexResponse?.Data?.Select(MapToContact).ToList() ?? [];
     }
@@ -116,13 +116,13 @@ public class RexCrmAdapter : ICrmAdapter
     public async Task<CrmContact> CreateContactAsync(CrmCredentials credentials, CrmContact contact, CancellationToken ct = default)
     {
         var rexContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/contacts", credentials);
         request.Content = JsonContent.Create(rexContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexContact>>(cancellationToken: ct);
         return MapToContact(created!.Data!);
     }
@@ -130,13 +130,13 @@ public class RexCrmAdapter : ICrmAdapter
     public async Task<CrmContact> UpdateContactAsync(CrmCredentials credentials, string externalId, CrmContact contact, CancellationToken ct = default)
     {
         var rexContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Put, $"/contacts/{externalId}", credentials);
         request.Content = JsonContent.Create(rexContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var updated = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexContact>>(cancellationToken: ct);
         return MapToContact(updated!.Data!);
     }
@@ -146,9 +146,9 @@ public class RexCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/listings?page={page}&per_page={pageSize}&status=active", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var rexResponse = await response.Content.ReadFromJsonAsync<RexPagedResponse<RexListing>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmProperty>
         {
             Items = rexResponse?.Data?.Select(MapToProperty).ToList() ?? [],
@@ -162,12 +162,12 @@ public class RexCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/listings/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var listing = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexListing>>(cancellationToken: ct);
         return listing?.Data != null ? MapToProperty(listing.Data) : null;
     }
@@ -177,7 +177,7 @@ public class RexCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/listings?address={Uri.EscapeDataString(addressQuery)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var rexResponse = await response.Content.ReadFromJsonAsync<RexPagedResponse<RexListing>>(cancellationToken: ct);
         return rexResponse?.Data?.Select(MapToProperty).ToList() ?? [];
     }
@@ -194,13 +194,13 @@ public class RexCrmAdapter : ICrmAdapter
             Timestamp = activity.Timestamp,
             DurationMinutes = activity.DurationSeconds.HasValue ? activity.DurationSeconds.Value / 60 : null
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/activities", credentials);
         request.Content = JsonContent.Create(rexActivity);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexActivity>>(cancellationToken: ct);
         return created?.Data?.Id ?? "";
     }
@@ -217,13 +217,13 @@ public class RexCrmAdapter : ICrmAdapter
             Priority = MapPriority(task.Priority),
             AssignedTo = task.AssignedToAgentId
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/tasks", credentials);
         request.Content = JsonContent.Create(rexTask);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<RexSingleResponse<RexTaskResponse>>(cancellationToken: ct);
         return created?.Data?.Id ?? "";
     }
@@ -235,11 +235,11 @@ public class RexCrmAdapter : ICrmAdapter
         {
             url += $"&agent_id={agentId}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var rexResponse = await response.Content.ReadFromJsonAsync<RexPagedResponse<RexInspection>>(cancellationToken: ct);
         return rexResponse?.Data?.Select(MapToInspection).ToList() ?? [];
     }
@@ -252,7 +252,7 @@ public class RexCrmAdapter : ICrmAdapter
     {
         var baseUrl = credentials.BaseUrl ?? DefaultBaseUrl;
         var request = new HttpRequestMessage(method, $"{baseUrl}{path}");
-        
+
         if (!string.IsNullOrEmpty(credentials.AccessToken))
         {
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credentials.AccessToken);
@@ -261,7 +261,7 @@ public class RexCrmAdapter : ICrmAdapter
         {
             request.Headers.Add("X-Api-Key", credentials.ApiKey);
         }
-        
+
         return request;
     }
 

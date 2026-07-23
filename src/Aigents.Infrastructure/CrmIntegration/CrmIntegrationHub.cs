@@ -12,37 +12,37 @@ public interface ICrmIntegrationHub
     /// Get all available CRM adapters
     /// </summary>
     IReadOnlyList<CrmAdapterInfo> GetAvailableAdapters();
-    
+
     /// <summary>
     /// Test connection to a specific CRM
     /// </summary>
     Task<CrmConnectionResult> TestConnectionAsync(string crmId, CrmCredentials credentials, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Import all contacts from agent's CRM
     /// </summary>
     Task<CrmImportResult> ImportContactsAsync(string agentId, string crmId, CrmCredentials credentials, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Search for a contact by phone across connected CRMs
     /// </summary>
     Task<CrmContact?> FindContactByPhoneAsync(string agentId, string phoneNumber, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Log a call as activity in the agent's CRM
     /// </summary>
     Task LogCallAsync(string agentId, CrmActivity activity, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Create a follow-up task in the agent's CRM
     /// </summary>
     Task CreateFollowUpAsync(string agentId, CrmTask task, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Get properties that match an address query
     /// </summary>
     Task<IReadOnlyList<CrmProperty>> SearchPropertiesAsync(string agentId, string addressQuery, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Get upcoming inspections for an agent
     /// </summary>
@@ -104,7 +104,7 @@ public class CrmIntegrationHub : ICrmIntegrationHub
     public async Task<CrmImportResult> ImportContactsAsync(string agentId, string crmId, CrmCredentials credentials, CancellationToken ct = default)
     {
         var startTime = DateTimeOffset.UtcNow;
-        
+
         if (!_adapters.TryGetValue(crmId, out var adapter))
         {
             return new CrmImportResult
@@ -117,7 +117,7 @@ public class CrmIntegrationHub : ICrmIntegrationHub
         try
         {
             _logger.LogInformation("Starting CRM import for agent {AgentId} from {CrmId}", agentId, crmId);
-            
+
             int imported = 0, updated = 0, skipped = 0;
             int page = 1;
             bool hasMore = true;
@@ -125,17 +125,17 @@ public class CrmIntegrationHub : ICrmIntegrationHub
             while (hasMore && !ct.IsCancellationRequested)
             {
                 var result = await adapter.GetContactsAsync(credentials, page, 100, null, ct);
-                
+
                 foreach (var contact in result.Items)
                 {
                     // Here we would save to our database
                     // For now, just count
                     imported++;
                 }
-                
+
                 hasMore = result.HasNextPage;
                 page++;
-                
+
                 // Rate limiting - don't hammer the CRM
                 await Task.Delay(100, ct);
             }

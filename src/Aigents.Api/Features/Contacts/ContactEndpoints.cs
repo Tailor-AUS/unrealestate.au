@@ -77,7 +77,7 @@ public static class ContactEndpoints
     {
         // TODO: Query from database
         var contacts = new List<ContactListItem>();
-        
+
         return Task.FromResult(Results.Ok(new
         {
             contacts,
@@ -104,7 +104,7 @@ public static class ContactEndpoints
             InspectionsAttended = new List<InspectionSummary>(),
             NoteHistory = new List<NoteSummary>()
         };
-        
+
         return Task.FromResult(Results.Ok(contact));
     }
 
@@ -114,7 +114,7 @@ public static class ContactEndpoints
     {
         // TODO: Full-text search
         var results = new List<ContactListItem>();
-        
+
         return Task.FromResult(Results.Ok(new { results }));
     }
 
@@ -122,9 +122,9 @@ public static class ContactEndpoints
         CreateContactRequest request)
     {
         var contactId = Guid.NewGuid().ToString();
-        
+
         // TODO: Save to database
-        
+
         return Task.FromResult(Results.Created($"/api/contacts/{contactId}", new
         {
             id = contactId,
@@ -137,7 +137,7 @@ public static class ContactEndpoints
         UpdateContactRequest request)
     {
         // TODO: Update in database
-        
+
         return Task.FromResult(Results.Ok(new { success = true }));
     }
 
@@ -146,9 +146,9 @@ public static class ContactEndpoints
         AddNoteRequest request)
     {
         var noteId = Guid.NewGuid().ToString();
-        
+
         // TODO: Save note
-        
+
         return Task.FromResult(Results.Ok(new
         {
             noteId,
@@ -161,7 +161,7 @@ public static class ContactEndpoints
     {
         // TODO: Query all interactions
         var timeline = new List<TimelineItem>();
-        
+
         return Task.FromResult(Results.Ok(new { timeline }));
     }
 
@@ -171,7 +171,7 @@ public static class ContactEndpoints
         LinkPropertyRequest request)
     {
         // TODO: Create link
-        
+
         return Task.FromResult(Results.Ok(new { success = true }));
     }
 
@@ -185,7 +185,7 @@ public static class ContactEndpoints
             reasoning = "Strong engagement, attended 2 inspections, pre-approved",
             suggestedActions = new[] { "Follow up this week", "Send new listings" }
         };
-        
+
         return Task.FromResult(Results.Ok(score));
     }
 

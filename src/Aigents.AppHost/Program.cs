@@ -32,6 +32,7 @@ var smtpHost = builder.AddParameter("smtp-host", secret: false);
 var smtpUsername = builder.AddParameter("smtp-username", secret: false);
 var smtpPassword = builder.AddParameter("smtp-password", secret: true);
 var jwtSecret = builder.AddParameter("jwt-secret", secret: true);
+var googleMapsApiKey = builder.AddParameter("google-maps-api-key", secret: true);
 
 // ───────────────────────────────────────────────────────────────
 // API SERVICE
@@ -57,6 +58,9 @@ var web = builder.AddProject<Projects.Aigents_Web>("web")
     .WithReference(api)
     .WithReference(redis)
     .WithReference(db)
+    .WithEnvironment("AzureAI__Endpoint", azureAiEndpoint)
+    .WithEnvironment("AzureAI__DeploymentName", azureAiDeployment)
+    .WithEnvironment("GoogleMaps__ApiKey", googleMapsApiKey)
     .WithEnvironment("Smtp__Host", smtpHost)
     .WithEnvironment("Smtp__Username", smtpUsername)
     .WithEnvironment("Smtp__Password", smtpPassword)

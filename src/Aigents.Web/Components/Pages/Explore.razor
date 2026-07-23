@@ -2,7 +2,10 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @using Aigents.Web.Components.Shared
 @using Aigents.Web.Services
+@using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Growth
 @using Microsoft.AspNetCore.Components.Web
+@using System.Security.Claims
 @using System.Net.Http.Json
 @implements IDisposable
 
@@ -10,6 +13,8 @@
 @inject ISiteContext SiteContext
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IProductEventRecorder ProductEvents
+@inject IListingService ListingService
 
 <PageTitle>Explore @Location | unrealestate.au</PageTitle>
 
@@ -86,6 +91,21 @@
                     📐 All Lots
                 </button>
             </div>
+
+            @if (_publicListings.Count > 0)
+            {
+                <section class="owner-listings" aria-labelledby="owner-listings-heading">
+                    <h3 id="owner-listings-heading">Homes listed by owners</h3>
+                    @foreach (var listing in _publicListings)
+                    {
+                        <a class="owner-listing-card" href="@($"/property/{listing.Id}")">
+                            <strong>@listing.Headline</strong>
+                            <span>@listing.Address, @listing.Suburb</span>
+                            <span>@listing.PriceDisplay</span>
+                        </a>
+                    }
+                </section>
+            }
             
             @* Time Filter for Sold Properties *@
             @if (_viewMode == "sold")
@@ -246,9 +266,9 @@
 
     // State
     private List<PropertyDto> _properties = new();
+    private List<Listing> _publicListings = new();
     private PropertyDto? _selectedProperty;
     private HashSet<string> _favorites = new();
-    private bool _isLoading = true;
     private string? _error;
     private int _page = 1;
     private int _totalCount = 0;
@@ -268,7 +288,6 @@
     private decimal? _filterMinPrice;
     private decimal? _filterMaxPrice;
     private bool _includeOffMarket = false;
-    private string _sortBy = "newest";
     
     // Persona
     private SitePersona _persona = SitePersona.Buy;
@@ -301,7 +320,24 @@
         };
         
         _searchQuery = Location ?? "Brisbane";
-        await LoadProperties();
+        await Task.WhenAll(LoadProperties(), LoadPublicListings());
+        await RecordCurrentUserEventAsync(
+            ProductEventNames.SearchPerformed,
+            TimeSpan.FromMinutes(5));
+    }
+
+    private async Task LoadPublicListings()
+    {
+        try
+        {
+            _publicListings = await ListingService.GetAllActiveListingsAsync();
+        }
+        catch
+        {
+            // External search can remain available while the listing database is
+            // temporarily unavailable.
+            _publicListings = new List<Listing>();
+        }
     }
     
     private bool _mapInitialized = false;
@@ -425,7 +461,7 @@
         }
     }
     
-    private async Task AnalyzeProperty()
+    private void AnalyzeProperty()
     {
         if (_selectedLot == null) return;
         
@@ -436,7 +472,6 @@
 
     private async Task LoadProperties()
     {
-        _isLoading = true;
         _error = null;
         StateHasChanged();
 
@@ -480,7 +515,6 @@
         }
         finally
         {
-            _isLoading = false;
             StateHasChanged();
         }
     }
@@ -553,6 +587,9 @@
         _page = 1;
         _showFilters = false;
         await LoadProperties();
+        await RecordCurrentUserEventAsync(
+            ProductEventNames.SearchPerformed,
+            TimeSpan.FromMinutes(5));
     }
     
     private async Task ClearFilters()
@@ -576,6 +613,9 @@
     {
         _page = 1;
         await LoadProperties();
+        await RecordCurrentUserEventAsync(
+            ProductEventNames.SearchPerformed,
+            TimeSpan.FromMinutes(5));
     }
 
     private void StartChat()
@@ -586,7 +626,25 @@
     private void ChatAboutProperty()
     {
         if (_selectedProperty != null)
+        {
             Nav.NavigateTo($"/chat?mode={Mode}&address={Uri.EscapeDataString(_selectedProperty.Address)}");
+        }
+    }
+
+    private async Task RecordCurrentUserEventAsync(
+        string eventName,
+        TimeSpan? deduplicationWindow = null)
+    {
+        if (User?.Identity?.IsAuthenticated == true
+            && Guid.TryParse(
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                out var userId))
+        {
+            await ProductEvents.RecordAsync(
+                userId,
+                eventName,
+                deduplicationWindow: deduplicationWindow);
+        }
     }
 
     // Formatting helpers
@@ -1654,6 +1712,37 @@
     background: rgba(0, 0, 0, 0.03);
     padding: 6px;
     border-radius: 12px;
+}
+
+.owner-listings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.owner-listings h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+}
+
+.owner-listing-card {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    color: #1a1a2e;
+    text-decoration: none;
+}
+
+.owner-listing-card:hover {
+    border-color: var(--accent);
+}
+
+.owner-listing-card span {
+    color: #6b7280;
+    font-size: 12px;
 }
 
 .view-tab {

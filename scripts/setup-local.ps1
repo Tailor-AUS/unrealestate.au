@@ -71,6 +71,7 @@ Write-Host "Next — set AppHost user-secrets (values off-GitHub; see docs/HANDO
 Write-Host '  dotnet user-secrets set "Parameters:azure-ai-endpoint"   "https://...." --project src\Aigents.AppHost'
 Write-Host '  dotnet user-secrets set "Parameters:azure-ai-deployment" "gpt-4.1"     --project src\Aigents.AppHost'
 Write-Host '  dotnet user-secrets set "Parameters:jwt-secret"         "<32+ chars>" --project src\Aigents.AppHost'
+Write-Host '  dotnet user-secrets set "Parameters:google-maps-api-key" "<restricted browser key>" --project src\Aigents.AppHost'
 Write-Host '  # optional for mail: smtp-host / smtp-username / smtp-password'
 Write-Host ""
 Write-Host "Then:  dotnet run --project src\Aigents.AppHost"

@@ -34,7 +34,7 @@ public static class BuyerEndpoints
         group.MapDelete("/watchlist/{id}", RemoveFromWatchlist)
             .WithName("RemoveFromWatchlist")
             .WithSummary("Remove a property from watchlist");
-            
+
         // Update watchlist item status (e.g., Inspected)
         group.MapPut("/watchlist/{id}/status", UpdateWatchlistStatus)
             .WithName("UpdateWatchlistStatus")
@@ -53,7 +53,7 @@ public static class BuyerEndpoints
         group.MapPost("/searches", CreateSavedSearch)
             .WithName("CreateSavedSearch")
             .WithSummary("Create a new property alert");
-            
+
         // Delete saved search
         group.MapDelete("/searches/{id}", DeleteSavedSearch)
             .WithName("DeleteSavedSearch")
@@ -84,7 +84,7 @@ public static class BuyerEndpoints
         // TODO: Delete from DB
         return Task.FromResult(Results.Ok(new { success = true }));
     }
-    
+
     private static Task<IResult> UpdateWatchlistStatus(string id, UpdateStatusRequest request)
     {
         // TODO: Update DB
@@ -103,7 +103,7 @@ public static class BuyerEndpoints
         // TODO: Save to DB
         return Task.FromResult(Results.Created($"/api/buyer/searches/{Guid.NewGuid()}", new { success = true }));
     }
-    
+
     private static Task<IResult> DeleteSavedSearch(string id)
     {
         // TODO: Delete from DB
@@ -115,13 +115,13 @@ public static class BuyerEndpoints
     // ───────────────────────────────────────────────────────────────
 
     public record SavePropertyRequest(
-        string PropertyId, 
-        string Source, 
-        string Address, 
-        string? ImageUrl, 
+        string PropertyId,
+        string Source,
+        string Address,
+        string? ImageUrl,
         decimal? PriceEstimate
     );
-    
+
     public record UpdateStatusRequest(string Status, string? Notes);
 
     public record CreateSearchRequest(

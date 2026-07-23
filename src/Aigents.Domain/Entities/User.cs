@@ -32,6 +32,7 @@ public class User : IdentityUser<Guid>
     // Navigation
     public ICollection<Conversation> Conversations { get; set; } = new List<Conversation>();
     public ICollection<Fido2Credential> Fido2Credentials { get; set; } = new List<Fido2Credential>();
+    public ICollection<ProductEvent> ProductEvents { get; set; } = new List<ProductEvent>();
 
     public User()
     {

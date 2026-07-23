@@ -45,7 +45,7 @@ public static class MapsOnlineEndpoints
     private static async Task<IResult> GetReportTypes(IMapsOnlineService mapsOnlineService)
     {
         var reportTypes = await mapsOnlineService.GetReportTypesAsync();
-        
+
         // Return simplified list for UI consumption
         var simplified = reportTypes.Select(r => new
         {
@@ -54,14 +54,14 @@ public static class MapsOnlineEndpoints
             r.Description,
             r.AllowedFeatureTypes
         });
-        
+
         return Results.Ok(simplified);
     }
 
     private static async Task<IResult> GetFeatureTypes(IMapsOnlineService mapsOnlineService)
     {
         var featureTypes = await mapsOnlineService.GetFeatureTypesAsync();
-        
+
         var simplified = featureTypes.Select(f => new
         {
             f.Type,
@@ -69,7 +69,7 @@ public static class MapsOnlineEndpoints
             f.Description,
             f.GeomType
         });
-        
+
         return Results.Ok(simplified);
     }
 
@@ -81,20 +81,20 @@ public static class MapsOnlineEndpoints
         {
             return Results.BadRequest("LotPlan is required (e.g., '1/RP123456' or '1,RP123456')");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.EmailAddress))
         {
             return Results.BadRequest("EmailAddress is required for report delivery");
         }
-        
+
         var reportType = request.ReportType ?? MapsOnlineReportTypes.VegetationManagement;
-        
+
         var result = await mapsOnlineService.RequestReportAsync(
             request.LotPlan,
             reportType,
             request.EmailAddress
         );
-        
+
         if (result.Success)
         {
             return Results.Ok(new
@@ -105,7 +105,7 @@ public static class MapsOnlineEndpoints
                 ReportType = reportType
             });
         }
-        
+
         return Results.BadRequest(new
         {
             Success = false,
@@ -122,28 +122,28 @@ public static class MapsOnlineEndpoints
         {
             return Results.BadRequest("Valid Longitude and Latitude are required");
         }
-        
+
         // Validate coordinates are in Queensland
-        if (request.Longitude < 138 || request.Longitude > 154 || 
+        if (request.Longitude < 138 || request.Longitude > 154 ||
             request.Latitude < -29 || request.Latitude > -10)
         {
             return Results.BadRequest("Coordinates must be within Queensland");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.EmailAddress))
         {
             return Results.BadRequest("EmailAddress is required for report delivery");
         }
-        
+
         var reportType = request.ReportType ?? MapsOnlineReportTypes.VegetationManagement;
-        
+
         var result = await mapsOnlineService.RequestReportByCoordinatesAsync(
             request.Longitude,
             request.Latitude,
             reportType,
             request.EmailAddress
         );
-        
+
         if (result.Success)
         {
             return Results.Ok(new
@@ -154,7 +154,7 @@ public static class MapsOnlineEndpoints
                 ReportType = reportType
             });
         }
-        
+
         return Results.BadRequest(new
         {
             Success = false,

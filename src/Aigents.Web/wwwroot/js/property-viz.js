@@ -3,7 +3,21 @@
  */
 
 window.addressAutocomplete = {
+    waitForGoogleMaps: async function () {
+        if (window.google?.maps?.importLibrary) {
+            return true;
+        }
+
+        const loaded = await (window.googleMapsReady ?? Promise.resolve(false));
+        return loaded === true && !!window.google?.maps?.importLibrary;
+    },
+
     init: async function (inputElement, dotNetRef) {
+        if (!inputElement?.isConnected || !await this.waitForGoogleMaps()) {
+            console.warn("Google Maps is unavailable; address autocomplete remains a plain text field.");
+            return false;
+        }
+
         // Modern dynamic library loading
         const { Autocomplete } = await google.maps.importLibrary("places");
 
@@ -41,6 +55,8 @@ window.addressAutocomplete = {
 
             dotNetRef.invokeMethodAsync("OnPlaceChanged", result);
         });
+
+        return true;
     }
 };
 
@@ -53,6 +69,11 @@ window.propertyViz = {
     currentMode: null, // 'streetview' or 'satellite'
 
     initCinematicView: async function (containerId, lat, lng) {
+        if (!await window.addressAutocomplete.waitForGoogleMaps()) {
+            console.warn("Google Maps is unavailable; cinematic property view was skipped.");
+            return false;
+        }
+
         const { StreetViewService, StreetViewPanorama, StreetViewStatus } = await google.maps.importLibrary("streetView");
         const { Map } = await google.maps.importLibrary("maps");
         const container = document.getElementById(containerId);

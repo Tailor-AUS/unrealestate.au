@@ -60,12 +60,12 @@ public static class VoiceNoteEndpoints
         }
 
         var noteId = Guid.NewGuid().ToString();
-        
+
         // TODO: Upload to Azure Blob Storage
         // TODO: Trigger transcription
 
         await Task.CompletedTask;
-        
+
         return Results.Ok(new
         {
             noteId,
@@ -84,7 +84,7 @@ public static class VoiceNoteEndpoints
         int pageSize = 20)
     {
         var notes = new List<VoiceNoteListItem>();
-        
+
         return Task.FromResult(Results.Ok(new
         {
             notes,
@@ -106,7 +106,7 @@ public static class VoiceNoteEndpoints
             Context = "PostInspection",
             RecordedAt = DateTimeOffset.UtcNow.AddHours(-2)
         };
-        
+
         return Task.FromResult(Results.Ok(note));
     }
 

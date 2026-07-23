@@ -15,11 +15,11 @@ public interface ISyndicationService
     Task<SyndicationResult> ListOnHomelyAsync(Guid listingId);
     Task<SyndicationResult> ListOnSohoAsync(Guid listingId);
     Task<SyndicationResult> ListOnRealtyComAuAsync(Guid listingId);
-    
+
     // Data Providers & Agents
     Task<SyndicationResult> ListOnRPDataAsync(Guid listingId);
     Task<SyndicationResult> ListOnOpenAgentAsync(Guid listingId);
-    
+
     // Classifieds
     Task<SyndicationResult> ListOnGumtreeAsync(Guid listingId);
     Task<SyndicationResult> ListOnFacebookMarketplaceAsync(Guid listingId);
@@ -56,7 +56,7 @@ public class SyndicationService : ISyndicationService
     {
         _logger.LogInformation("Syndicating Listing {ListingId} to Allhomes...", listingId);
         // STUB: Simulate API call to Allhomes XML feed or API
-        await Task.Delay(500); 
+        await Task.Delay(500);
         return Success("AH-102938", "https://www.allhomes.com.au/sale/property-123");
     }
 
@@ -107,7 +107,7 @@ public class SyndicationService : ISyndicationService
 
     public async Task<SyndicationResult> ListOnOpenAgentAsync(Guid listingId)
     {
-         _logger.LogInformation("Sending Listing {ListingId} metadata to OpenAgent...", listingId);
+        _logger.LogInformation("Sending Listing {ListingId} metadata to OpenAgent...", listingId);
         await Task.Delay(300);
         return Success("OA-REQ-001", null);
     }
@@ -128,7 +128,7 @@ public class SyndicationService : ISyndicationService
 
     public async Task<SyndicationResult> ListOnRealtyComAuAsync(Guid listingId)
     {
-         _logger.LogInformation("Syndicating Listing {ListingId} to Realty.com.au...", listingId);
+        _logger.LogInformation("Syndicating Listing {ListingId} to Realty.com.au...", listingId);
         await Task.Delay(400);
         return Success("RTY-445566", "https://www.realty.com.au/listing/123");
     }

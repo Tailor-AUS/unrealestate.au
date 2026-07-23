@@ -7,18 +7,18 @@ public class SyndicationStatus
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ListingId { get; set; }
-    
+
     public SyndicationPlatform Platform { get; set; }
     public SyndicationState State { get; set; } = SyndicationState.Pending;
-    
+
     public string? ExternalListingId { get; set; }  // ID on the external platform
     public string? ExternalUrl { get; set; }        // Link to view on platform
     public string? ErrorMessage { get; set; }       // If failed
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? PublishedAt { get; set; }
     public DateTime? LastSyncAt { get; set; }
-    
+
     // Navigation
     public Listing Listing { get; set; } = null!;
 }

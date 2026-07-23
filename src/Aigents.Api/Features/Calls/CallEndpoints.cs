@@ -57,7 +57,7 @@ public static class CallEndpoints
     {
         // Look up contact in connected CRM
         var contact = await crmHub.FindContactByPhoneAsync(agentId, phoneNumber, ct);
-        
+
         if (contact == null)
         {
             return Results.Ok(new CallerIdentifyResponse
@@ -69,7 +69,7 @@ public static class CallEndpoints
 
         // Get properties they're interested in
         // TODO: Pull from our database of contact-property associations
-        
+
         return Results.Ok(new CallerIdentifyResponse
         {
             Found = true,
@@ -93,7 +93,7 @@ public static class CallEndpoints
     {
         // Create call record in our database
         var callId = Guid.NewGuid().ToString();
-        
+
         // Log to CRM
         if (!string.IsNullOrEmpty(request.ContactId))
         {
@@ -107,7 +107,7 @@ public static class CallEndpoints
                 Timestamp = request.StartTime,
                 DurationSeconds = request.DurationSeconds
             };
-            
+
             await crmHub.LogCallAsync(request.AgentId, activity, ct);
         }
 
@@ -146,7 +146,7 @@ public static class CallEndpoints
     {
         // TODO: Call AI service to summarize transcript
         // This would use Gemini to analyze the transcript
-        
+
         var summary = new CallSummaryResponse
         {
             CallId = callId,
@@ -182,7 +182,7 @@ public static class CallEndpoints
 
         // TODO: Upload to Azure Blob Storage
         // TODO: Trigger transcription with Azure Speech Services
-        
+
         await Task.CompletedTask;
         return Results.Ok(new
         {

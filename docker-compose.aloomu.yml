@@ -33,6 +33,12 @@ services:
       ConnectionStrings__redis: redis:6379
       # API base URL (internal Docker network — no Aspire service discovery)
       API_BASE_URL: http://unrealestate-api:8080
+      # Azure OpenAI for cookie-authenticated server-side chat
+      AzureAI__Endpoint_FILE: /run/secrets/unrealestate_azure_ai_endpoint
+      AzureAI__ApiKey_FILE: /run/secrets/unrealestate_azure_ai_key
+      AzureAI__DeploymentName: gpt-4.1
+      # Browser key must be HTTP-referrer restricted to unrealestate.au.
+      GoogleMaps__ApiKey_FILE: /run/secrets/unrealestate_google_maps_api_key
       # MinIO
       Storage__Endpoint: http://minio:9000
       Storage__Bucket: unrealestate-photos
@@ -53,10 +59,16 @@ services:
       - unrealestate_minio_access_key
       - unrealestate_minio_secret_key
       - unrealestate_smtp_password
+      - unrealestate_azure_ai_endpoint
+      - unrealestate_azure_ai_key
+      - unrealestate_google_maps_api_key
     mem_limit: 1g
     mem_reservation: 256m
     cpus: 2.0
     pids_limit: 300
+    depends_on:
+      unrealestate-api:
+        condition: service_healthy
     cap_drop:
       - ALL
     cap_add:
@@ -144,6 +156,8 @@ services:
 #     file: /run/secrets/unrealestate_azure_ai_key
 #   unrealestate_jwt_secret:
 #     file: /run/secrets/unrealestate_jwt_secret
+#   unrealestate_google_maps_api_key:
+#     file: /run/secrets/unrealestate_google_maps_api_key
 #   unrealestate_minio_access_key:
 #     file: /run/secrets/unrealestate_minio_access_key
 #   unrealestate_minio_secret_key:

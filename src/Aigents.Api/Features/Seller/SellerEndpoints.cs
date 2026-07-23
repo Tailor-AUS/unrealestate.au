@@ -69,18 +69,18 @@ public static class SellerEndpoints
         ClaimPropertyRequest request)
     {
         // 1. Validate property exists
-        var property = await propertyService.GetPropertyDetailsAsync(request.PropertyId) 
+        var property = await propertyService.GetPropertyDetailsAsync(request.PropertyId)
             ?? await propertyService.GetByAddressAsync(request.Address); // Fallback if Address provided
-            
+
         if (property == null)
         {
             return Results.BadRequest(new { error = "Property not found" });
         }
 
         // 2. TODO: Verify ownership (mocked as success)
-        
+
         // 3. TODO: Save to DB
-        
+
         return Results.Created($"/api/seller/properties/{Guid.NewGuid()}", new
         {
             success = true,
@@ -104,7 +104,7 @@ public static class SellerEndpoints
 
         // Fetch live market data
         var suburbProfile = await propertyService.GetSuburbInsightsAsync(sellerProperty.Suburb, "QLD");
-        
+
         // Fetch updated AVM from CoreLogic (mock)
         var freshData = await propertyService.GetPropertyDetailsAsync(sellerProperty.PropertyId);
 
@@ -114,7 +114,7 @@ public static class SellerEndpoints
             market = suburbProfile,
             liveAvm = freshData?.EstimatedValue ?? sellerProperty.LatestAvm,
             avmConfidence = freshData?.EstimatedValueConfidence ?? "Medium",
-            recentSales = new[] 
+            recentSales = new[]
             {
                 new { address = "5 Neighbor St", price = 1250000, date = DateTime.UtcNow.AddMonths(-1) }
             }
@@ -127,7 +127,7 @@ public static class SellerEndpoints
     {
         // TODO: Save to DB
         // TODO: Notify Agent (Integration Event)
-        
+
         return Task.FromResult(Results.Ok(new { success = true, id = Guid.NewGuid() }));
     }
 
@@ -136,24 +136,24 @@ public static class SellerEndpoints
         // TODO: Logic to find top agents in suburb based on sales data
         var agents = new[]
         {
-            new { 
-                id = Guid.NewGuid(), 
-                name = "Sarah Smith", 
-                agency = "Ray White Brisbane", 
-                recentSales = 12, 
+            new {
+                id = Guid.NewGuid(),
+                name = "Sarah Smith",
+                agency = "Ray White Brisbane",
+                recentSales = 12,
                 avgPrice = 1100000,
                 rating = 4.9
             },
-            new { 
-                id = Guid.NewGuid(), 
-                name = "Tom Jones", 
-                agency = "Place Estate Agents", 
-                recentSales = 8, 
+            new {
+                id = Guid.NewGuid(),
+                name = "Tom Jones",
+                agency = "Place Estate Agents",
+                recentSales = 8,
                 avgPrice = 1400000,
-                rating = 4.8 
+                rating = 4.8
             }
         };
-        
+
         return Task.FromResult(Results.Ok(agents));
     }
 
@@ -176,7 +176,7 @@ public static class SellerEndpoints
 // Extension needed as GetByAddressAsync isn't on the service interface, only the provider interface
 // We should add it to IPropertyDataService or cast. 
 // For now, let's fix the ClaimProperty handler to use available methods.
-file static class Extensions 
+file static class Extensions
 {
     public static Task<BuyerProperty?> GetByAddressAsync(this IPropertyDataService service, string address)
     {

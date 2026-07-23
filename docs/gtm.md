@@ -9,18 +9,16 @@ North-star epic: [#22](https://github.com/Tailor-AUS/unrealestate.au/issues/22).
 That aligns with the NFP / free-portal thesis in VISION + CUSTOMERS (cost-recovery
 AI only). Flat-fee packaging is **deferred** unless owner reopens it.
 
-## Definition of "active user" (proposed — owner ratifies)
+## Definition of "active user" (locked 22 Jul 2026)
 
-Until ratified, instrument all three; report the ratified one as the north-star KPI.
+**MAU:** a unique authenticated user with at least one meaningful action in the
+rolling 30-day window. WAU is a secondary operating metric. Anonymous engaged
+visitors are acquisition traffic and do not count toward the 100k north star.
 
-| Candidate | Counts as active | Why |
-|---|---|---|
-| **A — MAU (recommended)** | Unique authenticated user with ≥1 meaningful action in rolling 30 days | Cleanest product KPI; resists bot inflation |
-| **B — WAU** | Same, rolling 7 days | Tighter ops pulse; noisier |
-| **C — Engaged visitor** | Unique device/cookie with ≥1 search, listing view, enquiry, or AI chat turn in 30 days | Captures pre-signup demand; weaker identity |
-
-**Meaningful actions (proposed):** search/filter, view listing detail, start AI chat,
-submit enquiry, book inspection, create/edit listing, agent proposal.
+**Meaningful actions:** search/filter, view an active listing, start AI chat,
+submit enquiry, book inspection, create/edit listing, submit offer, or submit an
+agent proposal. The stable vocabulary and canonical query are in
+[`metrics.md`](metrics.md).
 
 **100k MAU math (illustrative):** ~3.3k new retained actives/day net of churn over
 ~30 days is the wrong framing — better: grow **supply (live listings)** and
@@ -46,10 +44,11 @@ so growth does not bankrupt inference.
 | 2 | SEQ / major QLD | 10k MAU |
 | 3 | National AU residential | 100k MAU |
 
-## Instrumentation gaps (product work)
+## Instrumentation status
 
-- Property activity counters are **mock** today (`PropertyDetails.razor` / HANDOFF §11).
-- Need durable events → warehouse/query for MAU (OpenTelemetry already in ServiceDefaults; product events not defined).
+- Durable privacy-minimised `ProductEvents` + rolling MAU/WAU query: implemented
+  on `feat/100k-growth-foundation`.
+- Property activity strip now uses real event/inquiry data; fabricated counters removed.
 - Public marketing analytics (privacy-respecting) separate from auth MAU.
 
 ## ICP criteria (pointers only — shortlists off-GitHub)
@@ -64,5 +63,4 @@ gets a storage-location pointer only.
 
 - holdings#4 **K32** — `unrealestate.au` / API timed out from orchestrator (22 Jul)
 - holdings#4 **K33** — local AppHost secrets for agent smoke
-- Ratify active-user definition (this doc)
-- SEO/indexability of public listing pages (ship + verify)
+- Deploy and verify SEO/indexability on the live front door

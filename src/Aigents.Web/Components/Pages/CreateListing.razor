@@ -624,7 +624,7 @@
             CreatedAt = DateTime.UtcNow
         };
 
-        // 2. Persist to in-memory service
+        // 2. Persist to PostgreSQL (ListingService records the product event).
         await ListingService.CreateListingAsync(listing);
         
         // 3. Redirect with ID

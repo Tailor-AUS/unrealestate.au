@@ -5,6 +5,10 @@
 
 @inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Navigation
+@inject IChatConversationService ChatConversations
+@using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Services.Chat
+@using System.Security.Claims
 
 <div class="orb orb-1 orb-chat @(_mode)"></div>
 
@@ -26,10 +30,12 @@
             
             <div class="mini-toggle">
                 <button class="@BuyToggleClass"
+                        disabled="@_isLoading"
                         @onclick="SetModeBuy">
                     🏠
                 </button>
                 <button class="@SellToggleClass"
+                        disabled="@_isLoading"
                         @onclick="SetModeSell">
                     📈
                 </button>
@@ -257,32 +263,28 @@ else
 
         try
         {
-            var client = HttpClientFactory.CreateClient("api");
-            var response = await client.PostAsJsonAsync("/api/chat", new
+            if (!Guid.TryParse(
+                    User?.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    out var userId))
             {
-                ConversationId = _conversationId,
-                UserId = Guid.Parse(User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString()),
-                Messages = _messages.Select(m => new { m.Role, m.Content }),
-                Mode = _mode
-            });
-
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<ChatResponse>();
-                if (result is not null)
-                {
-                    _conversationId = result.ConversationId;
-                    _messages.Add(new ChatMessage("assistant", result.Content));
-                    
-                    if (_messages.Count >= 6 && !_showHandoff)
-                    {
-                        _showHandoff = true;
-                    }
-                }
+                throw new InvalidOperationException("Sign in is required to chat.");
             }
-            else
+
+            var result = await ChatConversations.SendAsync(
+                userId,
+                _conversationId,
+                _messages
+                    .Select(message => new ConversationInputMessage(
+                        message.Role,
+                        message.Content))
+                    .ToList(),
+                _mode);
+            _conversationId = result.ConversationId;
+            _messages.Add(new ChatMessage("assistant", result.Content));
+
+            if (_messages.Count >= 6 && !_showHandoff)
             {
-                _messages.Add(new ChatMessage("assistant", "Sorry, I'm having trouble connecting. Please try again."));
+                _showHandoff = true;
             }
         }
         catch
@@ -326,11 +328,25 @@ else
         await Task.CompletedTask;
     }
 
-    private void SetModeBuy() => _mode = "buy";
-    private void SetModeSell() => _mode = "sell";
+    private void SetModeBuy() => SetMode("buy");
+    private void SetModeSell() => SetMode("sell");
+
+    private void SetMode(string mode)
+    {
+        if (_isLoading || _mode == mode)
+        {
+            return;
+        }
+
+        _mode = mode;
+        _conversationId = null;
+        _messages.Clear();
+        _input = "";
+        _showHandoff = false;
+        _reportData = null;
+    }
 
     private string BuyToggleClass => _mode == "buy" ? "mini-toggle-btn active buy" : "mini-toggle-btn";
     private string SellToggleClass => _mode == "sell" ? "mini-toggle-btn active sell" : "mini-toggle-btn";
 
-    private record ChatResponse(Guid ConversationId, string Content, int TokensUsed);
 }
