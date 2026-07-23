@@ -47,7 +47,7 @@ public class GetPropertyReport : ICarterModule
 
             // In a real app, this would query CoreLogic / RP Data
             // For now, we mock realistic data based on the input address
-            
+
             var comps = new List<ComparableSale>
             {
                 new("24 Park Avenue", "$1,450,000", "Sold 2 weeks ago", "4 Bed • 2 Bath • 607m²"),

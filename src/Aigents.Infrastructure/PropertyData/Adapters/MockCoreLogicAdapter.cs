@@ -13,7 +13,7 @@ public class MockCoreLogicAdapter : IPropertyDataProvider
         // Generate deterministic mock results based on query
         var results = new List<BuyerProperty>();
         var random = new Random(filter.GetHashCode());
-        
+
         for (int i = 0; i < filter.PageSize; i++)
         {
             results.Add(GenerateMockProperty(i, filter.Query ?? "Unknown", random));
@@ -60,7 +60,7 @@ public class MockCoreLogicAdapter : IPropertyDataProvider
     {
         var bedrooms = random.Next(2, 6);
         var baseValue = 500000 + (bedrooms * 200000) + random.Next(-100000, 100000);
-        
+
         return new BuyerProperty
         {
             Id = $"cl-{Math.Abs(seed)}",
@@ -71,25 +71,25 @@ public class MockCoreLogicAdapter : IPropertyDataProvider
             Suburb = "Brisbane",
             State = "QLD",
             Postcode = "4000",
-            
+
             Type = (PropertyType)random.Next(0, 4),
             Bedrooms = bedrooms,
             Bathrooms = Math.Max(1, bedrooms - 1),
             CarSpaces = Math.Max(1, bedrooms - 2),
             LandAreaSqm = random.Next(300, 1200),
             FloorAreaSqm = random.Next(100, 400),
-            
+
             IsOnMarket = random.NextDouble() > 0.8, // 20% chance on market
             Status = ListingStatus.OffMarket,
-            
+
             EstimatedValue = baseValue,
             EstimatedValueLow = baseValue * 0.9m,
             EstimatedValueHigh = baseValue * 1.1m,
             EstimatedValueConfidence = "High",
-            
+
             LastSalePrice = baseValue * 0.7m,
             LastSaleDate = DateTimeOffset.UtcNow.AddYears(-random.Next(2, 10)),
-            
+
             RentalEstimate = baseValue * 0.004m, // Approx yield logic
             RentalYield = 4.2m
         };

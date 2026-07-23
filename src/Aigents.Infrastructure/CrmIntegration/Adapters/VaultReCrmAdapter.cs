@@ -14,7 +14,7 @@ public class VaultReCrmAdapter : ICrmAdapter
     private readonly HttpClient _httpClient;
     private readonly ILogger<VaultReCrmAdapter> _logger;
     private const string DefaultBaseUrl = "https://api.vaultre.com.au/api/v1.3";
-    
+
     public string CrmId => "vaultre";
     public string DisplayName => "VaultRE";
 
@@ -30,7 +30,7 @@ public class VaultReCrmAdapter : ICrmAdapter
         {
             using var request = CreateRequest(HttpMethod.Get, "/me", credentials);
             var response = await _httpClient.SendAsync(request, ct);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 return new CrmConnectionResult
@@ -39,9 +39,9 @@ public class VaultReCrmAdapter : ICrmAdapter
                     ErrorMessage = $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}"
                 };
             }
-            
+
             var user = await response.Content.ReadFromJsonAsync<VaultReUser>(cancellationToken: ct);
-            
+
             return new CrmConnectionResult
             {
                 Success = true,
@@ -61,9 +61,9 @@ public class VaultReCrmAdapter : ICrmAdapter
     }
 
     public async Task<CrmPagedResult<CrmContact>> GetContactsAsync(
-        CrmCredentials credentials, 
-        int page = 1, 
-        int pageSize = 100, 
+        CrmCredentials credentials,
+        int page = 1,
+        int pageSize = 100,
         DateTimeOffset? modifiedSince = null,
         CancellationToken ct = default)
     {
@@ -73,13 +73,13 @@ public class VaultReCrmAdapter : ICrmAdapter
         {
             url += $"&modified_since={modifiedSince.Value:yyyy-MM-ddTHH:mm:ssZ}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var vaultResponse = await response.Content.ReadFromJsonAsync<VaultReListResponse<VaultReContact>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmContact>
         {
             Items = vaultResponse?.Items?.Select(MapToContact).ToList() ?? [],
@@ -93,12 +93,12 @@ public class VaultReCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/contacts/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var contact = await response.Content.ReadFromJsonAsync<VaultReContact>(cancellationToken: ct);
         return contact != null ? MapToContact(contact) : null;
     }
@@ -109,7 +109,7 @@ public class VaultReCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/contacts/search?phone={Uri.EscapeDataString(normalized)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var vaultResponse = await response.Content.ReadFromJsonAsync<VaultReListResponse<VaultReContact>>(cancellationToken: ct);
         return vaultResponse?.Items?.Select(MapToContact).ToList() ?? [];
     }
@@ -117,13 +117,13 @@ public class VaultReCrmAdapter : ICrmAdapter
     public async Task<CrmContact> CreateContactAsync(CrmCredentials credentials, CrmContact contact, CancellationToken ct = default)
     {
         var vaultContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/contacts", credentials);
         request.Content = JsonContent.Create(vaultContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<VaultReContact>(cancellationToken: ct);
         return MapToContact(created!);
     }
@@ -131,13 +131,13 @@ public class VaultReCrmAdapter : ICrmAdapter
     public async Task<CrmContact> UpdateContactAsync(CrmCredentials credentials, string externalId, CrmContact contact, CancellationToken ct = default)
     {
         var vaultContact = MapFromContact(contact);
-        
+
         using var request = CreateRequest(HttpMethod.Put, $"/contacts/{externalId}", credentials);
         request.Content = JsonContent.Create(vaultContact);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var updated = await response.Content.ReadFromJsonAsync<VaultReContact>(cancellationToken: ct);
         return MapToContact(updated!);
     }
@@ -148,9 +148,9 @@ public class VaultReCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/listings?limit={pageSize}&offset={offset}&status=active", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var vaultResponse = await response.Content.ReadFromJsonAsync<VaultReListResponse<VaultReListing>>(cancellationToken: ct);
-        
+
         return new CrmPagedResult<CrmProperty>
         {
             Items = vaultResponse?.Items?.Select(MapToProperty).ToList() ?? [],
@@ -164,12 +164,12 @@ public class VaultReCrmAdapter : ICrmAdapter
     {
         using var request = CreateRequest(HttpMethod.Get, $"/listings/{externalId}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
-        
+
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
-            
+
         response.EnsureSuccessStatusCode();
-        
+
         var listing = await response.Content.ReadFromJsonAsync<VaultReListing>(cancellationToken: ct);
         return listing != null ? MapToProperty(listing) : null;
     }
@@ -179,7 +179,7 @@ public class VaultReCrmAdapter : ICrmAdapter
         using var request = CreateRequest(HttpMethod.Get, $"/listings/search?address={Uri.EscapeDataString(addressQuery)}", credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var vaultResponse = await response.Content.ReadFromJsonAsync<VaultReListResponse<VaultReListing>>(cancellationToken: ct);
         return vaultResponse?.Items?.Select(MapToProperty).ToList() ?? [];
     }
@@ -195,13 +195,13 @@ public class VaultReCrmAdapter : ICrmAdapter
             Body = activity.Description,
             ActivityDate = activity.Timestamp
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/notes", credentials);
         request.Content = JsonContent.Create(vaultNote);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<VaultReNoteResponse>(cancellationToken: ct);
         return created?.Id?.ToString() ?? "";
     }
@@ -218,13 +218,13 @@ public class VaultReCrmAdapter : ICrmAdapter
             Priority = MapPriority(task.Priority),
             AssignedToUserId = task.AssignedToAgentId
         };
-        
+
         using var request = CreateRequest(HttpMethod.Post, "/tasks", credentials);
         request.Content = JsonContent.Create(vaultTask);
-        
+
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var created = await response.Content.ReadFromJsonAsync<VaultReTaskResponse>(cancellationToken: ct);
         return created?.Id?.ToString() ?? "";
     }
@@ -237,11 +237,11 @@ public class VaultReCrmAdapter : ICrmAdapter
         {
             url += $"&agent_id={agentId}";
         }
-        
+
         using var request = CreateRequest(HttpMethod.Get, url, credentials);
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
-        
+
         var vaultResponse = await response.Content.ReadFromJsonAsync<VaultReListResponse<VaultReInspection>>(cancellationToken: ct);
         return vaultResponse?.Items?.Select(MapToInspection).ToList() ?? [];
     }
@@ -254,15 +254,15 @@ public class VaultReCrmAdapter : ICrmAdapter
     {
         var baseUrl = credentials.BaseUrl ?? DefaultBaseUrl;
         var request = new HttpRequestMessage(method, $"{baseUrl}{path}");
-        
+
         // VaultRE uses OAuth2 Bearer tokens
         if (!string.IsNullOrEmpty(credentials.AccessToken))
         {
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credentials.AccessToken);
         }
-        
+
         request.Headers.Add("Accept", "application/json");
-        
+
         return request;
     }
 

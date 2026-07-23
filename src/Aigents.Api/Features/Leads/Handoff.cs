@@ -28,7 +28,7 @@ public class HandoffLeadEndpoint : ICarterModule
                 request.ConversationId,
                 request.Notes
             ));
-            
+
             return Results.Ok(result);
         })
         .WithName("HandoffLead")
@@ -60,7 +60,7 @@ public record HandoffResponse(
     string Status
 );
 
-public record HandoffCommand(Guid UserId, Guid ConversationId, string? Notes) 
+public record HandoffCommand(Guid UserId, Guid ConversationId, string? Notes)
     : IRequest<HandoffResponse>;
 
 // ───────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ public class HandoffHandler : IRequestHandler<HandoffCommand, HandoffResponse>
             .ToList();
 
         var summary = GenerateSummary(userMessages, conversation.Mode);
-        
+
         if (!string.IsNullOrEmpty(request.Notes))
         {
             summary += $" Agent notes: {request.Notes}";

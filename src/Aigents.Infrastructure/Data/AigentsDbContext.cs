@@ -23,6 +23,7 @@ public class AigentsDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid
     public DbSet<ListingInquiry> ListingInquiries => Set<ListingInquiry>();
     public DbSet<ListingDistribution> ListingDistributions => Set<ListingDistribution>();
     public DbSet<Fido2Credential> Fido2Credentials => Set<Fido2Credential>();
+    public DbSet<ProductEvent> ProductEvents => Set<ProductEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,7 +125,7 @@ public class AigentsDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid
             entity.HasMany(e => e.Inquiries)
                 .WithOne(i => i.Agent)
                 .HasForeignKey(i => i.AgentId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ListingInquiry configuration
@@ -136,6 +137,10 @@ public class AigentsDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid
             entity.HasIndex(e => e.CreatedAt);
 
             entity.Property(e => e.Message).HasMaxLength(2000);
+            entity.Property(e => e.BuyerName).HasMaxLength(255);
+            entity.Property(e => e.BuyerEmail).HasMaxLength(255);
+            entity.Property(e => e.BuyerPhone).HasMaxLength(32);
+            entity.Property(e => e.OfferAmount).HasPrecision(18, 2);
         });
 
         // ListingDistribution configuration
@@ -154,6 +159,23 @@ public class AigentsDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid
             entity.HasIndex(e => e.CredentialId).IsUnique();
             entity.Property(e => e.CredType).HasMaxLength(64);
             entity.Property(e => e.Nickname).HasMaxLength(120);
+        });
+
+        // ProductEvent — privacy-minimised, durable activity facts used for
+        // rolling MAU/WAU. No free-text metadata or PII is stored here.
+        modelBuilder.Entity<ProductEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.OccurredAt });
+            entity.HasIndex(e => new { e.OccurredAt, e.UserId });
+            entity.HasIndex(e => new { e.Name, e.OccurredAt });
+            entity.HasIndex(e => new { e.ListingId, e.Name, e.OccurredAt });
+            entity.Property(e => e.Name).HasMaxLength(80).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(user => user.ProductEvents)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -11,7 +11,7 @@ namespace Aigents.Infrastructure.PropertyData;
 public interface IPropertyIntelligenceService
 {
     Task<PropertyIntelligenceResult> GetPropertyIntelligenceAsync(
-        PropertyIntelligenceRequest request, 
+        PropertyIntelligenceRequest request,
         CancellationToken ct = default);
 }
 
@@ -27,11 +27,11 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
     }
 
     public async Task<PropertyIntelligenceResult> GetPropertyIntelligenceAsync(
-        PropertyIntelligenceRequest request, 
+        PropertyIntelligenceRequest request,
         CancellationToken ct = default)
     {
         var result = new PropertyIntelligenceResult();
-        
+
         try
         {
             // Search 1: Property-specific data from real estate sites
@@ -75,10 +75,10 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
         // Ensure we have at least some default sources if nothing found
         if (result.Sources.Count == 0)
         {
-            result.Sources.Add(new IntelligenceSource 
-            { 
-                Name = "Web Research", 
-                Details = "Limited data available", 
+            result.Sources.Add(new IntelligenceSource
+            {
+                Name = "Web Research",
+                Details = "Limited data available",
                 Year = DateTime.Now.Year.ToString(),
                 Icon = "🔍"
             });
@@ -93,7 +93,7 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
         {
             // Call the Google search API endpoint (assumes it's configured)
             var searchQuery = $"{address} property bedrooms bathrooms sale history site:domain.com.au OR site:realestate.com.au";
-            
+
             var response = await _httpClient.GetAsync(
                 $"/api/search?q={Uri.EscapeDataString(searchQuery)}", ct);
 
@@ -120,7 +120,7 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
         try
         {
             var searchQuery = $"{suburb} property market report median price 2024";
-            
+
             var response = await _httpClient.GetAsync(
                 $"/api/search?q={Uri.EscapeDataString(searchQuery)}", ct);
 
@@ -141,7 +141,7 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
     private PropertySearchResult ParsePropertyData(WebSearchResponse response, string address)
     {
         var result = new PropertySearchResult();
-        
+
         // Parse the summary text for property attributes
         var summary = response.Summary ?? "";
         result.Summary = summary;
@@ -275,7 +275,7 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
         var match = Regex.Match(address, @",\s*([A-Za-z\s]+)\s+(?:VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\b", RegexOptions.IgnoreCase);
         if (match.Success)
             return match.Groups[1].Value.Trim() + " " + match.Groups[0].Value.Split(' ').Last();
-        
+
         // Simpler fallback - take everything after the last comma
         var parts = address.Split(',');
         return parts.Length > 1 ? parts[^1].Trim() : "";
@@ -307,8 +307,8 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
     {
         price = 0;
         priceText = priceText.Replace("$", "").Replace(",", "").Trim();
-        
-        if (priceText.EndsWith("m", StringComparison.OrdinalIgnoreCase) || 
+
+        if (priceText.EndsWith("m", StringComparison.OrdinalIgnoreCase) ||
             priceText.Contains("million", StringComparison.OrdinalIgnoreCase))
         {
             priceText = priceText.Replace("million", "", StringComparison.OrdinalIgnoreCase)
@@ -332,7 +332,7 @@ public class PropertyIntelligenceService : IPropertyIntelligenceService
         {
             return decimal.TryParse(priceText, out price);
         }
-        
+
         return false;
     }
 

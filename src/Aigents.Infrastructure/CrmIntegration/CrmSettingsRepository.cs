@@ -21,10 +21,10 @@ public class DistributedCrmSettingsRepository : IAgentCrmSettingsRepository
     {
         var key = $"{KeyPrefix}{agentId}";
         var data = await _cache.GetStringAsync(key, ct);
-        
+
         if (string.IsNullOrEmpty(data))
             return null;
-            
+
         return JsonSerializer.Deserialize<AgentCrmSettings>(data);
     }
 
@@ -37,15 +37,15 @@ public class DistributedCrmSettingsRepository : IAgentCrmSettingsRepository
             Credentials = credentials,
             ConnectedAt = DateTimeOffset.UtcNow
         };
-        
+
         var key = $"{KeyPrefix}{agentId}";
         var data = JsonSerializer.Serialize(settings);
-        
+
         var options = new DistributedCacheEntryOptions
         {
             SlidingExpiration = TimeSpan.FromDays(30)
         };
-        
+
         await _cache.SetStringAsync(key, data, options, ct);
     }
 

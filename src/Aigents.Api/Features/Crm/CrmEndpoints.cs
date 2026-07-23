@@ -79,7 +79,7 @@ public static class CrmEndpoints
         };
 
         var result = await hub.TestConnectionAsync(request.CrmId, credentials, ct);
-        
+
         if (result.Success)
         {
             return Results.Ok(new
@@ -89,7 +89,7 @@ public static class CrmEndpoints
                 officeName = result.OfficeName
             });
         }
-        
+
         return Results.BadRequest(new
         {
             success = false,
@@ -110,7 +110,7 @@ public static class CrmEndpoints
         };
 
         var result = await hub.ImportContactsAsync(request.AgentId, request.CrmId, credentials, ct);
-        
+
         return Results.Ok(new
         {
             success = result.Success,
@@ -128,7 +128,7 @@ public static class CrmEndpoints
         CancellationToken ct)
     {
         var inspections = await hub.GetUpcomingInspectionsAsync(agentId, ct);
-        
+
         return Results.Ok(new
         {
             inspections = inspections.Select(i => new
@@ -150,7 +150,7 @@ public static class CrmEndpoints
         CancellationToken ct)
     {
         var properties = await hub.SearchPropertiesAsync(agentId, query, ct);
-        
+
         return Results.Ok(new
         {
             properties = properties.Select(p => new
@@ -183,7 +183,7 @@ public static class CrmEndpoints
         };
 
         await hub.LogCallAsync(request.AgentId, activity, ct);
-        
+
         return Results.Ok(new { success = true });
     }
 
@@ -203,7 +203,7 @@ public static class CrmEndpoints
         };
 
         await hub.CreateFollowUpAsync(request.AgentId, task, ct);
-        
+
         return Results.Ok(new { success = true });
     }
 

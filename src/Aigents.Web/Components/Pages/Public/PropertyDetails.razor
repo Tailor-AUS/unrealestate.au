@@ -1,16 +1,63 @@
 @page "/property/{Id:guid}"
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Growth
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using System.Net.Mail
+@using System.Security.Claims
+@using System.Text.Json
+@using Microsoft.JSInterop
 @inject IListingService ListingService
+@inject IProductEventRecorder ProductEvents
 @inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
 
-<PageTitle>@_listing?.Address | Premium Property</PageTitle>
+<PageTitle>@(_listing is null ? "Property | unrealestate.au" : $"{_listing.Headline} | unrealestate.au")</PageTitle>
 
-@if (_listing == null)
+@if (_listing is not null)
+{
+    <HeadContent>
+        <meta name="description" content="@MetaDescription" />
+        <link rel="canonical" href="@CanonicalUrl" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="unrealestate.au" />
+        <meta property="og:title" content="@_listing.Headline" />
+        <meta property="og:description" content="@MetaDescription" />
+        <meta property="og:url" content="@CanonicalUrl" />
+        @if (OpenGraphImageUrl is { } socialImage)
+        {
+            <meta property="og:image" content="@socialImage" />
+            <meta name="twitter:image" content="@socialImage" />
+        }
+        <meta name="twitter:card" content="@(OpenGraphImageUrl is null ? "summary" : "summary_large_image")" />
+        <meta name="twitter:title" content="@_listing.Headline" />
+        <meta name="twitter:description" content="@MetaDescription" />
+    </HeadContent>
+}
+else if (!_loading)
+{
+    <HeadContent>
+        <meta name="robots" content="noindex, nofollow" />
+    </HeadContent>
+}
+
+@if (_loading)
 {
     <div class="loading-state">
         <div class="spinner"></div>
         <p>Loading property details...</p>
+    </div>
+}
+else if (_listing == null)
+{
+    <div class="loading-state">
+        <h1>Property not found</h1>
+        <p>This listing is unavailable or is no longer active.</p>
+        <a href="/explore">Explore available properties</a>
     </div>
 }
 else
@@ -31,15 +78,20 @@ else
             </div>
         </div>
 
-        <!-- Live activity strip: social proof for buyers -->
-        <div class="activity-strip">
-            <div class="activity-pulse" aria-hidden="true"></div>
-            <div class="activity-stat"><strong>@_viewersToday</strong><span>viewing today</span></div>
-            <div class="activity-stat"><strong>@_enquiriesToday</strong><span>enquiries (24h)</span></div>
-            <div class="activity-stat"><strong>@_offersTotal</strong><span>offers received</span></div>
-            <div class="activity-stat"><strong>@_savedCount</strong><span>buyers saved</span></div>
-            <div class="activity-meta">Last enquiry @_lastEnquiryAgo ago</div>
-        </div>
+        <!-- Real activity only: never manufacture social proof. -->
+        @if (_activity is not null)
+        {
+            <div class="activity-strip">
+                <div class="activity-pulse" aria-hidden="true"></div>
+                <div class="activity-stat"><strong>@_activity.AuthenticatedViewsLast24Hours</strong><span>signed-in views (24h)</span></div>
+                <div class="activity-stat"><strong>@_activity.EnquiriesLast24Hours</strong><span>enquiries (24h)</span></div>
+                <div class="activity-stat"><strong>@_activity.OffersTotal</strong><span>offers received</span></div>
+                @if (_activity.LastEnquiryAt is not null)
+                {
+                    <div class="activity-meta">Last enquiry @FormatRelativeTime(_activity.LastEnquiryAt.Value) ago</div>
+                }
+            </div>
+        }
 
         <!-- Main Content -->
         <div class="content-grid">
@@ -72,13 +124,16 @@ else
                     <h2>About this property</h2>
                     <p>@_listing.Description</p>
                     
-                    <h3>Property Features</h3>
-                    <ul class="features-list">
-                        <li>Premium Location</li>
-                        <li>Modern Design</li>
-                        <li>Spacious Living Areas</li>
-                        <li>Close to Transport</li>
-                    </ul>
+                    @if (ListingFeatures.Count > 0)
+                    {
+                        <h3>Property Features</h3>
+                        <ul class="features-list">
+                            @foreach (var feature in ListingFeatures)
+                            {
+                                <li>@feature</li>
+                            }
+                        </ul>
+                    }
                 </div>
             </div>
 
@@ -99,6 +154,23 @@ else
                     <button class="ghost-btn" @onclick="OpenInspection">
                         Book inspection
                     </button>
+
+                    <button class="ghost-btn" @onclick="ChatAboutProperty">
+                        Chat about this property
+                    </button>
+
+                    <div class="share-block">
+                        <p>Share this listing</p>
+                        <div class="share-buttons">
+                            <button type="button" class="ghost-btn" @onclick="CopyShareLinkAsync">Copy link</button>
+                            <a class="ghost-btn" href="@SmsShareLink">SMS</a>
+                            <a class="ghost-btn" href="@EmailShareLink">Email</a>
+                        </div>
+                        @if (_shareStatus is not null)
+                        {
+                            <p class="share-status" role="status">@_shareStatus</p>
+                        }
+                    </div>
 
                     <div class="agent-profile">
                         <div class="avatar">H</div>
@@ -127,16 +199,20 @@ else
                     <p>Direct message — no agent middleman, no spam list.</p>
                     <div class="form-group">
                         <label>Your name</label>
-                        <input type="text" @bind="_enqName" placeholder="Sienna Brooks" />
+                        <input type="text" @bind="_enqName" maxlength="255" placeholder="Sienna Brooks" />
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" @bind="_enqEmail" placeholder="you@example.com" />
+                        <input type="email" @bind="_enqEmail" maxlength="255" placeholder="you@example.com" />
                     </div>
                     <div class="form-group">
                         <label>Question</label>
-                        <textarea @bind="_enqMessage" placeholder="Is the rear deck staying? When can I inspect?"></textarea>
+                        <textarea @bind="_enqMessage" maxlength="2000" placeholder="Is the rear deck staying? When can I inspect?"></textarea>
                     </div>
+                    @if (_formError is not null)
+                    {
+                        <p class="form-error" role="alert">@_formError</p>
+                    }
                     <div class="modal-actions">
                         <button class="primary-btn" @onclick="SubmitEnquiry">Send question</button>
                         <button class="secondary-btn" @onclick="CloseEnquiry">Cancel</button>
@@ -154,12 +230,16 @@ else
                     <p>Pick a slot. Owner confirms by reply.</p>
                     <div class="form-group">
                         <label>Your name</label>
-                        <input type="text" @bind="_inspName" placeholder="Sienna Brooks" />
+                        <input type="text" @bind="_inspName" maxlength="255" placeholder="Sienna Brooks" />
                     </div>
                     <div class="form-group">
                         <label>Phone (so the owner can reach you fast)</label>
-                        <input type="tel" @bind="_inspPhone" placeholder="04xx xxx xxx" />
+                        <input type="tel" @bind="_inspPhone" maxlength="32" placeholder="04xx xxx xxx" />
                     </div>
+                    @if (_formError is not null)
+                    {
+                        <p class="form-error" role="alert">@_formError</p>
+                    }
                     <div class="form-group">
                         <label>Preferred slot</label>
                         <div class="slot-grid">
@@ -193,18 +273,32 @@ else
                     
                     <div class="form-group">
                         <label>Your Offer Price ($)</label>
-                        <input type="number" @bind="_offerPrice" placeholder="e.g. 1200000" />
+                        <input type="number" min="1" step="1000" @bind="_offerPrice" placeholder="e.g. 1200000" />
                     </div>
                     
                     <div class="form-group">
                         <label>Your Name</label>
-                        <input type="text" @bind="_offerName" placeholder="John Doe" />
+                        <input type="text" @bind="_offerName" maxlength="255" placeholder="John Doe" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" @bind="_offerEmail" maxlength="255" placeholder="you@example.com" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone (optional if email supplied)</label>
+                        <input type="tel" @bind="_offerPhone" maxlength="32" placeholder="04xx xxx xxx" />
                     </div>
                     
                     <div class="form-group">
                         <label>Message (Optional)</label>
-                        <textarea @bind="_offerMessage" placeholder="I love this property because..."></textarea>
+                        <textarea @bind="_offerMessage" maxlength="1800" placeholder="I love this property because..."></textarea>
                     </div>
+                    @if (_formError is not null)
+                    {
+                        <p class="form-error" role="alert">@_formError</p>
+                    }
 
                     <div class="modal-actions">
                         <button class="primary-btn" @onclick="SubmitOffer">Submit Offer</button>
@@ -424,6 +518,42 @@ else
         font-family: inherit;
     }
 
+    .form-error {
+        color: #b91c1c;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .share-block {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .share-block > p {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    .share-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .share-buttons .ghost-btn {
+        text-decoration: none;
+        text-align: center;
+    }
+
+    .share-status {
+        margin: 10px 0 0;
+        font-size: 13px;
+        color: #047857;
+    }
+
     .modal-actions {
         display: flex;
         gap: 12px;
@@ -604,10 +734,18 @@ else
     [Parameter]
     public Guid Id { get; set; }
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
     private Listing? _listing;
+    private ListingActivity? _activity;
+    private Guid _currentUserId;
+    private bool _loading = true;
     private bool _showOfferModal = false;
     private decimal? _offerPrice;
     private string _offerName = "";
+    private string _offerEmail = "";
+    private string _offerPhone = "";
     private string _offerMessage = "";
 
     // Enquiry + inspection state
@@ -628,75 +766,257 @@ else
     };
 
     private string? _toast;
+    private string? _formError;
+    private string? _shareStatus;
 
-    // Live activity counters — mock for now; back with telemetry in a follow-up.
-    private int _viewersToday = 47;
-    private int _enquiriesToday = 3;
-    private int _offersTotal = 5;
-    private int _savedCount = 18;
-    private string _lastEnquiryAgo = "12 min";
+    private string PublicBaseUrl =>
+        (Configuration["App:PublicUrl"] ?? "https://unrealestate.au").TrimEnd('/');
+
+    private string CanonicalUrl => $"{PublicBaseUrl}/property/{Id}";
+
+    private string ShareUrl =>
+        $"{CanonicalUrl}?utm_source=share&utm_medium=listing&utm_campaign=organic";
+
+    private string ShareText =>
+        _listing is null
+            ? $"See this property on unrealestate.au: {ShareUrl}"
+            : $"{_listing.Headline} — {_listing.Suburb}: {ShareUrl}";
+
+    private string SmsShareLink => $"sms:?body={Uri.EscapeDataString(ShareText)}";
+
+    private string EmailShareLink =>
+        $"mailto:?subject={Uri.EscapeDataString(_listing?.Headline ?? "Property on unrealestate.au")}"
+        + $"&body={Uri.EscapeDataString(ShareText)}";
+
+    private IReadOnlyList<string> ListingFeatures
+    {
+        get
+        {
+            if (_listing is null || string.IsNullOrWhiteSpace(_listing.Features))
+            {
+                return Array.Empty<string>();
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(_listing.Features)
+                    ?.Where(feature => !string.IsNullOrWhiteSpace(feature))
+                    .Select(feature => feature.Trim())
+                    .Take(12)
+                    .ToList()
+                    ?? (IReadOnlyList<string>)Array.Empty<string>();
+            }
+            catch (JsonException)
+            {
+                return Array.Empty<string>();
+            }
+        }
+    }
+
+    private string MetaDescription
+    {
+        get
+        {
+            var description = _listing?.Description?.Trim();
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                description = $"{_listing?.PropertyType} for sale in {_listing?.Suburb}, {_listing?.State}.";
+            }
+
+            return description.Length <= 160
+                ? description
+                : $"{description[..157]}...";
+        }
+    }
+
+    private string? OpenGraphImageUrl
+    {
+        get
+        {
+            if (_listing is not null)
+            {
+                try
+                {
+                    var imageUrls = JsonSerializer.Deserialize<List<string>>(_listing.ImageUrls);
+                    var firstImage = imageUrls?.FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+                    if (firstImage is not null)
+                    {
+                        return Uri.TryCreate(firstImage, UriKind.Absolute, out var absolute)
+                            ? absolute.ToString()
+                            : new Uri(new Uri($"{PublicBaseUrl}/"), firstImage).ToString();
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Invalid legacy image JSON falls back to the site image.
+                }
+            }
+
+            return null;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        _listing = await ListingService.GetListingAsync(Id);
+        _listing = await ListingService.GetPublicListingAsync(Id);
+        if (_listing is null)
+        {
+            var response = HttpContextAccessor.HttpContext?.Response;
+            if (response is not null && !response.HasStarted)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+            }
+
+            _loading = false;
+            return;
+        }
+
+        _currentUserId = await GetAuthenticatedUserIdAsync();
+        if (_currentUserId != Guid.Empty)
+        {
+            await ProductEvents.RecordAsync(
+                _currentUserId,
+                ProductEventNames.ListingViewed,
+                _listing.Id,
+                TimeSpan.FromMinutes(30));
+        }
+
+        await RefreshActivityAsync();
+        _loading = false;
     }
 
     private void MakeOffer()
     {
+        _formError = null;
         _showOfferModal = true;
     }
 
-    private void OpenEnquiry() => _showEnquiryModal = true;
-    private void CloseEnquiry() => _showEnquiryModal = false;
-    private void OpenInspection() => _showInspectionModal = true;
-    private void CloseInspection() => _showInspectionModal = false;
+    private void OpenEnquiry()
+    {
+        _formError = null;
+        _showEnquiryModal = true;
+    }
+
+    private void CloseEnquiry()
+    {
+        _formError = null;
+        _showEnquiryModal = false;
+    }
+
+    private void OpenInspection()
+    {
+        _formError = null;
+        _showInspectionModal = true;
+    }
+
+    private void CloseInspection()
+    {
+        _formError = null;
+        _showInspectionModal = false;
+    }
+
+    private void ChatAboutProperty()
+    {
+        if (_listing is null)
+        {
+            return;
+        }
+
+        var chatUrl =
+            $"/chat?mode=buy&address={Uri.EscapeDataString(_listing.Address)}";
+        if (_currentUserId == Guid.Empty)
+        {
+            Navigation.NavigateTo(
+                $"/Account/Login?returnUrl={Uri.EscapeDataString(chatUrl)}");
+            return;
+        }
+
+        Navigation.NavigateTo(chatUrl);
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (_listing is null)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", ShareUrl);
+        _shareStatus = "Link copied.";
+    }
 
     private async Task SubmitEnquiry()
     {
-        if (string.IsNullOrWhiteSpace(_enqMessage) || _listing is null) return;
+        if (_listing is null) return;
 
-        // Persist the enquiry alongside the listing's inquiry collection.
-        // Note: ListingInquiry currently requires an Agent — we mirror the existing
-        // hack from SubmitOffer (store sender name on a transient Agent) until
-        // ListingInquiry is properly modelled with optional buyer fields.
+        _formError = ValidateName(_enqName)
+            ?? ValidateEmail(_enqEmail)
+            ?? (string.IsNullOrWhiteSpace(_enqMessage)
+                ? "Enter a question for the owner."
+                : null);
+        if (_formError is not null) return;
+
         var inquiry = new ListingInquiry
         {
-            Id = Guid.NewGuid(),
-            ListingId = _listing.Id,
-            Message = $"QUESTION: {_enqMessage} (from {_enqName} · {_enqEmail})",
+            Message = _enqMessage.Trim(),
+            BuyerName = NullIfWhiteSpace(_enqName),
+            BuyerEmail = NullIfWhiteSpace(_enqEmail),
+            InquiryType = BuyerInquiryType.Question,
             Status = InquiryStatus.New,
-            CreatedAt = DateTime.UtcNow,
-            Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_enqName) ? "Anonymous buyer" : _enqName }
         };
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
+        try
+        {
+            await ListingService.CreateInquiryAsync(_listing.Id, inquiry);
+        }
+        catch (Exception ex)
+            when (ex is ArgumentException or InvalidOperationException)
+        {
+            _formError = ex.Message;
+            return;
+        }
+        await RecordCurrentUserEventAsync(ProductEventNames.EnquirySubmitted);
+        await RefreshActivityAsync();
 
-        _enquiriesToday += 1;
-        _lastEnquiryAgo = "just now";
         _showEnquiryModal = false;
+        _formError = null;
         Toast("✓ Question sent to the owner. They'll reply by email.");
         _enqMessage = "";
     }
 
     private async Task SubmitInspection()
     {
-        if (string.IsNullOrEmpty(_inspSlot) || _listing is null) return;
+        if (_listing is null) return;
+
+        _formError = ValidateName(_inspName)
+            ?? ValidatePhone(_inspPhone)
+            ?? (string.IsNullOrWhiteSpace(_inspSlot)
+                ? "Choose a preferred inspection slot."
+                : null);
+        if (_formError is not null) return;
 
         var inquiry = new ListingInquiry
         {
-            Id = Guid.NewGuid(),
-            ListingId = _listing.Id,
-            Message = $"INSPECTION: requested {_inspSlot} (from {_inspName} · {_inspPhone})",
+            Message = $"Requested slot: {_inspSlot}",
+            BuyerName = NullIfWhiteSpace(_inspName),
+            BuyerPhone = NullIfWhiteSpace(_inspPhone),
+            InquiryType = BuyerInquiryType.Inspection,
             Status = InquiryStatus.InspectionBooked,
-            CreatedAt = DateTime.UtcNow,
-            Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_inspName) ? "Anonymous buyer" : _inspName }
         };
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
+        try
+        {
+            await ListingService.CreateInquiryAsync(_listing.Id, inquiry);
+        }
+        catch (Exception ex)
+            when (ex is ArgumentException or InvalidOperationException)
+        {
+            _formError = ex.Message;
+            return;
+        }
+        await RecordCurrentUserEventAsync(ProductEventNames.InspectionBooked);
+        await RefreshActivityAsync();
 
-        _enquiriesToday += 1;
-        _lastEnquiryAgo = "just now";
         _showInspectionModal = false;
+        _formError = null;
         Toast($"✓ Inspection request sent for {_inspSlot}. Owner confirms by reply.");
         _inspSlot = "";
     }
@@ -716,23 +1036,137 @@ else
 
     private async Task SubmitOffer()
     {
-        if (_listing == null || !_offerPrice.HasValue) return;
+        if (_listing is null) return;
 
-        // Create inquiry/offer
+        _formError = ValidateName(_offerName)
+            ?? (_offerPrice is null or <= 0
+                ? "Enter an offer amount greater than zero."
+                : null)
+            ?? ValidateReplyChannel(_offerEmail, _offerPhone);
+        if (_formError is not null) return;
+
         var inquiry = new ListingInquiry
         {
-             Id = Guid.NewGuid(),
-             ListingId = _listing.Id,
-             Message = $"OFFER: ${_offerPrice:N0} - {_offerMessage} (by {_offerName})",
-             Status = InquiryStatus.OfferMade,
-             CreatedAt = DateTime.UtcNow,
-             Agent = new Aigents.Domain.Entities.Agent { Name = _offerName } // Hacky way to store sender name for now
+            Message = $"Offer: ${_offerPrice:N0}"
+                + (string.IsNullOrWhiteSpace(_offerMessage) ? "" : $" — {_offerMessage.Trim()}"),
+            BuyerName = NullIfWhiteSpace(_offerName),
+            BuyerEmail = NullIfWhiteSpace(_offerEmail),
+            BuyerPhone = NullIfWhiteSpace(_offerPhone),
+            OfferAmount = _offerPrice,
+            InquiryType = BuyerInquiryType.Offer,
+            Status = InquiryStatus.OfferMade,
         };
 
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
+        try
+        {
+            await ListingService.CreateInquiryAsync(_listing.Id, inquiry);
+        }
+        catch (Exception ex)
+            when (ex is ArgumentException or InvalidOperationException)
+        {
+            _formError = ex.Message;
+            return;
+        }
+        await RecordCurrentUserEventAsync(ProductEventNames.OfferSubmitted);
+        await RefreshActivityAsync();
 
         _showOfferModal = false;
-        // Optionally show success message
+        _formError = null;
+        Toast("✓ Offer sent to the owner.");
+    }
+
+    private static string? ValidateName(string value) =>
+        string.IsNullOrWhiteSpace(value) || value.Trim().Length < 2
+            ? "Enter your name."
+            : value.Trim().Length > 255
+                ? "Name must be 255 characters or fewer."
+                : null;
+
+    private static string? ValidateEmail(string value)
+    {
+        var email = value.Trim();
+        return MailAddress.TryCreate(email, out var address)
+            && address.Address.Equals(email, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : "Enter a valid email address.";
+    }
+
+    private static string? ValidatePhone(string value)
+    {
+        var phone = value.Trim();
+        var digitCount = phone.Count(char.IsDigit);
+        var validCharacters = phone.All(character =>
+            char.IsDigit(character)
+            || char.IsWhiteSpace(character)
+            || character is '+' or '-' or '(' or ')' or '.');
+        return phone.Length <= 32
+            && digitCount is >= 8 and <= 15
+            && validCharacters
+            ? null
+            : "Enter a valid phone number.";
+    }
+
+    private static string? ValidateReplyChannel(
+        string emailValue,
+        string phoneValue)
+    {
+        var hasEmail = !string.IsNullOrWhiteSpace(emailValue);
+        var hasPhone = !string.IsNullOrWhiteSpace(phoneValue);
+        if (!hasEmail && !hasPhone)
+            return "Enter an email address or phone number.";
+
+        if (hasEmail && ValidateEmail(emailValue) is { } emailError)
+            return emailError;
+        if (hasPhone && ValidatePhone(phoneValue) is { } phoneError)
+            return phoneError;
+
+        return null;
+    }
+
+    private async Task<Guid> GetAuthenticatedUserIdAsync()
+    {
+        if (AuthState is null)
+        {
+            return Guid.Empty;
+        }
+
+        var principal = (await AuthState).User;
+        return principal.Identity?.IsAuthenticated == true
+            && Guid.TryParse(
+                principal.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                out var userId)
+            ? userId
+            : Guid.Empty;
+    }
+
+    private async Task RecordCurrentUserEventAsync(string eventName)
+    {
+        if (_currentUserId != Guid.Empty && _listing is not null)
+        {
+            await ProductEvents.RecordAsync(
+                _currentUserId,
+                eventName,
+                _listing.Id);
+        }
+    }
+
+    private async Task RefreshActivityAsync()
+    {
+        if (_listing is not null)
+        {
+            _activity = await ProductEvents.GetListingActivityAsync(_listing.Id);
+        }
+    }
+
+    private static string? NullIfWhiteSpace(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string FormatRelativeTime(DateTime timestamp)
+    {
+        var elapsed = DateTime.UtcNow - timestamp.ToUniversalTime();
+        if (elapsed < TimeSpan.FromMinutes(1)) return "just now";
+        if (elapsed < TimeSpan.FromHours(1)) return $"{Math.Max(1, (int)elapsed.TotalMinutes)} min";
+        if (elapsed < TimeSpan.FromDays(1)) return $"{Math.Max(1, (int)elapsed.TotalHours)} hr";
+        return $"{Math.Max(1, (int)elapsed.TotalDays)} d";
     }
 }

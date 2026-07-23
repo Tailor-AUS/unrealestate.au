@@ -9,7 +9,7 @@ public class BuyerProperty
 {
     public required string Id { get; set; }
     public required string Source { get; set; } // "Domain", "CoreLogic"
-    
+
     // Address
     public required string Address { get; set; }
     public string? UnitNumber { get; set; }
@@ -20,7 +20,7 @@ public class BuyerProperty
     public string? Postcode { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
-    
+
     // Attributes
     public PropertyType Type { get; set; }
     public int Bedrooms { get; set; }
@@ -28,7 +28,7 @@ public class BuyerProperty
     public int CarSpaces { get; set; }
     public double? LandAreaSqm { get; set; }
     public double? FloorAreaSqm { get; set; }
-    
+
     // Listing Info (if on market)
     public bool IsOnMarket { get; set; }
     public ListingStatus Status { get; set; }
@@ -42,7 +42,7 @@ public class BuyerProperty
     public List<string> ImageUrls { get; set; } = new();
     public string? Headline { get; set; }
     public string? Description { get; set; }
-    
+
     // Intelligence (AVM / History)
     public decimal? EstimatedValue { get; set; }
     public decimal? EstimatedValueLow { get; set; }
@@ -52,7 +52,7 @@ public class BuyerProperty
     public DateTimeOffset? LastSaleDate { get; set; }
     public decimal? RentalEstimate { get; set; }
     public decimal? RentalYield { get; set; }
-    
+
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -85,17 +85,17 @@ public class PropertySearchFilter
     public string? Suburb { get; set; }
     public string? State { get; set; }
     public string? Postcode { get; set; }
-    
+
     public PropertyType? Type { get; set; }
     public int? MinBedrooms { get; set; }
     public int? MinBathrooms { get; set; }
     public int? MinCarSpaces { get; set; }
-    
+
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
-    
+
     public bool IncludeOffMarket { get; set; }
-    
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }
@@ -113,15 +113,15 @@ public class SuburbProfile
     public required string Suburb { get; set; }
     public required string State { get; set; }
     public required string Postcode { get; set; }
-    
+
     public decimal MedianHousePrice { get; set; }
     public decimal MedianUnitPrice { get; set; }
     public double HouseGrowthRate { get; set; } // Annual %
     public double UnitGrowthRate { get; set; }
-    
+
     public int DaysOnMarket { get; set; }
     public double ClearanceRate { get; set; }
-    
+
     public List<string> TopSchools { get; set; } = new();
     public string? DemographicsSummary { get; set; }
 }

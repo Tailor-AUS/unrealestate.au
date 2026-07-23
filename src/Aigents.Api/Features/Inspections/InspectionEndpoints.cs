@@ -62,7 +62,7 @@ public static class InspectionEndpoints
         CancellationToken ct)
     {
         var inspections = await crmHub.GetUpcomingInspectionsAsync(agentId, ct);
-        
+
         var result = inspections.Select(i => new InspectionResponse
         {
             InspectionId = i.ExternalId,
@@ -100,7 +100,7 @@ public static class InspectionEndpoints
     {
         var token = GenerateCheckInToken(inspectionId);
         var checkInUrl = $"https://unrealestate.au/checkin/{token}";
-        
+
         // Return QR code configuration (mobile app will render it)
         return Task.FromResult(Results.Ok(new
         {
@@ -132,7 +132,7 @@ public static class InspectionEndpoints
     {
         // Validate token and get inspection details
         // TODO: Look up inspection from token
-        
+
         return Task.FromResult(Results.Ok(new CheckInConfigResponse
         {
             PropertyAddress = "45 Ocean Street, Manly",
@@ -141,7 +141,7 @@ public static class InspectionEndpoints
             InspectionTime = "10:00 AM - 10:30 AM",
             Questions = new List<CheckInQuestion>
             {
-                new("preApproved", "Are you pre-approved?", "choice", 
+                new("preApproved", "Are you pre-approved?", "choice",
                     new[] { "Yes", "No", "Working on it" }),
                 new("timeline", "When are you looking to buy?", "choice",
                     new[] { "Right now", "1-3 months", "3-6 months", "Just browsing" }),
@@ -161,7 +161,7 @@ public static class InspectionEndpoints
     {
         // Validate token
         // TODO: Look up inspection from token
-        
+
         // Create/update contact in CRM
         if (request.AgentId != null)
         {
@@ -173,16 +173,16 @@ public static class InspectionEndpoints
                 Classification = ContactClassification.Buyer,
                 LeadSource = "Open Home Check-in"
             };
-            
+
             // Note: Would need to get agent's CRM credentials
             // This is a simplified flow
         }
 
         // Store check-in in our database
         var checkInId = Guid.NewGuid().ToString();
-        
+
         await Task.CompletedTask;
-        
+
         return Results.Ok(new
         {
             success = true,

@@ -2,9 +2,9 @@
 @page "/seller/dashboard"
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
 @using Aigents.Domain.Entities
-@using System.Threading
-@implements IDisposable
+@using System.Security.Claims
 @inject NavigationManager Navigation
 @using Aigents.Web.Services
 @inject IListingService ListingService
@@ -146,6 +146,11 @@
                         </div>
                     </div>
                 
+                @* Retained only as a design reference until each prototype
+                   surface is backed by real data. Never render fabricated
+                   reach, agent, broadcast, or buyer activity. *@
+                @if (_showPrototypeSections)
+                {
                 @* Platform Exposure Section *@
                 <div class="syndication-section">
                     <div class="syndication-header">
@@ -355,7 +360,61 @@
                         </div>
                     </div>
                 </div>
+                }
+
+                <section class="offers-section">
+                    <div class="offers-header">
+                        <h3>Buyer activity (@listing.Inquiries.Count)</h3>
+                        <a href="@($"/property/{listing.Id}")" class="view-all">View public listing →</a>
+                    </div>
+
+                    @if (listing.Inquiries.Count == 0)
+                    {
+                        <p class="section-desc">No enquiries, inspections, or offers yet.</p>
+                    }
+                    else
+                    {
+                        <div class="inquiry-list">
+                            @foreach (var inquiry in listing.Inquiries.OrderByDescending(item => item.CreatedAt))
+                            {
+                                var contactName = GetInquiryContactName(inquiry);
+                                var contactEmail = inquiry.BuyerEmail ?? inquiry.Agent?.Email;
+                                var contactPhone = inquiry.BuyerPhone ?? inquiry.Agent?.Phone;
+                                <article class="inquiry-card">
+                                    <div class="inquiry-heading">
+                                        <strong>@GetInquiryLabel(inquiry.InquiryType)</strong>
+                                        @if (inquiry.OfferAmount.HasValue)
+                                        {
+                                            <strong>@inquiry.OfferAmount.Value.ToString("C0")</strong>
+                                        }
+                                        <span>@GetTimeAgo(inquiry.CreatedAt)</span>
+                                    </div>
+                                    <p>@inquiry.Message</p>
+                                    <div class="inquiry-contact">
+                                        <span>@contactName</span>
+                                        @if (!string.IsNullOrWhiteSpace(contactEmail))
+                                        {
+                                            <a href="@($"mailto:{contactEmail}")">@contactEmail</a>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(contactPhone))
+                                        {
+                                            <a href="@($"tel:{contactPhone}")">@contactPhone</a>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
             </div>
+            }
+            @if (_dashboardListings.Count == 0)
+            {
+                <div class="empty-state">
+                    <h2>No listings yet</h2>
+                    <p>Create your first listing to start receiving buyer enquiries.</p>
+                    <button class="add-listing-btn" @onclick="CreateListing">Create listing</button>
+                </div>
             }
         </div>
     </main>
@@ -757,6 +816,40 @@
     color: #10b981;
     text-decoration: none;
     font-weight: 600;
+}
+
+.inquiry-list {
+    display: grid;
+    gap: 12px;
+}
+
+.inquiry-card {
+    padding: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+}
+
+.inquiry-heading,
+.inquiry-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.inquiry-heading span,
+.inquiry-contact {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.inquiry-card p {
+    margin: 12px 0;
+    white-space: pre-wrap;
+}
+
+.inquiry-contact a {
+    color: #059669;
 }
 
 .offers-table {
@@ -1273,6 +1366,10 @@
 
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+    private bool _showPrototypeSections => false;
+
     // Listing state
     private bool isExclusive = false;
 
@@ -1281,13 +1378,6 @@
     private string _inviteAgency = "";
     private string _inviteEmail = "";
     
-    // Live Activity Simulation
-    private Timer? _activityTimer;
-    private Random _rnd = new Random();
-
-    [SupplyParameterFromQuery]
-    public string? Email { get; set; }
-
     private List<Listing> _dashboardListings = new();
 
     // Computed dashboard stats
@@ -1307,8 +1397,13 @@
         _activeCount = _dashboardListings.Count(l => l.Status == ListingStatus.Active);
 
         var allInquiries = _dashboardListings.SelectMany(l => l.Inquiries ?? new List<ListingInquiry>()).ToList();
-        var offers = allInquiries.Where(i => i.Status == InquiryStatus.OfferMade).ToList();
-        var enquiries = allInquiries.Where(i => i.Status != InquiryStatus.OfferMade).ToList();
+        var offers = allInquiries
+            .Where(i => i.InquiryType == BuyerInquiryType.Offer)
+            .ToList();
+        var enquiries = allInquiries
+            .Where(i => i.InquiryType is BuyerInquiryType.Question
+                or BuyerInquiryType.Inspection)
+            .ToList();
 
         _offersCount = offers.Count;
         _newOffersCount = offers.Count(i => i.CreatedAt >= fresh);
@@ -1326,6 +1421,12 @@
 
     private static decimal? ParseOfferAmount(ListingInquiry i)
     {
+        if (i.OfferAmount.HasValue)
+        {
+            return i.OfferAmount;
+        }
+
+        // Legacy agent enquiries encoded the amount in Message.
         if (string.IsNullOrEmpty(i.Message)) return null;
         var m = _offerAmountRe.Match(i.Message);
         if (!m.Success) return null;
@@ -1338,7 +1439,7 @@
         : v.ToString("N0");
 
     private static int CountListingOffers(Listing l) =>
-        l.Inquiries?.Count(i => i.Status == InquiryStatus.OfferMade) ?? 0;
+        l.Inquiries?.Count(i => i.InquiryType == BuyerInquiryType.Offer) ?? 0;
 
     private static int CountNewListingActivity(Listing l)
     {
@@ -1348,36 +1449,40 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Fetch real listings if email provided
-        if (!string.IsNullOrEmpty(Email))
+        if (AuthState is null)
         {
-            _dashboardListings = await ListingService.GetListingsForUserAsync(Email);
+            return;
         }
 
-        // Fallback to Demo Listing if none found (so dashboard isn't empty)
-        if (!_dashboardListings.Any())
+        var principal = (await AuthState).User;
+        if (principal.Identity?.IsAuthenticated != true
+            || !Guid.TryParse(
+                principal.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                out var userId))
         {
-            _dashboardListings.Add(new Listing 
-            {
-                 Address = "67 Northview Outlook",
-                 Suburb = "Paddington",
-                 State = "QLD",
-                 Postcode = "4064",
-                 Bedrooms = 4,
-                 Bathrooms = 2,
-                 CarSpaces = 2,
-                 LandSize = 650, // m2
-                 PriceDisplay = "$1.15M - $1.25M",
-                 Status = ListingStatus.Active,
-                 CreatedAt = DateTime.UtcNow.AddDays(-3)
-            });
+            Navigation.NavigateTo(
+                "/Account/Login?returnUrl=%2Fmy-listings",
+                forceLoad: true);
+            return;
         }
 
+        _dashboardListings = await ListingService.GetListingsForUserAsync(userId);
         RecomputeStats();
-
-        // Start "Live" simulation with a random interval between 3-10 seconds
-        _activityTimer = new Timer(SimulateLiveActivity, null, 2000, 5000);
     }
+
+    private static string GetInquiryLabel(BuyerInquiryType type) => type switch
+    {
+        BuyerInquiryType.Question => "Buyer enquiry",
+        BuyerInquiryType.Inspection => "Inspection request",
+        BuyerInquiryType.Offer => "Purchase offer",
+        BuyerInquiryType.Agent => "Agent enquiry",
+        _ => "Enquiry"
+    };
+
+    private static string GetInquiryContactName(ListingInquiry inquiry) =>
+        inquiry.BuyerName
+        ?? inquiry.Agent?.Name
+        ?? (inquiry.InquiryType == BuyerInquiryType.Agent ? "Agent" : "Buyer");
     
     private string GetTimeAgo(DateTime date)
     {
@@ -1388,48 +1493,6 @@
         return $"{(int)span.TotalDays}d ago";
     }
     
-    private void SimulateLiveActivity(object? state)
-    {
-        // 30% chance to generate an event on each tick to vary the rhythm
-        if (_rnd.Next(0, 10) > 3) return;
-
-        var eventTypes = new[]
-        {
-            new { Icon = "👀", Color = "#60a5fa", Title = "New Global View", Desc = "Property viewed by investor in {0}" },
-            new { Icon = "🔥", Color = "#f87171", Title = "Hot Lead Alert", Desc = "High-intent buyer {0} just saved your listing" },
-            new { Icon = "📱", Color = "#c084fc", Title = "Social Share", Desc = "Listing shared on {0} by local influencer" },
-            new { Icon = "📄", Color = "#4ade80", Title = "Brochure Downloaded", Desc = "Information memorandum downloaded by {0}" }
-        };
-
-        var locations = new[] { "Singapore", "London, UK", "Sydney, NSW", "Dubai, UAE", "Hong Kong", "California, USA" };
-        var networks = new[] { "Facebook", "WeChat", "WhatsApp", "LinkedIn" };
-        var buyers = new[] { "(Verified)", "(Returning)", "(Cash Buyer)" };
-        var agencies = new[] { "Buyers Agent", "Local Agency", "Private Investor" };
-
-        var evt = eventTypes[_rnd.Next(eventTypes.Length)];
-        string desc = "";
-
-        if (evt.Title.Contains("Global")) desc = string.Format(evt.Desc, locations[_rnd.Next(locations.Length)]);
-        else if (evt.Title.Contains("Hot")) desc = string.Format(evt.Desc, buyers[_rnd.Next(buyers.Length)]);
-        else if (evt.Title.Contains("Social")) desc = string.Format(evt.Desc, networks[_rnd.Next(networks.Length)]);
-        else if (evt.Title.Contains("Brochure")) desc = string.Format(evt.Desc, agencies[_rnd.Next(agencies.Length)]);
-
-        InvokeAsync(() =>
-        {
-            _activities.Insert(0, new("Just now", evt.Icon, evt.Color, evt.Title, desc));
-            if (_activities.Count > 8) _activities.RemoveAt(_activities.Count - 1); // Keep list size manageable
-            StateHasChanged();
-        });
-        
-        // Randomize next tick
-        _activityTimer?.Change(_rnd.Next(3000, 12000), _rnd.Next(3000, 12000));
-    }
-
-    public void Dispose()
-    {
-        _activityTimer?.Dispose();
-    }
-
     private void OpenInviteModal() => _showInviteModal = true;
     private void CloseInviteModal() => _showInviteModal = false;
 
@@ -1497,14 +1560,9 @@
         Console.WriteLine($"Rejecting offer: {offerId}");
     }
 
-    // Activity Feed Data
-    private List<ActivityItem> _activities = new()
-    {
-        new("10m ago", "✨", "#818cf8", "Broadcast to Juwai (China)", "Property listing translated and live on Juwai network."),
-        new("32m ago", "📢", "#fbbf24", "Alert Sent to 15 Buyers Agents", "Notify Match: 4 Bed / 2 Bath / Paddington focus."),
-        new("1h ago", "💼", "#fca5a5", "Exclusivity Proposal Received", "Ray White Paddington has submitted a local exclusivity proposal."),
-        new("2h ago", "🌐", "#34d399", "Global Broadcast Live", "Listing is active on 15 of 16 global platforms.")
-    };
+    // Prototype-only feed remains empty while its hidden design reference is
+    // retained above. Never manufacture seller activity.
+    private readonly List<ActivityItem> _activities = new();
 
     public record ActivityItem(string Time, string Icon, string BgColor, string Title, string Description);
 }

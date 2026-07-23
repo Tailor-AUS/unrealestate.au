@@ -1,12 +1,19 @@
 @page "/listing-created"
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
 @inject IListingService ListingService
 
 <PageTitle>Listing Created! | unrealestate.au</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow" />
+</HeadContent>
 
 <div class="success-wrapper">
     <div class="success-bg"></div>
@@ -17,8 +24,8 @@
             <div class="header-text">
                 <h1>Your listing is live!</h1>
                 <p class="success-message">
-                    Your property is now visible to verified agents. We're also broadcasting 
-                    it to global property portals.
+                    Your property is now public on unrealestate.au. Share the
+                    listing link to start receiving real buyer enquiries.
                 </p>
             </div>
         </div>
@@ -47,7 +54,7 @@
                         }
                         <div class="preview-status">
                             <span class="status-dot"></span>
-                            Live • Global Broadcast Active
+                            Live on unrealestate.au
                         </div>
                     </div>
                 </div>
@@ -57,46 +64,57 @@
                     <div class="steps-list">
                         <div class="next-step">
                             <span class="step-time">Now</span>
-                            <span class="step-desc">Your listing is live on the global marketplace</span>
+                            <span class="step-desc">Your public listing is ready to view and share</span>
                         </div>
                         <div class="next-step">
-                            <span class="step-time">24-48 hrs</span>
-                            <span class="step-desc">Buyer interest & agent proposals start arriving</span>
+                            <span class="step-time">Next</span>
+                            <span class="step-desc">Send the link to buyers and your network</span>
                         </div>
                         <div class="next-step">
                             <span class="step-time">As they come</span>
-                            <span class="step-desc">You'll be notified of new offers</span>
+                            <span class="step-desc">Buyer questions, inspections and offers appear in your dashboard</span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="success-actions">
-                    <button class="primary-btn" @onclick="GoToDashboard">
-                        View My Listing
+                    <button class="primary-btn" @onclick="GoToPublicListing" disabled="@(_listing is null)">
+                        View public listing
                         <span class="btn-arrow">→</span>
                     </button>
-                    <button class="secondary-btn" @onclick="GoHome">
-                        Back to Home
+                    <button class="secondary-btn" @onclick="GoToDashboard">
+                        Manage my listings
                     </button>
                 </div>
             </div>
             
             <div class="success-right">
                 <div class="globe-wrapper">
-                    <div class="globe-label">Live Broadcast Output</div>
-                    <GlobeSyndication />
+                    <div class="globe-label">Public listing ready</div>
+                    <div class="public-listing-ready">
+                        <span aria-hidden="true">🔗</span>
+                        <strong>One link for every buyer</strong>
+                        <p>Use the share actions to distribute your live unrealestate.au listing.</p>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="share-section">
-            <p>Share your listing:</p>
-            <div class="share-buttons">
-                <button class="share-btn">📋 Copy Link</button>
-                <button class="share-btn">📱 SMS</button>
-                <button class="share-btn">✉️ Email</button>
+        @if (_listing is not null)
+        {
+            <div class="share-section">
+                <p>Share your listing:</p>
+                <div class="share-buttons">
+                    <button class="share-btn" @onclick="CopyLinkAsync">📋 Copy Link</button>
+                    <a class="share-btn" href="@SmsLink">📱 SMS</a>
+                    <a class="share-btn" href="@EmailLink">✉️ Email</a>
+                </div>
+                @if (_shareStatus is not null)
+                {
+                    <div role="status">@_shareStatus</div>
+                }
             </div>
-        </div>
+        }
     </div>
 </div>
 
@@ -190,22 +208,11 @@
     position: relative;
     flex: 1;
     min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
 }
-
-/* Adjust globe container within the wrapper */
-.globe-wrapper ::deep .globe-container {
-    margin-bottom: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    height: 100% !important;
-    background: transparent !important;
-}
-
-/* Override the hardcoded height from the component if possible, 
-   but since it's inline style on the id element, we might need JS or just rely on it.
-   The component has style="width: 100%; height: 500px;" on #broadcast-globe.
-   We can try to force it or just let it be. 500px is fine.
-*/
 
 .globe-label {
     position: absolute;
@@ -221,6 +228,30 @@
     z-index: 10;
     pointer-events: none;
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.public-listing-ready {
+    color: white;
+    max-width: 280px;
+    text-align: center;
+}
+
+.public-listing-ready span {
+    display: block;
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.public-listing-ready strong {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 12px;
+}
+
+.public-listing-ready p {
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.6;
+    margin: 0;
 }
 
 .listing-preview {
@@ -431,6 +462,9 @@
 }
 
 .share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 16px;
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.08);
@@ -441,6 +475,7 @@
     cursor: pointer;
     transition: all 0.2s;
     font-family: inherit;
+    text-decoration: none;
 }
 
 .share-btn:hover {
@@ -515,30 +550,76 @@
     [SupplyParameterFromQuery]
     public Guid? Id { get; set; }
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
     private Listing? _listing;
+    private string? _shareStatus;
+
+    private string PublicBaseUrl =>
+        (Configuration["App:PublicUrl"] ?? "https://unrealestate.au").TrimEnd('/');
+
+    private string PublicListingUrl => _listing is null
+        ? PublicBaseUrl
+        : $"{PublicBaseUrl}/property/{_listing.Id}";
+
+    private string ShareText => $"See this property on unrealestate.au: {PublicListingUrl}";
+    private string SmsLink => $"sms:?body={Uri.EscapeDataString(ShareText)}";
+    private string EmailLink =>
+        $"mailto:?subject={Uri.EscapeDataString("Property on unrealestate.au")}"
+        + $"&body={Uri.EscapeDataString(ShareText)}";
 
     protected override async Task OnInitializedAsync()
     {
-        if (Id.HasValue)
+        if (!Id.HasValue || AuthState is null)
         {
-            _listing = await ListingService.GetListingAsync(Id.Value);
+            return;
+        }
+
+        var principal = (await AuthState).User;
+        if (principal.Identity?.IsAuthenticated != true
+            || !Guid.TryParse(
+                principal.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                out var userId))
+        {
+            var returnUrl =
+                $"/listing-created?id={Uri.EscapeDataString(Id.Value.ToString())}";
+            Navigation.NavigateTo(
+                $"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}",
+                forceLoad: true);
+            return;
+        }
+
+        _listing = await ListingService.GetListingForUserAsync(
+            Id.Value,
+            userId);
+        if (_listing is null)
+        {
+            Navigation.NavigateTo("/my-listings", forceLoad: true);
         }
     }
 
     private void GoToDashboard()
     {
-        if (_listing?.User != null && !string.IsNullOrEmpty(_listing.User.Email))
+        Navigation.NavigateTo("/my-listings");
+    }
+
+    private void GoToPublicListing()
+    {
+        if (_listing is not null)
         {
-            Navigation.NavigateTo($"/my-listings?email={Uri.EscapeDataString(_listing.User.Email)}");
-        }
-        else
-        {
-            Navigation.NavigateTo("/my-listings");
+            Navigation.NavigateTo($"/property/{_listing.Id}");
         }
     }
-    
-    private void GoHome()
+
+    private async Task CopyLinkAsync()
     {
-        Navigation.NavigateTo("/");
+        if (_listing is null)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", PublicListingUrl);
+        _shareStatus = "Link copied.";
     }
 }

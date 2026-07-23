@@ -1,7 +1,10 @@
+using Aigents.Domain.Entities;
+using Aigents.Infrastructure.Growth;
 using Aigents.Infrastructure.PropertyData;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using System.Security.Claims;
 
 namespace Aigents.Api.Features.Property;
 
@@ -50,6 +53,8 @@ public static class PropertyEndpoints
 
     private static async Task<IResult> SearchProperties(
         IPropertyDataService propertyService,
+        IProductEventRecorder productEvents,
+        ClaimsPrincipal principal,
         string? query,
         string? suburb,
         string? state,
@@ -75,11 +80,18 @@ public static class PropertyEndpoints
         };
 
         var results = await propertyService.SearchPropertiesAsync(filter);
+        await RecordForAuthenticatedUserAsync(
+            productEvents,
+            principal,
+            ProductEventNames.SearchPerformed,
+            deduplicationWindow: TimeSpan.FromMinutes(5));
         return Results.Ok(results);
     }
 
     private static async Task<IResult> GetPropertyDetails(
         IPropertyDataService propertyService,
+        IProductEventRecorder productEvents,
+        ClaimsPrincipal principal,
         string id)
     {
         var property = await propertyService.GetPropertyDetailsAsync(id);
@@ -90,12 +102,20 @@ public static class PropertyEndpoints
 
         // Enrich with extra data (e.g. AVM if it's a listing)
         property = await propertyService.EnrichPropertyDataAsync(property);
+        await RecordForAuthenticatedUserAsync(
+            productEvents,
+            principal,
+            ProductEventNames.ListingViewed,
+            Guid.TryParse(id, out var listingId) ? listingId : null,
+            TimeSpan.FromMinutes(30));
 
         return Results.Ok(property);
     }
 
     private static async Task<IResult> GetSuburbStats(
         IPropertyDataService propertyService,
+        IProductEventRecorder productEvents,
+        ClaimsPrincipal principal,
         string state,
         string suburb)
     {
@@ -104,6 +124,11 @@ public static class PropertyEndpoints
         {
             return Results.NotFound(new { error = "Suburb not found" });
         }
+        await RecordForAuthenticatedUserAsync(
+            productEvents,
+            principal,
+            ProductEventNames.SearchPerformed,
+            deduplicationWindow: TimeSpan.FromMinutes(5));
         return Results.Ok(stats);
     }
 
@@ -131,5 +156,23 @@ public static class PropertyEndpoints
 
         var result = await aiService.SearchPropertyIntelligenceAsync(address);
         return Results.Ok(result);
+    }
+
+    private static Task<bool> RecordForAuthenticatedUserAsync(
+        IProductEventRecorder productEvents,
+        ClaimsPrincipal principal,
+        string eventName,
+        Guid? listingId = null,
+        TimeSpan? deduplicationWindow = null)
+    {
+        return Guid.TryParse(
+            principal.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var userId)
+            ? productEvents.RecordAsync(
+                userId,
+                eventName,
+                listingId,
+                deduplicationWindow)
+            : Task.FromResult(false);
     }
 }

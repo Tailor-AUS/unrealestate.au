@@ -27,7 +27,7 @@ public class PropertyDataService : IPropertyDataService
         // 1. If searching on-market, rely primarily on Domain adapter
         // 2. If searching off-market, rely on CoreLogic adapter
         // 3. Merge results if needed (advanced)
-        
+
         var provider = GetProvider(filter.IncludeOffMarket ? "corelogic" : "domain");
         if (provider == null)
         {
@@ -93,7 +93,7 @@ public class PropertyDataService : IPropertyDataService
     {
         var provider = GetProvider("domain") ?? _providers.FirstOrDefault();
         if (provider == null) return null;
-        
+
         return await provider.GetSuburbProfileAsync(suburb, state, ct);
     }
 

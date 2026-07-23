@@ -1,12 +1,39 @@
 @page "/chat"
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject NavigationManager Navigation
 
 <PageTitle>Chat | unrealestate.au</PageTitle>
 
-<Chat Mode="@Mode" Address="@Address" Buyer="@Buyer" />
+@if (User?.Identity?.IsAuthenticated == true)
+{
+    <Chat Mode="@Mode" Address="@Address" Buyer="@Buyer" User="@User" />
+}
+else
+{
+    <section class="auth-required">
+        <h1>Sign in to chat</h1>
+        <p>AI conversations are saved to your account so you can continue them later.</p>
+        <a class="btn btn-primary" href="@LoginUrl">Sign in or create an account</a>
+    </section>
+}
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private ClaimsPrincipal? User { get; set; }
+    private string LoginUrl
+    {
+        get
+        {
+            var relativeUrl = $"/{Navigation.ToBaseRelativePath(Navigation.Uri)}";
+            return $"/Account/Login?returnUrl={Uri.EscapeDataString(relativeUrl)}";
+        }
+    }
+
     [SupplyParameterFromQuery]
     public string? Mode { get; set; }
 
@@ -15,6 +42,14 @@
 
     [SupplyParameterFromQuery]
     public string? Buyer { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            User = (await AuthState).User;
+        }
+    }
 }
 
 

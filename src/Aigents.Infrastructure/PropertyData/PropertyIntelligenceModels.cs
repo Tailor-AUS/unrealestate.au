@@ -21,22 +21,22 @@ public class PropertyIntelligenceResult
     public int? CarSpaces { get; set; }
     public string? LandSize { get; set; }
     public string? PropertyType { get; set; }
-    
+
     // Pricing intelligence
     public decimal? EstimatedValueLow { get; set; }
     public decimal? EstimatedValueHigh { get; set; }
     public decimal? LastSalePrice { get; set; }
     public string? LastSaleDate { get; set; }
-    
+
     // Market context
     public string? MedianSuburbPrice { get; set; }
     public string? RentalYield { get; set; }
     public string? DaysOnMarket { get; set; }
     public string? SuburbGrowthRate { get; set; }
-    
+
     // Source traceability - the key feature!
     public List<IntelligenceSource> Sources { get; set; } = new();
-    
+
     // Raw research summary for transparency
     public string? ResearchSummary { get; set; }
 }

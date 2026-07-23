@@ -21,7 +21,7 @@ public class DomainPropertyAdapter : IPropertyDataProvider
         _logger = logger;
     }
 
-    public async Task<SearchResults> SearchAsync(PropertySearchFilter filter, CancellationToken ct = default)
+    public Task<SearchResults> SearchAsync(PropertySearchFilter filter, CancellationToken ct = default)
     {
         // Construct Domain Listing Search Request
         var request = new
@@ -34,37 +34,37 @@ public class DomainPropertyAdapter : IPropertyDataProvider
             minCarspaces = filter.MinCarSpaces,
             minPrice = filter.MinPrice,
             maxPrice = filter.MaxPrice,
-            locations = new[] 
+            locations = new[]
             {
                 new { suburb = filter.Suburb ?? "Brisbane", state = filter.State ?? "QLD", postcode = filter.Postcode }
             }
         };
 
-        try 
+        try
         {
             // Note: In a real implementation, we would POST to /listings/residential/_search
             // For now, we'll return mock data to avoid 401s until API keys are configured
             // var response = await _httpClient.PostAsJsonAsync($"{BaseUrl}/listings/residential/_search", request, ct);
-            
+
             _logger.LogInformation("Searching Domain for {Suburb}", filter.Suburb);
-            
+
             // Mock response for dev
-            return CreateMockSearchResults(filter);
+            return Task.FromResult(CreateMockSearchResults(filter));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Domain search failed");
-            return new SearchResults();
+            return Task.FromResult(new SearchResults());
         }
     }
 
-    public async Task<BuyerProperty?> GetByIdAsync(string id, CancellationToken ct = default)
+    public Task<BuyerProperty?> GetByIdAsync(string id, CancellationToken ct = default)
     {
         try
         {
             // GET /listings/{id}
             // Mocking for now
-            return new BuyerProperty
+            return Task.FromResult<BuyerProperty?>(new BuyerProperty
             {
                 Id = id,
                 Source = "Domain",
@@ -79,11 +79,11 @@ public class DomainPropertyAdapter : IPropertyDataProvider
                 Status = ListingStatus.ForSale,
                 PriceDisplay = "Offers over $600k",
                 MainImageUrl = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80"
-            };
+            });
         }
         catch
         {
-            return null;
+            return Task.FromResult<BuyerProperty?>(null);
         }
     }
 
@@ -115,7 +115,7 @@ public class DomainPropertyAdapter : IPropertyDataProvider
     {
         var results = new List<BuyerProperty>();
         var count = filter.PageSize;
-        
+
         for (int i = 0; i < count; i++)
         {
             results.Add(new BuyerProperty

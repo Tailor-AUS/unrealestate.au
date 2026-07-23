@@ -11,12 +11,12 @@ public interface ICallIntelligenceService
     /// Summarize a call transcript and extract action items
     /// </summary>
     Task<CallAnalysis> AnalyzeCallAsync(string transcript, CallContext context, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Extract property mentions from a transcript
     /// </summary>
     Task<List<PropertyMention>> ExtractPropertiesAsync(string transcript, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Score a lead based on call history
     /// </summary>
@@ -68,17 +68,23 @@ public class CallIntelligenceService : ICallIntelligenceService
 
         var messages = new List<ChatMessage>
         {
-            new() { Role = "user", Content = $"Call between agent and contact named '{context.ContactName}':\n\n{transcript}" }
+            new()
+            {
+                Role = "user",
+                Content =
+                    $"{systemPrompt}\n\nCall between agent and contact named "
+                    + $"'{context.ContactName}':\n\n{transcript}"
+            }
         };
 
         try
         {
             var response = await _aiService.ChatAsync(messages, "agent", ct);
             var analysis = ParseCallAnalysis(response.Content);
-            
+
             _logger.LogInformation("Call analyzed successfully. Sentiment: {Sentiment}, Actions: {ActionCount}",
                 analysis.Sentiment, analysis.ActionItems.Count);
-                
+
             return analysis;
         }
         catch (Exception ex)
@@ -176,8 +182,8 @@ public class CallIntelligenceService : ICallIntelligenceService
             {
                 json = json.Substring(jsonStart, jsonEnd - jsonStart + 1);
             }
-            
-            return System.Text.Json.JsonSerializer.Deserialize<CallAnalysis>(json) 
+
+            return System.Text.Json.JsonSerializer.Deserialize<CallAnalysis>(json)
                 ?? new CallAnalysis { Summary = "Parse error" };
         }
         catch
@@ -196,8 +202,8 @@ public class CallIntelligenceService : ICallIntelligenceService
             {
                 json = json.Substring(jsonStart, jsonEnd - jsonStart + 1);
             }
-            
-            return System.Text.Json.JsonSerializer.Deserialize<List<PropertyMention>>(json) 
+
+            return System.Text.Json.JsonSerializer.Deserialize<List<PropertyMention>>(json)
                 ?? new List<PropertyMention>();
         }
         catch
@@ -216,8 +222,8 @@ public class CallIntelligenceService : ICallIntelligenceService
             {
                 json = json.Substring(jsonStart, jsonEnd - jsonStart + 1);
             }
-            
-            return System.Text.Json.JsonSerializer.Deserialize<LeadScoreResult>(json) 
+
+            return System.Text.Json.JsonSerializer.Deserialize<LeadScoreResult>(json)
                 ?? new LeadScoreResult { Score = 50, Tier = "warm" };
         }
         catch

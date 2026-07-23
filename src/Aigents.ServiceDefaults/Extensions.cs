@@ -55,7 +55,8 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter("Aigents.Growth");
             })
             .WithTracing(tracing =>
             {
@@ -99,7 +100,7 @@ public static class Extensions
     {
         // Health check endpoints for k8s probes
         app.MapHealthChecks("/health");
-        
+
         app.MapHealthChecks("/alive", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live")

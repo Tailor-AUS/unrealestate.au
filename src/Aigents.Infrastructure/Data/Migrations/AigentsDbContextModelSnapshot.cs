@@ -375,11 +375,30 @@ namespace Aigents.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AgentId")
+                    b.Property<Guid?>("AgentId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("BuyerEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("BuyerName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("BuyerPhone")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal?>("OfferAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InquiryType")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ListingId")
                         .HasColumnType("uuid");
@@ -439,6 +458,39 @@ namespace Aigents.Infrastructure.Data.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.ToTable("Messages");
+                });
+
+            modelBuilder.Entity("Aigents.Domain.Entities.ProductEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ListingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name", "OccurredAt");
+
+                    b.HasIndex("OccurredAt", "UserId");
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.HasIndex("ListingId", "Name", "OccurredAt");
+
+                    b.ToTable("ProductEvents");
                 });
 
             modelBuilder.Entity("Aigents.Domain.Entities.SyndicationStatus", b =>
@@ -783,8 +835,7 @@ namespace Aigents.Infrastructure.Data.Migrations
                     b.HasOne("Aigents.Domain.Entities.Agent", "Agent")
                         .WithMany("Inquiries")
                         .HasForeignKey("AgentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Aigents.Domain.Entities.Listing", "Listing")
                         .WithMany("Inquiries")
@@ -806,6 +857,17 @@ namespace Aigents.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Aigents.Domain.Entities.ProductEvent", b =>
+                {
+                    b.HasOne("Aigents.Domain.Entities.User", "User")
+                        .WithMany("ProductEvents")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Aigents.Domain.Entities.SyndicationStatus", b =>
@@ -892,6 +954,8 @@ namespace Aigents.Infrastructure.Data.Migrations
                     b.Navigation("Conversations");
 
                     b.Navigation("Fido2Credentials");
+
+                    b.Navigation("ProductEvents");
                 });
 #pragma warning restore 612, 618
         }

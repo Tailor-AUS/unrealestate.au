@@ -40,6 +40,7 @@ Pricing/MRR packaging is deferred — see [`docs/gtm.md`](docs/gtm.md).
 | `docs/HANDOFF.md` | Hosting, secrets keys, deploy, local Aspire |
 | `docs/DEV_CHECKLIST.md` | Last machine pass/fail |
 | `docs/gtm.md` | Growth model, active-user definition, ICP pointers |
+| `docs/metrics.md` | MAU definition, event vocabulary, canonical queries |
 | `SETUP.md` | **Partially obsolete** (Azure deploy / Google OAuth) — do not follow those sections |
 | Epic [#22](https://github.com/Tailor-AUS/unrealestate.au/issues/22) | North star |
 

@@ -9,14 +9,14 @@ public class Message
     public Guid ConversationId { get; set; }
     public MessageRole Role { get; set; }
     public string Content { get; set; } = string.Empty;
-    
+
     // AI metadata
     public int? TokensUsed { get; set; }
     public string? ModelUsed { get; set; }
-    
+
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     // Navigation
     public Conversation Conversation { get; set; } = null!;
 }

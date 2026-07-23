@@ -9,6 +9,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Aigents.Domain.Entities;
 using Aigents.Infrastructure.Data;
+using Aigents.Infrastructure.Growth;
 using Aigents.Infrastructure.Services.AI;
 using Carter;
 using FluentValidation;
@@ -125,15 +126,18 @@ public class CreateListingHandler : IRequestHandler<CreateListingCommand, Create
 {
     private readonly AigentsDbContext _db;
     private readonly IAiService _aiService;
+    private readonly IProductEventRecorder _productEvents;
     private readonly ILogger<CreateListingHandler> _logger;
 
     public CreateListingHandler(
         AigentsDbContext db,
         IAiService aiService,
+        IProductEventRecorder productEvents,
         ILogger<CreateListingHandler> logger)
     {
         _db = db;
         _aiService = aiService;
+        _productEvents = productEvents;
         _logger = logger;
     }
 
@@ -185,7 +189,7 @@ public class CreateListingHandler : IRequestHandler<CreateListingCommand, Create
                 .Replace("```json", "")
                 .Replace("```", "")
                 .Trim();
-            
+
             parsed = JsonSerializer.Deserialize<ListingAiResponse>(jsonContent, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -229,6 +233,11 @@ public class CreateListingHandler : IRequestHandler<CreateListingCommand, Create
 
         _db.Listings.Add(listing);
         await _db.SaveChangesAsync(ct);
+        await _productEvents.RecordAsync(
+            request.UserId,
+            ProductEventNames.ListingCreated,
+            listing.Id,
+            cancellationToken: ct);
 
         _logger.LogInformation(
             "Listing created. Id: {ListingId}, Address: {Address}",

@@ -18,21 +18,21 @@ public static class CrmIntegrationServiceExtensions
         services.AddHttpClient<RexCrmAdapter>();
         services.AddHttpClient<AgentBoxCrmAdapter>();
         services.AddHttpClient<VaultReCrmAdapter>();
-        
+
         // Register adapters
         services.AddSingleton<ICrmAdapter, RexCrmAdapter>();
         services.AddSingleton<ICrmAdapter, AgentBoxCrmAdapter>();
         services.AddSingleton<ICrmAdapter, VaultReCrmAdapter>();
-        
+
         // Register the integration hub
         services.AddScoped<ICrmIntegrationHub, CrmIntegrationHub>();
-        
+
         // Register default settings repository (in-memory for dev, use distributed for prod)
         services.AddSingleton<IAgentCrmSettingsRepository, InMemoryCrmSettingsRepository>();
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Add CRM integration with a custom settings repository.
     /// Use this when you have your own storage mechanism for credentials.
@@ -42,7 +42,7 @@ public static class CrmIntegrationServiceExtensions
     {
         services.AddCrmIntegration();
         services.AddScoped<IAgentCrmSettingsRepository, TSettingsRepo>();
-        
+
         return services;
     }
 }

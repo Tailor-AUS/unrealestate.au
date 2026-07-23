@@ -17,17 +17,17 @@ public interface IMapsOnlineService
     /// Note: Reports are delivered via email as PDFs
     /// </summary>
     Task<MapsOnlineResponse> RequestReportAsync(string lotPlan, string reportType, string emailAddress, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Request a property report by coordinates (longitude, latitude)
     /// </summary>
     Task<MapsOnlineResponse> RequestReportByCoordinatesAsync(double longitude, double latitude, string reportType, string emailAddress, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Get available report types
     /// </summary>
     Task<List<MapsOnlineReportType>> GetReportTypesAsync(CancellationToken ct = default);
-    
+
     /// <summary>
     /// Get available feature types (ways to specify location)
     /// </summary>
@@ -53,22 +53,22 @@ public class MapsOnlineService : IMapsOnlineService
     }
 
     public async Task<MapsOnlineResponse> RequestReportAsync(
-        string lotPlan, 
-        string reportType, 
-        string emailAddress, 
+        string lotPlan,
+        string reportType,
+        string emailAddress,
         CancellationToken ct = default)
     {
         // Parse lot/plan - can be "1,RP123456" or "1/RP123456"
         var features = lotPlan.Replace("/", ",");
-        
+
         var url = $"{BaseUrl}/request?reportType={reportType}&featureType=LotPlan&features={Uri.EscapeDataString(features)}&emailAddress={Uri.EscapeDataString(emailAddress)}";
-        
+
         _logger.LogInformation("Requesting MapsOnline report: {ReportType} for {LotPlan}", reportType, lotPlan);
-        
+
         try
         {
             var response = await _httpClient.GetFromJsonAsync<MapsOnlineResponse>(url, JsonOptions, ct);
-            
+
             if (response?.Success == true)
             {
                 _logger.LogInformation("MapsOnline report requested successfully for {LotPlan}", lotPlan);
@@ -77,15 +77,15 @@ public class MapsOnlineService : IMapsOnlineService
             {
                 _logger.LogWarning("MapsOnline report request failed: {Message}", response?.Message);
             }
-            
+
             return response ?? new MapsOnlineResponse { Success = false, Message = "No response received" };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error requesting MapsOnline report for {LotPlan}", lotPlan);
-            return new MapsOnlineResponse 
-            { 
-                Success = false, 
+            return new MapsOnlineResponse
+            {
+                Success = false,
                 Message = $"Request failed: {ex.Message}",
                 MessageCode = "error"
             };
@@ -93,19 +93,19 @@ public class MapsOnlineService : IMapsOnlineService
     }
 
     public async Task<MapsOnlineResponse> RequestReportByCoordinatesAsync(
-        double longitude, 
-        double latitude, 
-        string reportType, 
-        string emailAddress, 
+        double longitude,
+        double latitude,
+        string reportType,
+        string emailAddress,
         CancellationToken ct = default)
     {
         // Coordinates in format: longitude,latitude (e.g., "153.0251,-27.4698" for Brisbane)
         var features = $"{longitude},{latitude}";
-        
+
         var url = $"{BaseUrl}/request?reportType={reportType}&featureType=point&features={Uri.EscapeDataString(features)}&emailAddress={Uri.EscapeDataString(emailAddress)}";
-        
+
         _logger.LogInformation("Requesting MapsOnline report: {ReportType} for coordinates {Lon},{Lat}", reportType, longitude, latitude);
-        
+
         try
         {
             var response = await _httpClient.GetFromJsonAsync<MapsOnlineResponse>(url, JsonOptions, ct);
@@ -114,9 +114,9 @@ public class MapsOnlineService : IMapsOnlineService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error requesting MapsOnline report for coordinates {Lon},{Lat}", longitude, latitude);
-            return new MapsOnlineResponse 
-            { 
-                Success = false, 
+            return new MapsOnlineResponse
+            {
+                Success = false,
                 Message = $"Request failed: {ex.Message}",
                 MessageCode = "error"
             };
@@ -152,14 +152,14 @@ public class MapsOnlineService : IMapsOnlineService
             return new List<MapsOnlineFeatureType>();
         }
     }
-    
+
     // Response wrappers for the list endpoints
     private class ReportTypesResponse
     {
         public List<MapsOnlineReportType> Output { get; set; } = new();
         public bool Success { get; set; }
     }
-    
+
     private class FeatureTypesResponse
     {
         public List<MapsOnlineFeatureType> Output { get; set; } = new();

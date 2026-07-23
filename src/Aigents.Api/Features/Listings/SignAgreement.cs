@@ -11,6 +11,7 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Aigents.Api.Features.Listings;
 
@@ -23,41 +24,66 @@ public class SignAgreementEndpoint : ICarterModule
     public void AddRoutes(IEndpointRouteBuilder app)
     {
         // Get agreement text
-        app.MapGet("/api/listings/{listingId}/agreement", async (Guid listingId, ISender sender) =>
+        app.MapGet("/api/listings/{listingId}/agreement", async (
+            Guid listingId,
+            ClaimsPrincipal principal,
+            ISender sender) =>
         {
-            var result = await sender.Send(new GetAgreementQuery(listingId));
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+
+            var result = await sender.Send(new GetAgreementQuery(listingId, userId));
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
+        .RequireAuthorization()
         .WithName("GetAgreement")
         .WithTags("Listings")
         .WithOpenApi()
         .Produces<AgreementResponse>();
 
         // Sign agreement
-        app.MapPost("/api/listings/{listingId}/sign", async (Guid listingId, SignAgreementRequest request, ISender sender) =>
+        app.MapPost("/api/listings/{listingId}/sign", async (
+            Guid listingId,
+            SignAgreementRequest request,
+            ClaimsPrincipal principal,
+            ISender sender) =>
         {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+
             var result = await sender.Send(new SignAgreementCommand(
                 listingId,
+                userId,
                 request.FullName,
                 request.Signature,
                 request.AgreedToTerms,
                 request.CommissionRate
             ));
-            
-            return Results.Ok(result);
+
+            return result is not null ? Results.Ok(result) : Results.NotFound();
         })
+        .RequireAuthorization()
         .WithName("SignAgreement")
         .WithTags("Listings")
         .WithOpenApi()
         .Produces<SignAgreementResponse>();
     }
+
+    private static bool TryGetUserId(
+        ClaimsPrincipal principal,
+        out Guid userId) =>
+        Guid.TryParse(
+            principal.FindFirstValue(ClaimTypes.NameIdentifier),
+            out userId);
 }
 
 // ───────────────────────────────────────────────────────────────
 // GET AGREEMENT
 // ───────────────────────────────────────────────────────────────
 
-public record GetAgreementQuery(Guid ListingId) : IRequest<AgreementResponse?>;
+public record GetAgreementQuery(
+    Guid ListingId,
+    Guid UserId) : IRequest<AgreementResponse?>;
 
 public record AgreementResponse(
     Guid ListingId,
@@ -76,7 +102,12 @@ public class GetAgreementHandler : IRequestHandler<GetAgreementQuery, AgreementR
 
     public async Task<AgreementResponse?> Handle(GetAgreementQuery request, CancellationToken ct)
     {
-        var listing = await _db.Listings.FindAsync([request.ListingId], ct);
+        var listing = await _db.Listings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == request.ListingId
+                    && candidate.UserId == request.UserId,
+                ct);
         if (listing is null) return null;
 
         var agreementText = $"""
@@ -172,25 +203,27 @@ public record SignAgreementResponse(
 
 public record SignAgreementCommand(
     Guid ListingId,
+    Guid UserId,
     string FullName,
     string Signature,
     bool AgreedToTerms,
     decimal CommissionRate
-) : IRequest<SignAgreementResponse>;
+) : IRequest<SignAgreementResponse?>;
 
 public class SignAgreementValidator : AbstractValidator<SignAgreementCommand>
 {
     public SignAgreementValidator()
     {
         RuleFor(x => x.ListingId).NotEmpty();
-        RuleFor(x => x.FullName).NotEmpty().MinimumLength(2);
-        RuleFor(x => x.Signature).NotEmpty();
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.FullName).NotEmpty().MinimumLength(2).MaximumLength(200);
+        RuleFor(x => x.Signature).NotEmpty().MaximumLength(10_000);
         RuleFor(x => x.AgreedToTerms).Equal(true).WithMessage("You must agree to the terms");
         RuleFor(x => x.CommissionRate).InclusiveBetween(1.0m, 5.0m);
     }
 }
 
-public class SignAgreementHandler : IRequestHandler<SignAgreementCommand, SignAgreementResponse>
+public class SignAgreementHandler : IRequestHandler<SignAgreementCommand, SignAgreementResponse?>
 {
     private readonly AigentsDbContext _db;
     private readonly ILogger<SignAgreementHandler> _logger;
@@ -201,10 +234,14 @@ public class SignAgreementHandler : IRequestHandler<SignAgreementCommand, SignAg
         _logger = logger;
     }
 
-    public async Task<SignAgreementResponse> Handle(SignAgreementCommand request, CancellationToken ct)
+    public async Task<SignAgreementResponse?> Handle(SignAgreementCommand request, CancellationToken ct)
     {
-        var listing = await _db.Listings.FindAsync([request.ListingId], ct)
-            ?? throw new InvalidOperationException("Listing not found");
+        var listing = await _db.Listings.FirstOrDefaultAsync(
+            candidate => candidate.Id == request.ListingId
+                && candidate.UserId == request.UserId,
+            ct);
+        if (listing is null)
+            return null;
 
         if (listing.AgreementSigned)
             throw new InvalidOperationException("Agreement already signed");
@@ -219,8 +256,8 @@ public class SignAgreementHandler : IRequestHandler<SignAgreementCommand, SignAg
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Agreement signed for listing {ListingId} by {Name}",
-            listing.Id, request.FullName);
+            "Agreement signed for listing {ListingId}",
+            listing.Id);
 
         return new SignAgreementResponse(
             listing.Id,

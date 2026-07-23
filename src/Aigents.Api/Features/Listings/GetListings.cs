@@ -5,8 +5,10 @@
 // ═══════════════════════════════════════════════════════════════
 
 using System.Text.Json;
+using System.Security.Claims;
 using Aigents.Domain.Entities;
 using Aigents.Infrastructure.Data;
+using Aigents.Infrastructure.Growth;
 using Carter;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,32 +24,56 @@ public class GetListingsEndpoint : ICarterModule
     public void AddRoutes(IEndpointRouteBuilder app)
     {
         // Get user's listings
-        app.MapGet("/api/listings/my/{userId}", async (Guid userId, ISender sender) =>
+        app.MapGet("/api/listings/my/{userId}", async (
+            Guid userId,
+            ClaimsPrincipal principal,
+            ISender sender) =>
         {
+            if (!TryGetUserId(principal, out var authenticatedUserId))
+                return Results.Unauthorized();
+            if (userId != authenticatedUserId)
+                return Results.Forbid();
+
             var result = await sender.Send(new GetMyListingsQuery(userId));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("GetMyListings")
         .WithTags("Listings")
         .WithOpenApi()
         .Produces<List<ListingDto>>();
 
         // Get single listing
-        app.MapGet("/api/listings/{listingId}", async (Guid listingId, ISender sender) =>
+        app.MapGet("/api/listings/{listingId}", async (
+            Guid listingId,
+            ClaimsPrincipal principal,
+            ISender sender) =>
         {
-            var result = await sender.Send(new GetListingQuery(listingId));
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+
+            var result = await sender.Send(new GetListingQuery(listingId, userId));
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
+        .RequireAuthorization()
         .WithName("GetListing")
         .WithTags("Listings")
         .WithOpenApi()
         .Produces<ListingDetailDto>();
 
         // Update listing
-        app.MapPut("/api/listings/{listingId}", async (Guid listingId, UpdateListingRequest request, ISender sender) =>
+        app.MapPut("/api/listings/{listingId}", async (
+            Guid listingId,
+            UpdateListingRequest request,
+            ClaimsPrincipal principal,
+            ISender sender) =>
         {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+
             var result = await sender.Send(new UpdateListingCommand(
                 listingId,
+                userId,
                 request.Headline,
                 request.Description,
                 request.Features,
@@ -56,11 +82,19 @@ public class GetListingsEndpoint : ICarterModule
             ));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("UpdateListing")
         .WithTags("Listings")
         .WithOpenApi()
         .Produces<ListingDto>();
     }
+
+    private static bool TryGetUserId(
+        ClaimsPrincipal principal,
+        out Guid userId) =>
+        Guid.TryParse(
+            principal.FindFirstValue(ClaimTypes.NameIdentifier),
+            out userId);
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -113,7 +147,11 @@ public record InquiryDto(
     string AgencyName,
     string Message,
     string Status,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string InquiryType,
+    decimal? OfferAmount,
+    string? BuyerEmail,
+    string? BuyerPhone
 );
 
 // ───────────────────────────────────────────────────────────────
@@ -153,7 +191,9 @@ public class GetMyListingsHandler : IRequestHandler<GetMyListingsQuery, List<Lis
 // GET SINGLE LISTING
 // ───────────────────────────────────────────────────────────────
 
-public record GetListingQuery(Guid ListingId) : IRequest<ListingDetailDto?>;
+public record GetListingQuery(
+    Guid ListingId,
+    Guid UserId) : IRequest<ListingDetailDto?>;
 
 public class GetListingHandler : IRequestHandler<GetListingQuery, ListingDetailDto?>
 {
@@ -166,7 +206,10 @@ public class GetListingHandler : IRequestHandler<GetListingQuery, ListingDetailD
         var listing = await _db.Listings
             .Include(l => l.Inquiries)
                 .ThenInclude(i => i.Agent)
-            .FirstOrDefaultAsync(l => l.Id == request.ListingId, ct);
+            .FirstOrDefaultAsync(
+                l => l.Id == request.ListingId
+                    && l.UserId == request.UserId,
+                ct);
 
         if (listing is null) return null;
 
@@ -196,11 +239,15 @@ public class GetListingHandler : IRequestHandler<GetListingQuery, ListingDetailD
             listing.AgentsNotified,
             listing.Inquiries.Select(i => new InquiryDto(
                 i.Id,
-                i.Agent.Name,
-                i.Agent.AgencyName,
+                i.Agent != null ? i.Agent.Name : i.BuyerName ?? "Buyer",
+                i.Agent != null ? i.Agent.AgencyName : string.Empty,
                 i.Message,
                 i.Status.ToString(),
-                i.CreatedAt
+                i.CreatedAt,
+                i.InquiryType.ToString(),
+                i.OfferAmount,
+                i.BuyerEmail,
+                i.BuyerPhone
             )).ToList(),
             listing.CreatedAt,
             listing.PublishedAt
@@ -222,6 +269,7 @@ public record UpdateListingRequest(
 
 public record UpdateListingCommand(
     Guid ListingId,
+    Guid UserId,
     string? Headline,
     string? Description,
     List<string>? Features,
@@ -232,12 +280,22 @@ public record UpdateListingCommand(
 public class UpdateListingHandler : IRequestHandler<UpdateListingCommand, ListingDto>
 {
     private readonly AigentsDbContext _db;
+    private readonly IProductEventRecorder _productEvents;
 
-    public UpdateListingHandler(AigentsDbContext db) => _db = db;
+    public UpdateListingHandler(
+        AigentsDbContext db,
+        IProductEventRecorder productEvents)
+    {
+        _db = db;
+        _productEvents = productEvents;
+    }
 
     public async Task<ListingDto> Handle(UpdateListingCommand request, CancellationToken ct)
     {
-        var listing = await _db.Listings.FindAsync([request.ListingId], ct)
+        var listing = await _db.Listings.FirstOrDefaultAsync(
+                candidate => candidate.Id == request.ListingId
+                    && candidate.UserId == request.UserId,
+                ct)
             ?? throw new InvalidOperationException("Listing not found");
 
         if (listing.Status != ListingStatus.Draft && listing.Status != ListingStatus.PendingSignature)
@@ -253,6 +311,11 @@ public class UpdateListingHandler : IRequestHandler<UpdateListingCommand, Listin
         listing.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+        await _productEvents.RecordAsync(
+            request.UserId,
+            ProductEventNames.ListingUpdated,
+            request.ListingId,
+            cancellationToken: ct);
 
         return new ListingDto(
             listing.Id,

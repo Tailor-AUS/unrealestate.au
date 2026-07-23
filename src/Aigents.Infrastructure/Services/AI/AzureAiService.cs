@@ -13,7 +13,7 @@ namespace Aigents.Infrastructure.Services.AI;
 public interface IAiService
 {
     Task<AiResponse> ChatAsync(IEnumerable<ChatMessage> messages, string mode, CancellationToken ct = default);
-    
+
     /// <summary>
     /// Search for property intelligence using Azure AI with web grounding
     /// </summary>
@@ -48,7 +48,7 @@ public class AzureAiService : IAiService
             Coverage: 130+ suburbs across Brisbane and Gold Coast.
             Keep responses concise. Use line breaks for readability.
             """,
-        
+
         ["sell"] = """
             You are an expert AI listing generator for unrealestate.au, helping homeowners create compelling property listings.
             
@@ -86,7 +86,7 @@ public class AzureAiService : IAiService
 
         // Create Azure OpenAI client
         AzureOpenAIClient azureClient;
-        
+
         if (!string.IsNullOrEmpty(_options.ApiKey))
         {
             // Use API key authentication
@@ -110,7 +110,7 @@ public class AzureAiService : IAiService
         try
         {
             var systemPrompt = SystemPrompts.GetValueOrDefault(mode.ToLower(), SystemPrompts["buy"]);
-            
+
             // Build messages list
             var chatMessages = new List<OpenAI.Chat.ChatMessage>
             {
@@ -136,13 +136,13 @@ public class AzureAiService : IAiService
             };
 
             var response = await _chatClient.CompleteChatAsync(chatMessages, options, ct);
-            
+
             var content = response.Value.Content.FirstOrDefault()?.Text ?? "No response generated.";
             var usage = response.Value.Usage;
-            
+
             _logger.LogInformation(
-                "Azure AI response generated. Tokens: {InputTokens}/{OutputTokens}", 
-                usage?.InputTokenCount, 
+                "Azure AI response generated. Tokens: {InputTokens}/{OutputTokens}",
+                usage?.InputTokenCount,
                 usage?.OutputTokenCount);
 
             return new AiResponse
@@ -206,7 +206,7 @@ public class AzureAiService : IAiService
 
             var response = await _chatClient.CompleteChatAsync(chatMessages, options, ct);
             var content = response.Value.Content.FirstOrDefault()?.Text ?? "{}";
-            
+
             _logger.LogInformation("Property intelligence response for {Address}: {Response}", address, content);
 
             // Parse the JSON response
@@ -216,16 +216,16 @@ public class AzureAiService : IAiService
                 content = content.Trim();
                 if (content.StartsWith("```"))
                 {
-                    content = content.Split('\n', 2).Length > 1 
-                        ? content.Split('\n', 2)[1] 
+                    content = content.Split('\n', 2).Length > 1
+                        ? content.Split('\n', 2)[1]
                         : content;
                     content = content.TrimEnd('`').Trim();
                 }
 
                 var result = System.Text.Json.JsonSerializer.Deserialize<PropertyIntelligenceResponse>(
-                    content, 
+                    content,
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                
+
                 return result ?? new PropertyIntelligenceResponse { Confidence = "failed" };
             }
             catch (System.Text.Json.JsonException jsonEx)
@@ -258,17 +258,17 @@ public class AiResponse
 public class AzureAiOptions
 {
     public const string SectionName = "AzureAI";
-    
+
     /// <summary>
     /// Azure AI Foundry endpoint (e.g., https://your-resource.openai.azure.com/)
     /// </summary>
     public string Endpoint { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// API Key (optional - use Managed Identity in production)
     /// </summary>
     public string? ApiKey { get; set; }
-    
+
     /// <summary>
     /// Model deployment name (e.g., gpt-4o, gpt-4, gpt-35-turbo)
     /// </summary>

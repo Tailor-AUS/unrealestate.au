@@ -29,7 +29,7 @@ Three user personas:
 | ORM | Entity Framework Core 9 |
 | Database | PostgreSQL 16 (AloomU stage-0 substrate; locally via Aspire `AddPostgres`) |
 | Cache / pub-sub | Redis |
-| AI | Azure OpenAI gpt-4o (buyer chat + listing generator) |
+| AI | Azure OpenAI gpt-4.1 (buyer chat + listing generator) |
 | Auth | ASP.NET Core Identity native (email + password, email confirmation, password reset, login alerts). Optional WebAuthn passkey (Fido2NetLib). API issues JWT (HS256, 30-day expiry); Web uses cookie auth. **No third-party IdP.** |
 | Container | Docker (multi-stage, .NET 9 base images) |
 | Dev email | MailDev (local only) |
@@ -93,7 +93,7 @@ Manual run: `dotnet ef database update --project src/Aigents.Infrastructure --st
 | `Seller` | `/api/seller/*` | Seller-specific queries |
 | `Buyer` | `/api/buyer/*` | Buyer search + enquiry |
 | `Inspections` | `/api/inspections/*` | Book slot, generate QR check-in token, check-in URL = `https://unrealestate.au/checkin/{token}` |
-| `Chat` | `POST /api/chat` | Proxies to Azure OpenAI; mode=buy\|sell selects system prompt |
+| `Chat` | `POST /api/chat` + Blazor server service | Authenticated conversation service; mode=buy\|sell selects system prompt |
 | `Property` | `/api/maps/*`, `/api/property/*` | Proxy to MapsOnline + QLD Cadastre |
 | `Contacts` | `/api/contacts/*` | CRM contact sync |
 | `Crm` | `/api/crm/*` | AgentBox / Rex / VaultRE adapters |
@@ -107,14 +107,14 @@ Manual run: `dotnet ef database update --project src/Aigents.Infrastructure --st
 
 | Service | Used for | Config key | Status |
 |---|---|---|---|
-| **Azure OpenAI** (gpt-4o, australiaeast) | AI chat (buy + sell), listing description generation | `AzureAI__Endpoint`, `AzureAI__DeploymentName` | Live |
+| **Azure OpenAI** (gpt-4.1, australiaeast) | AI chat (buy + sell), listing description generation | `AzureAI__Endpoint`, `AzureAI__DeploymentName` | Live |
 | **AloomU SMTP** (`mail.aloomu.au:587 STARTTLS`) | Transactional email — confirmation, password reset, login alerts, passkey-added notices | `Smtp__Host`, `Smtp__Port`, `Smtp__Username`, `Smtp__Password` (file-mounted secret) | Stage-0 ready |
 | **MapsOnline** | Property data lookup | hardcoded in `MapsOnlineService.cs` | Live |
 | **QLD Cadastre** (ArcGIS REST) | Parcel boundary overlay on Leaflet map | public URL, no key | Live |
 | **Domain.com.au API** | Property listings adapter | `DomainPropertyAdapter.cs` | Wired, mock fallback |
 | **CoreLogic / RP Data** | AVM + comparable sales | `MockCoreLogicAdapter.cs` | **Mock only** |
 | **AgentBox / Rex / VaultRE** | Agent CRM sync | `CrmIntegration/Adapters/` | Adapters exist, not fully wired |
-| **Google Maps JS API** | Address autocomplete | API key hardcoded in `App.razor` line 25 (`AIzaSyDz9u...`) | Live — key should move to config |
+| **Google Maps JS API** | Address autocomplete | `GoogleMaps__ApiKey` (`_FILE` on AloomU) | Configured at runtime; browser key must be referrer-restricted |
 
 ---
 
@@ -133,6 +133,7 @@ Manual run: `dotnet ef database update --project src/Aigents.Infrastructure --st
 | `Jwt__Issuer` / `Jwt__Audience` | `appsettings.json` | `unrealestate.au` |
 | `Smtp__Host` / `Smtp__Port` / `Smtp__Username` | env var | `mail.aloomu.au` / `587` / `admin@unrealestate.au` |
 | `Smtp__Password` | env var (`_FILE`) | from `unrealestate_smtp_password` |
+| `GoogleMaps__ApiKey` | Aspire parameter / env var (`_FILE`) | from `unrealestate_google_maps_api_key`; HTTP-referrer restricted |
 | `App__PublicUrl` | env var | `https://unrealestate.au` — used to build email links |
 | `Fido2__ServerDomain` / `Fido2__Origins` | env var / `appsettings.json` | `unrealestate.au` / `https://unrealestate.au` |
 
@@ -242,6 +243,7 @@ dotnet user-secrets set "Parameters:smtp-host"     "mail.aloomu.au"        --pro
 dotnet user-secrets set "Parameters:smtp-username" "admin@unrealestate.au" --project src/Aigents.AppHost
 dotnet user-secrets set "Parameters:smtp-password" "<from secret store>"   --project src/Aigents.AppHost
 dotnet user-secrets set "Parameters:jwt-secret"    "<32-byte random>"       --project src/Aigents.AppHost
+dotnet user-secrets set "Parameters:google-maps-api-key" "<restricted browser key>" --project src/Aigents.AppHost
 
 # 3. Run via Aspire (starts Web + API + SQL + Redis wired together)
 dotnet run --project src/Aigents.AppHost
@@ -263,11 +265,12 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 | Agent shortlist on `/sell/manage` | **Mock** — fabricated `_agents` array | `SellManage.razor` |
 | Agent counter-proposals (scoreboard) | **Mock** — deterministic hash of agent Guid | `SellManage.razor → GenerateAgentCounter()` |
 | `/my-offers` offer inbox | **Mock** — in-memory array | `MyOffers.razor` |
-| Property activity strip (viewers/saves) | **Mock** — hardcoded counters | `PropertyDetail.razor` |
+| Property activity strip | **Real** — authenticated views, persisted enquiries/offers; no fabricated saves | `PropertyDetails.razor`, `ProductEventRecorder.cs` |
+| Public listing publish | **Real** — owner-authorized activation; outbound agent notification is explicitly disabled until a delivery executor exists | `PublishListing.cs` |
 | CRM sync (AgentBox/Rex/VaultRE) | Adapters exist, **not fully wired** | `Aigents.Infrastructure/CrmIntegration/Adapters/` |
-| Buyer enquiries + inspections | **Real** — persist to DB via `ListingService.UpdateListingAsync` | Creates `ListingInquiry` row (with transient Agent FK hack) |
-| Seller dashboard stats | **Real** — computed from DB `_dashboardListings` | `SellerDashboard.razor` |
-| AI chat (buy + sell) | **Real** — hits Azure OpenAI gpt-4o | `AzureAiService.cs` |
+| Buyer enquiries + inspections | **Real** — typed buyer fields and a validated reply channel persist via `ListingService.CreateInquiryAsync` | `ListingInquiry.AgentId` is nullable; no fabricated Agent row |
+| Seller dashboard stats + buyer activity | **Real** — owner-scoped listings and typed inquiries from PostgreSQL; prototype sections do not render | `SellerDashboard.razor` |
+| AI chat (buy + sell) | **Real** — authenticated shared conversation service hits Azure OpenAI | `ChatConversationService.cs`, `AzureAiService.cs` |
 | Auth (sovereign-from-day-1) | **Real** — Identity native + transactional SMTP, optional WebAuthn passkey | `Aigents.Api/Features/Auth/NativeAuth.cs`, `PasskeyAuth.cs`; `Aigents.Web/Components/Account/Pages/*` |
 
 ---
@@ -282,17 +285,21 @@ Aspire dashboard at `https://localhost:15888` shows all service URLs, logs, trac
 > table only once you've confirmed the expand deploy is stable. Never
 > bundle "add new + drop old" into a single migration.
 
-1. **`ListingInquiry.AgentId` is required** — buyer enquiries and inspection bookings work around this by creating a throwaway `Agent` row. Fix is **two migrations** under expand-contract:
-   - **Expand** — make `AgentId` nullable; add `BuyerName`, `BuyerEmail`, `BuyerPhone`, `InquiryType`. New code writes buyer fields and leaves `AgentId` null; old transient-Agent hack still works. Safely rollback-able.
-   - **Contract** — once item 2 lands and no code path needs the transient-Agent shim, drop the orphaned `Agent` rows in a follow-up migration.
-2. **`/my-offers` not persisted** — currently fully in-memory mock. Hooks to `ListingInquiry` once item 1's expand migration lands.
+1. **Buyer-inquiry expand prepared** — `GrowthFoundation` makes `AgentId`
+   nullable and adds `BuyerName`, `BuyerEmail`, `BuyerPhone`, `OfferAmount`,
+   and `InquiryType`.
+   New code writes buyer fields with no transient Agent. After the expand deploy
+   is stable, inspect and remove any legacy orphan Agent rows in a separate
+   contract migration.
+2. **`/my-offers` not persisted** — currently fully in-memory mock. It can now
+   be wired to the expanded `ListingInquiry` shape.
 
 ---
 
 ## 13. Source Control State
 
 - **Repo**: `github.com/Tailor-AUS/unrealestate.au` (renamed from `aigents-dotnet` on 2026-05-13; GitHub redirects the old slug)
-- **Active feature branch**: `claude/rebrand-unrealestate-au-szd3P`
+- **Active feature branch**: `feat/100k-growth-foundation`
 - **Main branch**: `main` — CI deploys from here
 - **Convention**: `feat(scope): summary` commit messages, no push to `main` directly
 
@@ -335,4 +342,4 @@ URLs in `Hero.razor`, `Agents.razor`, `CONTRIBUTING.md`, `SETUP.md`, `docs/agent
 - Apache 2.0 licence
 - No user data sold, no margin charged, no equity held
 - All AI runs in Australia East for data sovereignty
-- Google Maps API key in `App.razor:25` is currently hardcoded — should move to env var before wider exposure
+- Google Maps browser key is runtime-configured and must remain HTTP-referrer restricted; rotate the formerly embedded key before deployment

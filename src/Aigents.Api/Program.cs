@@ -9,6 +9,8 @@ using Aigents.Api.Features.Property;
 using Aigents.Api.Features.Buyer;
 using Aigents.Api.Features.Seller;
 using Aigents.Infrastructure.Data;
+using Aigents.Infrastructure.Growth;
+using Aigents.Infrastructure.Services.Chat;
 using Aigents.Infrastructure.Services.AI;
 using Aigents.Infrastructure.Services.Auth;
 using Aigents.Infrastructure.CrmIntegration;
@@ -45,6 +47,8 @@ builder.AddServiceDefaults();
 // ───────────────────────────────────────────────────────────────
 
 builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IProductEventRecorder, ProductEventRecorder>();
 
 // ───────────────────────────────────────────────────────────────
 // REDIS CACHE
@@ -59,6 +63,7 @@ builder.AddRedisDistributedCache("redis");
 builder.Services.Configure<AzureAiOptions>(
     builder.Configuration.GetSection(AzureAiOptions.SectionName));
 builder.Services.AddScoped<IAiService, AzureAiService>();
+builder.Services.AddScoped<IChatConversationService, ChatConversationService>();
 builder.Services.AddScoped<ICallIntelligenceService, CallIntelligenceService>();
 
 // ───────────────────────────────────────────────────────────────
