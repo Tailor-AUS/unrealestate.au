@@ -206,4 +206,99 @@ public class BuyerMatcherTests
         var matchedBeds = Assert.Single(bedsOnlyQuery.Listings);
         Assert.Equal(olderPaddingtonId, matchedBeds.Id);
     }
+
+    [Fact]
+    public async Task V1_Interstate_manual_address_never_fabricates_Brisbane_coordinates_or_QLD_and_persists_explicit_location()
+    {
+        var loc = new ManualAddressResolution();
+
+        // 1. Enter a street-only Melbourne address: coordinates must be null, State must NOT default to QLD,
+        //    and validation must reject publishing until explicit Suburb, State, and Postcode are entered.
+        loc.ApplyAddressSelection("120 Collins St");
+        Assert.Equal("120 Collins St", loc.FullAddress);
+        Assert.Equal(string.Empty, loc.Suburb);
+        Assert.Equal(string.Empty, loc.State);
+        Assert.Equal(string.Empty, loc.Postcode);
+        Assert.Null(loc.Latitude);
+        Assert.Null(loc.Longitude);
+        Assert.False(loc.HasVerifiedCoordinates);
+        Assert.False(loc.TryValidateForListing(out var missingError));
+        Assert.NotNull(missingError);
+
+        // 2. Seller fills explicit Melbourne VIC 3000 fields -> valid without fabricating coordinates
+        loc.Suburb = "Melbourne";
+        loc.State = "VIC";
+        loc.Postcode = "3000";
+        Assert.True(loc.TryValidateForListing(out var validError));
+        Assert.Null(validError);
+        Assert.Null(loc.Latitude);
+        Assert.Null(loc.Longitude);
+
+        // 3. Persist via ListingService and verify stored row has State == "VIC", Suburb == "Melbourne", Postcode == "3000"
+        await using var db = NewDb();
+        var svc = new ListingService(db, NullLogger<ListingService>.Instance);
+        var created = await svc.CreateListingAsync(new Listing
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            Address = loc.FullAddress,
+            Suburb = loc.Suburb,
+            State = loc.State,
+            Postcode = loc.Postcode,
+            PropertyType = "Unit",
+            Bedrooms = 2,
+            Bathrooms = 2,
+            AskingPrice = 850_000m,
+            Status = ListingStatus.Active,
+        });
+
+        var persisted = await svc.GetPublishedListingByIdAsync(created.Id);
+        Assert.NotNull(persisted);
+        Assert.Equal("Melbourne", persisted!.Suburb);
+        Assert.Equal("VIC", persisted.State);
+        Assert.Equal("3000", persisted.Postcode);
+    }
+
+    [Fact]
+    public void V1_Editing_existing_address_clears_prior_suburb_state_postcode_and_coordinates_so_no_location_is_inherited()
+    {
+        var loc = new ManualAddressResolution();
+
+        // Start with a fully populated Brisbane address including explicit coordinates
+        loc.ApplyAddressSelection(
+            fullAddress: "67 Northview Outlook, Paddington QLD 4064",
+            explicitSuburb: "Paddington",
+            explicitState: "QLD",
+            explicitPostcode: "4064",
+            explicitLat: -27.4598,
+            explicitLng: 152.9992);
+
+        Assert.Equal("Paddington", loc.Suburb);
+        Assert.Equal("QLD", loc.State);
+        Assert.Equal("4064", loc.Postcode);
+        Assert.True(loc.HasVerifiedCoordinates);
+
+        // Edit to a street-only Perth address ("45 St Georges Terrace"):
+        // Prior Paddington / QLD / 4064 / coordinates MUST be cleared immediately.
+        loc.ApplyAddressSelection("45 St Georges Terrace");
+        Assert.Equal("45 St Georges Terrace", loc.FullAddress);
+        Assert.Equal(string.Empty, loc.Suburb);
+        Assert.Equal(string.Empty, loc.State);
+        Assert.Equal(string.Empty, loc.Postcode);
+        Assert.Null(loc.Latitude);
+        Assert.Null(loc.Longitude);
+        Assert.False(loc.HasVerifiedCoordinates);
+        Assert.False(loc.TryValidateForListing(out _));
+
+        // Edit to a complete interstate address ("45 St Georges Terrace, Perth WA 6000"):
+        // Parses Perth / WA / 6000 while keeping coordinates null.
+        loc.ApplyAddressSelection("45 St Georges Terrace, Perth WA 6000");
+        Assert.Equal("Perth", loc.Suburb);
+        Assert.Equal("WA", loc.State);
+        Assert.Equal("6000", loc.Postcode);
+        Assert.Null(loc.Latitude);
+        Assert.Null(loc.Longitude);
+        Assert.False(loc.HasVerifiedCoordinates);
+        Assert.True(loc.TryValidateForListing(out _));
+    }
 }

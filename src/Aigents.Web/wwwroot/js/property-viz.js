@@ -8,16 +8,15 @@ window.addressAutocomplete = {
         if (!inputElement || !dotNetRef) return;
         inputElement.addEventListener("change", () => {
             const raw = (inputElement.value || "").trim();
-            if (!raw) return;
             dotNetRef.invokeMethodAsync("OnPlaceChanged", {
                 fullAddress: raw,
                 streetNumber: "",
                 route: raw,
                 suburb: "",
-                state: "QLD",
+                state: "",
                 postcode: "",
-                lat: -27.4698,
-                lng: 153.0251
+                lat: null,
+                lng: null
             }).catch(() => {});
         });
     }
