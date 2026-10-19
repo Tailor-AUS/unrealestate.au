@@ -11,7 +11,7 @@ public class Listing
     // Property Details
     public string Address { get; set; } = string.Empty;
     public string Suburb { get; set; } = string.Empty;
-    public string State { get; set; } = "QLD";
+    public string State { get; set; } = string.Empty;
     public string Postcode { get; set; } = string.Empty;
     
     // Property Attributes (captured or AI-estimated)

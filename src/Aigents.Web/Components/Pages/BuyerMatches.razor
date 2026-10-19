@@ -1,0 +1,207 @@
+@page "/buyer/matches"
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using Aigents.Web.Services
+@using Aigents.Domain.Entities
+@using Aigents.Domain.Matching
+@inject IListingService ListingService
+@inject NavigationManager Nav
+
+<PageTitle>Your matches | unrealestate.au</PageTitle>
+
+<div class="bm-wrap">
+    <header class="bm-head">
+        <h1>Homes that match your brief</h1>
+        <p class="bm-sub">Tell us what you want. Every match shows why it scored — from the details the listing agent supplied.</p>
+    </header>
+
+    <form class="bm-form" @onsubmit="ApplyAsync" @onsubmit:preventDefault="true" data-testid="buyer-prefs-form">
+        <label>Suburbs <span class="bm-hint">comma-separated</span>
+            <input data-testid="pref-suburbs" @bind="_suburbs" placeholder="Paddington, New Farm" />
+        </label>
+        <label>Property type
+            <select data-testid="pref-type" @bind="_type">
+                <option value="">Any</option>
+                <option>House</option>
+                <option>Unit</option>
+                <option>Townhouse</option>
+                <option>Land</option>
+            </select>
+        </label>
+        <label>Min beds <input data-testid="pref-beds" type="number" min="0" @bind="_minBeds" /></label>
+        <label>Min baths <input data-testid="pref-baths" type="number" min="0" @bind="_minBaths" /></label>
+        <label>Min price <input data-testid="pref-min-price" type="number" min="0" step="1000" @bind="_minPrice" /></label>
+        <label>Max price <input data-testid="pref-max-price" type="number" min="0" step="1000" @bind="_maxPrice" /></label>
+        <button type="submit" class="bm-go" data-testid="pref-submit">Find matches</button>
+    </form>
+
+    @if (_loading)
+    {
+        <p class="bm-note">Matching…</p>
+    }
+    else if (!_prefs.HasAny)
+    {
+        <p class="bm-note" data-testid="matches-empty-brief">Add at least one preference to see matches.</p>
+    }
+    else if (_matches.Count == 0)
+    {
+        <p class="bm-note" data-testid="matches-none">No published listings match yet. Try widening your brief.</p>
+    }
+    else
+    {
+        <p class="bm-note" data-testid="matches-count">
+            @_matches.Count published @(_matches.Count == 1 ? "listing" : "listings") ranked by fit@(_truncated ? $" (from the newest {_evaluatedCount} of {_totalCandidates} matching candidates)" : "").
+        </p>
+        <ol class="bm-list">
+            @foreach (var m in _matches)
+            {
+                var l = _byId[m.ListingId];
+                <li class="bm-card" data-testid="match-card">
+                    <div class="bm-card-top">
+                        <div>
+                            <div class="bm-addr" data-testid="match-address">@l.Address</div>
+                            <div class="bm-meta">@l.Suburb · @l.PropertyType · @Rooms(l)</div>
+                        </div>
+                        <div class="bm-score" data-testid="match-score" aria-label="Match score @m.Score out of 100">@m.Score<span>/100</span></div>
+                    </div>
+                    <ul class="bm-why" data-testid="match-why">
+                        @foreach (var c in m.Criteria)
+                        {
+                            <li class="bm-c bm-@c.Outcome.ToString().ToLowerInvariant()" data-testid="match-criterion">
+                                <span class="bm-icon" aria-hidden="true">@Icon(c.Outcome)</span>
+                                <strong>@c.Name</strong> <span class="bm-sr">(@Label(c.Outcome))</span> — @c.Explanation
+                            </li>
+                        }
+                    </ul>
+                    <a class="bm-view" href="@($"/property/{l.Id}")" data-testid="match-view">View property →</a>
+                </li>
+            }
+        </ol>
+    }
+
+    <p class="bm-foot" data-testid="matches-disclaimer">
+        Only published listings in your suburbs and of your chosen type are shown.
+        Scores weigh location 35, price 30, bedrooms 15, bathrooms 10 and type 10 — only for what you asked.
+        Missing details count as unknown, never as a fit. Prices marked “estimate” are an illustrative estimate, not verified market evidence.
+        The listing agent remains your contact for every property.
+    </p>
+</div>
+
+<style>
+    .bm-wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+    .bm-head h1 { font-size: 1.9rem; margin: 0 0 6px; }
+    .bm-sub { color: #475569; margin: 0 0 20px; }
+    .bm-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    .bm-form label { display: flex; flex-direction: column; font-size: .85rem; font-weight: 600; color: #334155; gap: 4px; }
+    .bm-form input, .bm-form select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: .95rem; }
+    .bm-hint { font-weight: 400; color: #64748b; font-size: .75rem; }
+    .bm-go { padding: 10px 14px; border: 0; border-radius: 8px; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+    .bm-go:focus-visible, .bm-view:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+    .bm-note { color: #334155; }
+    .bm-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+    .bm-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: #fff; }
+    .bm-card-top { display: flex; justify-content: space-between; gap: 12px; }
+    .bm-addr { font-weight: 700; font-size: 1.05rem; }
+    .bm-meta { color: #64748b; font-size: .9rem; }
+    .bm-score { font-size: 1.8rem; font-weight: 800; color: #0f766e; white-space: nowrap; }
+    .bm-score span { font-size: .9rem; color: #64748b; font-weight: 600; }
+    .bm-why { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; font-size: .92rem; }
+    .bm-c { padding: 6px 10px; border-radius: 8px; }
+    .bm-met { background: #ecfdf5; }
+    .bm-partial { background: #fffbeb; }
+    .bm-notmet { background: #fef2f2; }
+    .bm-unknown { background: #f1f5f9; }
+    .bm-icon { display: inline-block; width: 1.2em; }
+    .bm-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .bm-view { font-weight: 700; color: #0f766e; }
+    .bm-foot { margin-top: 24px; font-size: .82rem; color: #64748b; }
+</style>
+
+@code {
+    [SupplyParameterFromQuery(Name = "suburbs")] public string? QSuburbs { get; set; }
+    [SupplyParameterFromQuery(Name = "type")] public string? QType { get; set; }
+    [SupplyParameterFromQuery(Name = "beds")] public int? QBeds { get; set; }
+    [SupplyParameterFromQuery(Name = "baths")] public int? QBaths { get; set; }
+    [SupplyParameterFromQuery(Name = "minPrice")] public decimal? QMinPrice { get; set; }
+    [SupplyParameterFromQuery(Name = "maxPrice")] public decimal? QMaxPrice { get; set; }
+
+    private string? _suburbs, _type;
+    private int? _minBeds, _minBaths;
+    private decimal? _minPrice, _maxPrice;
+    private BuyerPreferences _prefs = new();
+    private IReadOnlyList<BuyerMatch> _matches = [];
+    private Dictionary<Guid, Listing> _byId = new();
+    private int _evaluatedCount;
+    private int _totalCandidates;
+    private bool _truncated;
+    private bool _loading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _suburbs = QSuburbs; _type = QType; _minBeds = QBeds; _minBaths = QBaths; _minPrice = QMinPrice; _maxPrice = QMaxPrice;
+        await RunAsync();
+    }
+
+    private Task ApplyAsync()
+    {
+        // Keep the brief in the URL so it can be bookmarked or shared.
+        var q = new Dictionary<string, object?>
+        {
+            ["suburbs"] = string.IsNullOrWhiteSpace(_suburbs) ? null : _suburbs.Trim(),
+            ["type"] = string.IsNullOrWhiteSpace(_type) ? null : _type,
+            ["beds"] = _minBeds, ["baths"] = _minBaths, ["minPrice"] = _minPrice, ["maxPrice"] = _maxPrice,
+        };
+        Nav.NavigateTo(Nav.GetUriWithQueryParameters(q));
+        return Task.CompletedTask;
+    }
+
+    private async Task RunAsync()
+    {
+        _prefs = new BuyerPreferences(
+            Suburbs: (_suburbs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            PropertyType: string.IsNullOrWhiteSpace(_type) ? null : _type,
+            MinBedrooms: _minBeds is > 0 ? _minBeds : null,
+            MinBathrooms: _minBaths is > 0 ? _minBaths : null,
+            MinPrice: _minPrice is > 0 ? _minPrice : null,
+            MaxPrice: _maxPrice is > 0 ? _maxPrice : null);
+        if (!_prefs.HasAny)
+        {
+            _matches = [];
+            _evaluatedCount = 0;
+            _totalCandidates = 0;
+            _truncated = false;
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var result = await ListingService.QueryPublishedListingsForMatcherAsync(_prefs);
+            _evaluatedCount = result.Listings.Count;
+            _totalCandidates = result.TotalCandidateCount;
+            _truncated = result.Truncated;
+            _byId = result.Listings.ToDictionary(l => l.Id);
+            _matches = BuyerMatcher.Rank(_prefs, result.Listings.Select(l =>
+                new ListingFacts(l.Id, l.Suburb, l.PropertyType, l.Bedrooms, l.Bathrooms, l.AskingPrice, l.EstimatedValue)));
+        }
+        finally { _loading = false; }
+    }
+
+    private static string Rooms(Listing l) =>
+        $"{(l.Bedrooms?.ToString() ?? "?")} bed · {(l.Bathrooms?.ToString() ?? "?")} bath";
+
+    private static string Icon(CriterionOutcome o) => o switch
+    {
+        CriterionOutcome.Met => "✓",
+        CriterionOutcome.Partial => "≈",
+        CriterionOutcome.NotMet => "✗",
+        _ => "?",
+    };
+
+    private static string Label(CriterionOutcome o) => o switch
+    {
+        CriterionOutcome.Met => "met",
+        CriterionOutcome.Partial => "close",
+        CriterionOutcome.NotMet => "not met",
+        _ => "unknown",
+    };
+}

@@ -4,6 +4,7 @@
 @using Aigents.Infrastructure.PropertyData
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
+@using Aigents.Domain.Matching
 @using System.Security.Claims
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -49,7 +50,7 @@
             @if (_currentStep == 1)
             {
                 <div class="step-content animate-fade-up">
-                    @if (string.IsNullOrEmpty(_address))
+                    @if (string.IsNullOrEmpty(_location.FullAddress))
                     {
                         <h1>Let's find your property</h1>
                         <p class="step-intro">Enter your property address to get started.</p>
@@ -57,30 +58,87 @@
                         <div class="address-form">
                             <div class="form-group large">
                                 <label>Property Address</label>
-                                <AddressAutocomplete OnAddressSelected="HandleAddressSelected" Id="address-search" />
+                                <AddressAutocomplete OnAddressSelected="HandleAddressSelected" Id="address-search" Placeholder="e.g. 120 Collins St, Melbourne VIC 3000" />
                             </div>
                         </div>
                     }
                     else
                     {
-                        @* Property Confirmation View with 3D Orbit *@
+                        @* Property Confirmation View with Local Preview & Explicit Location Fields *@
                         <h1>Confirm this is your property</h1>
-                        <p class="step-intro">Review the 3D view below and confirm this is your property.</p>
+                        <p class="step-intro">Confirm or complete your street address, suburb, Australian state/territory, and postcode below.</p>
                         
                         <div class="confirmation-layout">
                             <div class="orbit-preview-container">
                                 <div class="orbit-card animate-fade-in">
                                     <div class="orbit-header">
-                                        <span class="orbit-badge">🎥 LIVE 3D VIEW</span>
-                                        <button class="change-link" @onclick="ResetAddress">Not my property</button>
+                                        <span class="orbit-badge" data-testid="listing-preview-badge">📋 LOCAL PREVIEW</span>
+                                        <button class="change-link" data-testid="reset-address-btn" @onclick="ResetAddress">Change address</button>
                                     </div>
                                     <div id="confirm-orbit-map" class="orbit-map-view"></div>
                                     <div class="orbit-address">
                                         <div class="confirm-icon">📍</div>
                                         <div class="confirm-content">
-                                            <strong>@_address</strong>
-                                            <span>Verified with Google Maps Intelligence</span>
+                                            <strong data-testid="confirmed-full-address">@_location.FullAddress</strong>
+                                            <span data-testid="confirmed-geocode-status">
+                                                @(_location.HasVerifiedCoordinates
+                                                    ? $"Coordinates: {_location.Latitude:F4}, {_location.Longitude:F4}"
+                                                    : "Manual address entry — coordinates not geocoded")
+                                            </span>
                                         </div>
+                                    </div>
+                                    <div class="explicit-location-fields" style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; gap: 12px;">
+                                        <div>
+                                            <label for="manual-street-address" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;">Street Address</label>
+                                            <input id="manual-street-address"
+                                                   data-testid="manual-street-address"
+                                                   type="text"
+                                                   value="@_location.FullAddress"
+                                                   @onchange="HandleStreetAddressEdited"
+                                                   style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; color: #111827;" />
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px;">
+                                            <div>
+                                                <label for="manual-suburb" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;">Suburb *</label>
+                                                <input id="manual-suburb"
+                                                       data-testid="manual-suburb"
+                                                       type="text"
+                                                       placeholder="e.g. Melbourne"
+                                                       @bind="_location.Suburb"
+                                                       @bind:event="oninput"
+                                                       style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; color: #111827;" />
+                                            </div>
+                                            <div>
+                                                <label for="manual-state" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;">State *</label>
+                                                <select id="manual-state"
+                                                        data-testid="manual-state"
+                                                        @bind="_location.State"
+                                                        style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; color: #111827; background: #fff;">
+                                                    <option value="">Select</option>
+                                                    @foreach (var st in ManualAddressResolution.ValidAustralianStates)
+                                                    {
+                                                        <option value="@st">@st</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="manual-postcode" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;">Postcode *</label>
+                                                <input id="manual-postcode"
+                                                       data-testid="manual-postcode"
+                                                       type="text"
+                                                       maxlength="4"
+                                                       placeholder="3000"
+                                                       @bind="_location.Postcode"
+                                                       @bind:event="oninput"
+                                                       style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; color: #111827;" />
+                                            </div>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(_addressValidationError))
+                                        {
+                                            <div data-testid="address-validation-error" style="color: #dc2626; font-size: 13px; font-weight: 600;">
+                                                @_addressValidationError
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             </div>
@@ -103,12 +161,12 @@
                                             <div class="info-icon">⚡</div>
                                             <div class="info-text">
                                                 <strong>Instant Broadcast</strong>
-                                                <p>We'll automatically fetch property specifications, photos, and valuation data so you can broadcast immediately.</p>
+                                                <p>We'll prepare your listing details so you can review and broadcast to verified local agents.</p>
                                             </div>
                                         </div>
 
                                         <label class="checkbox-item large">
-                                            <input type="checkbox" checked="@_isOwner" @onchange="@(async (e) => { _isOwner = (bool?)e.Value ?? false; if(_isOwner) await StartMagicFetch(); })" />
+                                            <input data-testid="confirm-owner-checkbox" type="checkbox" checked="@_isOwner" @onchange="@(async (e) => { _isOwner = (bool?)e.Value ?? false; if(_isOwner) await StartMagicFetch(); })" />
                                             <div class="checkbox-text">
                                                 <strong>Yes, this is my property and I am the owner</strong>
                                                 <span>I confirm I have the legal right to sell this property and request immediate listing preparation.</span>
@@ -234,7 +292,7 @@
                                         }
                                     </div>
                                     <div class="hero-content">
-                                        <h2>@_address</h2>
+                                        <h2>@_location.FullAddress</h2>
                                         @if (!_isEditing)
                                         {
                                             <div class="hero-specs">
@@ -261,6 +319,10 @@
                                         <span class="value">@(_propertyType ?? "House")</span>
                                     </div>
                                     <div class="review-row">
+                                        <span class="label">Location</span>
+                                        <span class="value" data-testid="review-location">@_location.Suburb @_location.State @_location.Postcode</span>
+                                    </div>
+                                    <div class="review-row">
                                         <span class="label">Price Guide</span>
                                         @if (!_isEditing)
                                         {
@@ -284,7 +346,7 @@
                                     </div>
 
                                     <div class="data-sources-section">
-                                        <h4 class="sources-header">✓ Verified Australian intelligence sources</h4>
+                                        <h4 class="sources-header">✓ Listing preparation summary</h4>
                                         <div class="sources-list">
                                             @foreach (var source in _historicalSources)
                                             {
@@ -320,7 +382,7 @@
                             <div class="broadcast-summary-card">
                                 <h3>OPEN listing — what happens next</h3>
                                 <ol class="open-listing-flow">
-                                    <li>We notify every verified Australian agent operating in <strong>@(string.IsNullOrEmpty(_address) ? "your suburb" : ExtractSuburbForDisplay(_address))</strong>.</li>
+                                    <li>We notify every verified Australian agent operating in <strong>@(string.IsNullOrWhiteSpace(_location.Suburb) ? "your suburb" : $"{_location.Suburb} ({_location.State})")</strong>.</li>
                                     <li>Your listing appears on unreal.estate immediately. Buyers chatting with our AI get matched to it in real time.</li>
                                     <li>Whichever local agent finds the buyer earns the commission you negotiate. No exclusivity, no lock-in.</li>
                                     <li>You can switch off the listing or change to exclusive at any time, free.</li>
@@ -397,10 +459,8 @@
 
 @code {
     private int _currentStep = 1;
-    private string _address = "";
-    private string _suburb = "";
-    private string _postcode = "";
-    private string _state = "QLD";
+    private readonly ManualAddressResolution _location = new();
+    private string? _addressValidationError;
     private string _propertyType = "house";
     private int _bedrooms = 4;
     private int _bathrooms = 2;
@@ -428,8 +488,6 @@
     private bool _isOwner = false;
     private bool _isMagicLoading = false;
     private string _loadingMessage = "";
-    private double _lat = -27.4698;
-    private double _lng = 153.0251;
     private bool _isOrbiting = true;
     private List<HistoricalSource> _historicalSources = new();
     
@@ -468,25 +526,37 @@
     
     private async Task HandleAddressSelected(AddressAutocomplete.AddressResult result)
     {
-        _address = result.FullAddress;
-        _lat = result.Lat;
-        _lng = result.Lng;
-        if (!string.IsNullOrWhiteSpace(result.Suburb)) _suburb = result.Suburb.Trim();
-        if (!string.IsNullOrWhiteSpace(result.Postcode)) _postcode = result.Postcode.Trim();
-        if (!string.IsNullOrWhiteSpace(result.State)) _state = result.State.Trim();
+        _location.ApplyAddressSelection(
+            result.FullAddress,
+            result.Suburb,
+            result.State,
+            result.Postcode,
+            result.Lat,
+            result.Lng);
+        _isOwner = false;
+        _addressValidationError = null;
         StateHasChanged();
         
         await Task.Delay(100);
         try
         {
-            await JSRuntime.InvokeVoidAsync("propertyViz.initCinematicView", "confirm-orbit-map", _lat, _lng);
+            await JSRuntime.InvokeVoidAsync("propertyViz.initCinematicView", "confirm-orbit-map", _location.Latitude, _location.Longitude);
             await JSRuntime.InvokeVoidAsync("propertyViz.startOrbit");
             _isOrbiting = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to initialize confirmation 3D map: {ex.Message}");
+            Console.WriteLine($"Failed to initialize confirmation preview: {ex.Message}");
         }
+    }
+
+    private void HandleStreetAddressEdited(ChangeEventArgs e)
+    {
+        var updated = e.Value?.ToString() ?? string.Empty;
+        // Editing the street address clears prior derived suburb/state/postcode/coordinates unless present in the new string.
+        _location.ApplyAddressSelection(updated);
+        _isOwner = false;
+        _addressValidationError = null;
     }
 
     private async Task ToggleOrbit()
@@ -503,26 +573,16 @@
         var address = query["address"];
         var latStr = query["lat"];
         var lngStr = query["lng"];
-
-        if (!string.IsNullOrEmpty(address)) _address = address;
-        if (double.TryParse(latStr, out var lat)) _lat = lat;
-        if (double.TryParse(lngStr, out var lng)) _lng = lng;
-
         var suburb = query["suburb"];
         var postcode = query["postcode"];
         var state = query["state"];
-        if (!string.IsNullOrWhiteSpace(suburb)) _suburb = suburb.Trim();
-        if (!string.IsNullOrWhiteSpace(postcode)) _postcode = postcode.Trim();
-        if (!string.IsNullOrWhiteSpace(state)) _state = state.Trim();
 
-        // Best-effort fallback when the address arrived as free text only
-        // (e.g. the homepage CTA passes ?address= without parsed components).
-        if (string.IsNullOrWhiteSpace(_suburb) && !string.IsNullOrEmpty(_address))
-            _suburb = ExtractSuburb(_address);
-        if (string.IsNullOrWhiteSpace(_postcode) && !string.IsNullOrEmpty(_address))
+        double? parsedLat = double.TryParse(latStr, out var lat) ? lat : null;
+        double? parsedLng = double.TryParse(lngStr, out var lng) ? lng : null;
+
+        if (!string.IsNullOrWhiteSpace(address))
         {
-            var m = System.Text.RegularExpressions.Regex.Match(_address, @"\b(\d{4})\b");
-            if (m.Success) _postcode = m.Groups[1].Value;
+            _location.ApplyAddressSelection(address, suburb, state, postcode, parsedLat, parsedLng);
         }
     }
     
@@ -550,25 +610,24 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _currentStep == 1 && !string.IsNullOrEmpty(_address))
+        if (firstRender && _currentStep == 1 && !string.IsNullOrEmpty(_location.FullAddress))
         {
             try
             {
-                await JSRuntime.InvokeVoidAsync("propertyViz.initCinematicView", "confirm-orbit-map", _lat, _lng);
+                await JSRuntime.InvokeVoidAsync("propertyViz.initCinematicView", "confirm-orbit-map", _location.Latitude, _location.Longitude);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to initialize confirmation 3D map: {ex.Message}");
+                Console.WriteLine($"Failed to initialize confirmation preview: {ex.Message}");
             }
         }
     }
 
     private void ResetAddress()
     {
-        _address = "";
-        _lat = 0;
-        _lng = 0;
+        _location.Reset();
         _isOwner = false;
+        _addressValidationError = null;
     }
     
     private async Task PublishListing()
@@ -581,33 +640,33 @@
             return;
         }
 
-        // Resolve address components — these are NOT NULL search keys on the
-        // Listing row. Prefer the values the autocomplete/query supplied; fall
-        // back to parsing the free-text address so a listing is never created
-        // with a blank suburb/postcode (which makes it unfindable in search).
-        var suburb = string.IsNullOrWhiteSpace(_suburb) ? ExtractSuburb(_address) : _suburb;
-        var postcode = _postcode;
-        if (string.IsNullOrWhiteSpace(postcode) && !string.IsNullOrEmpty(_address))
+        // Require explicit Suburb, Australian State/Territory, and 4-digit Postcode; never default State to QLD.
+        if (!_location.TryValidateForListing(out var validationError))
         {
-            var pcMatch = System.Text.RegularExpressions.Regex.Match(_address, @"\b(\d{4})\b");
-            if (pcMatch.Success) postcode = pcMatch.Groups[1].Value;
+            _addressValidationError = validationError;
+            _currentStep = 1;
+            StateHasChanged();
+            return;
         }
-        var state = string.IsNullOrWhiteSpace(_state) ? "QLD" : _state;
+
+        var suburb = _location.Suburb.Trim();
+        var postcode = _location.Postcode.Trim();
+        var state = _location.State.Trim().ToUpperInvariant();
 
         var landSqm = TryParseInt(_landSize);
         var description =
-            $"{char.ToUpper(_propertyType[0])}{_propertyType[1..]} at {_address}. " +
+            $"{char.ToUpper(_propertyType[0])}{_propertyType[1..]} at {_location.FullAddress}. " +
             $"{_bedrooms} bedroom{(_bedrooms == 1 ? "" : "s")}, {_bathrooms} bathroom{(_bathrooms == 1 ? "" : "s")}" +
             $"{(_carSpaces > 0 ? $", {_carSpaces} car space{(_carSpaces == 1 ? "" : "s")}" : "")}" +
             $"{(landSqm.HasValue ? $", {landSqm} sqm land" : "")}. " +
-            $"Located in {suburb}{(string.IsNullOrWhiteSpace(postcode) ? "" : $" {postcode}")}, {state}.";
+            $"Located in {suburb} {postcode}, {state}.";
 
         // 1. Create the listing object
         var listing = new Listing
         {
             Id = Guid.NewGuid(),
             UserId = _userId,
-            Address = _address,
+            Address = _location.FullAddress.Trim(),
             Suburb = suburb,
             State = state,
             Postcode = postcode,
@@ -641,19 +700,6 @@
     {
         var num = new string(val.Where(c => char.IsDigit(c) || c == '.').ToArray());
         return decimal.TryParse(num, out var d) ? d : null;
-    }
-
-    private string ExtractSuburb(string address)
-    {
-        var parts = address.Split(',');
-        return parts.Length > 1 ? parts[^2].Trim() : address;
-    }
-
-    // Display-friendly suburb (capitalised) for the OPEN-listing summary
-    private string ExtractSuburbForDisplay(string address)
-    {
-        var s = ExtractSuburb(address);
-        return string.IsNullOrEmpty(s) ? "your suburb" : s;
     }
 
     // ─── Photo upload + AI-style toggle ─────────────────────────────────
@@ -724,7 +770,16 @@
     
     private async Task StartMagicFetch()
     {
-        if (string.IsNullOrWhiteSpace(_address) || !_isOwner) return;
+        if (!_isOwner) return;
+
+        if (!_location.TryValidateForListing(out var validationError))
+        {
+            _addressValidationError = validationError;
+            _isOwner = false;
+            StateHasChanged();
+            return;
+        }
+        _addressValidationError = null;
         
         _isMagicLoading = true;
         _historicalSources.Clear();
@@ -745,7 +800,7 @@
             
             try 
             {
-                var aiResponse = await Http.GetAsync($"/api/properties/intelligence/ai?address={Uri.EscapeDataString(_address)}");
+                var aiResponse = await Http.GetAsync($"/api/properties/intelligence/ai?address={Uri.EscapeDataString(_location.FullAddress)}");
                 if (aiResponse.IsSuccessStatusCode)
                 {
                     var aiResult = await aiResponse.Content.ReadFromJsonAsync<AiPropertyIntelligence>();
@@ -794,9 +849,9 @@
             {
                 var request = new PropertyIntelligenceRequest 
                 { 
-                    Address = _address,
-                    Latitude = _lat,
-                    Longitude = _lng
+                    Address = _location.FullAddress,
+                    Latitude = _location.Latitude,
+                    Longitude = _location.Longitude
                 };
 
                 var result = await IntelligenceService.GetPropertyIntelligenceAsync(request);
@@ -837,21 +892,18 @@
         }
 
         // FALLBACK: If real intelligence failed or returned no data, use Known Address Lookup
-        // This ensures the user sees accurate data for known addresses, or reasonable estimates for others
         if (_bedrooms == 0 && string.IsNullOrEmpty(_priceMin))
         {
-            // Known addresses with verified data (from Domain/Realestate.com.au historic listings)
-            var normalizedAddress = _address.ToLowerInvariant();
+            var normalizedAddress = _location.FullAddress.ToLowerInvariant();
             
             if (normalizedAddress.Contains("67 northview outlook") || normalizedAddress.Contains("67 northview"))
             {
-                // Verified from Domain.com.au - Dec 2024 web search
                 _bedrooms = 7;
                 _bathrooms = 3;
                 _carSpaces = 2;
                 _landSize = "870 m²";
-                _priceMin = "2,230,000";  // Current estimate low
-                _priceMax = "2,910,000";  // Current estimate high
+                _priceMin = "2,230,000";
+                _priceMax = "2,910,000";
                 _propertyType = "House";
                 
                 _historicalSources.Add(new HistoricalSource { Name = "Domain", Detail = "Sold $1.85M (2021)", Year = "2021", Icon = "🏠", Url = "https://domain.com.au" });
@@ -873,8 +925,7 @@
             }
             else
             {
-                // Default Brisbane-area estimates based on address hash (consistent results)
-                var seed = _address.GetHashCode();
+                var seed = _location.FullAddress.GetHashCode();
                 var rnd = new Random(Math.Abs(seed));
                 
                 _bedrooms = rnd.Next(3, 5);
@@ -887,9 +938,7 @@
                 _priceMax = (basePrice + 100000).ToString("N0");
                 _propertyType = "House";
 
-                // Mark as estimates
-                _historicalSources.Add(new HistoricalSource { Name = "PropTrack", Detail = "Suburb median estimate", Year = "2024", Icon = "📊" });
-                _historicalSources.Add(new HistoricalSource { Name = "Google", Detail = "Street View analysis", Year = "2024", Icon = "🗺️" });
+                _historicalSources.Add(new HistoricalSource { Name = "Manual Entry", Detail = $"Seller-supplied location ({_location.Suburb}, {_location.State} {_location.Postcode}) — editable before publish", Year = "2026", Icon = "📋" });
             }
         }
 
