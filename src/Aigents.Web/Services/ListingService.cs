@@ -11,6 +11,8 @@ public interface IListingService
     Task<Listing?> GetListingAsync(Guid id);
     Task<List<Listing>> GetListingsForUserAsync(string userEmail);
     Task<List<Listing>> GetAllActiveListingsAsync();
+    /// <summary>Active (published) listings only — never drafts. Used for buyer matching.</summary>
+    Task<List<Listing>> GetPublishedListingsAsync(int take = 200);
     Task UpdateListingAsync(Listing listing);
 }
 
@@ -109,6 +111,16 @@ public class ListingService : IListingService
             .Where(l => l.Status == ListingStatus.Active || l.Status == ListingStatus.Draft)
             .OrderByDescending(l => l.CreatedAt)
             .Take(50)
+            .ToListAsync();
+    }
+
+    public async Task<List<Listing>> GetPublishedListingsAsync(int take = 200)
+    {
+        return await _db.Listings
+            .AsNoTracking()
+            .Where(l => l.Status == ListingStatus.Active)
+            .OrderByDescending(l => l.PublishedAt ?? l.CreatedAt)
+            .Take(Math.Clamp(take, 1, 500))
             .ToListAsync();
     }
 

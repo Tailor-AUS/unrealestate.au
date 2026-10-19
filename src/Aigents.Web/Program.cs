@@ -35,7 +35,11 @@ builder.WebHost.UseStaticWebAssets();
 // DATABASE
 // ───────────────────────────────────────────────────────────────
 
-builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
+// LOCAL_FIXTURE_DB=inmemory (Development only) swaps in labelled synthetic data
+// so UI journeys can be exercised without Postgres. Otherwise unchanged.
+var localFixtureDb = LocalFixtureDb.Use(builder);
+if (!localFixtureDb)
+    builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
 // BLAZOR
@@ -124,6 +128,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ISiteContext, SiteContext>();
 
 var app = builder.Build();
+
+if (localFixtureDb)
+    await LocalFixtureDb.SeedAsync(app.Services);
 
 // ───────────────────────────────────────────────────────────────
 // MIDDLEWARE
