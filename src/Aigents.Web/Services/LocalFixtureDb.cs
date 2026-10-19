@@ -46,8 +46,9 @@ public static class LocalFixtureDb
         };
         db.Users.Add(owner);
 
-        Listing L(string addr, string suburb, string type, int? beds, int? baths, decimal? asking, decimal? estimate, ListingStatus status = ListingStatus.Active) => new()
+        Listing L(Guid id, string addr, string suburb, string type, int? beds, int? baths, decimal? asking, decimal? estimate, ListingStatus status = ListingStatus.Active) => new()
         {
+            Id = id,
             UserId = owner.Id,
             User = owner,
             Address = $"{Marker} {addr}",
@@ -65,12 +66,12 @@ public static class LocalFixtureDb
         };
 
         db.Listings.AddRange(
-            L("1 Example St", "Paddington", "House", 3, 2, 950_000m, null),
-            L("2 Sample Ave", "Paddington", "House", 3, 1, 1_080_000m, null),
-            L("3 Fixture Rd", "New Farm", "Unit", 2, 1, 720_000m, null),
-            L("4 Placeholder Cres", "Paddington", "House", 4, 2, null, 900_000m),
-            L("5 Missing Data Ln", "Paddington", "House", null, null, null, null),
-            L("6 Draft Only St", "Paddington", "House", 3, 2, 950_000m, null, ListingStatus.Draft));
+            L(Guid.Parse("00000000-0000-0000-0000-000000000001"), "1 Example St", "Paddington", "House", 3, 2, 950_000m, null),
+            L(Guid.Parse("00000000-0000-0000-0000-000000000002"), "2 Sample Ave", "Paddington", "House", 3, 1, 1_080_000m, null),
+            L(Guid.Parse("00000000-0000-0000-0000-000000000003"), "3 Fixture Rd", "New Farm", "Unit", 2, 1, 720_000m, null),
+            L(Guid.Parse("00000000-0000-0000-0000-000000000004"), "4 Placeholder Cres", "Paddington", "House", 4, 2, null, 900_000m),
+            L(Guid.Parse("00000000-0000-0000-0000-000000000005"), "5 Missing Data Ln", "Paddington", "House", null, null, null, null),
+            L(Guid.Parse("00000000-0000-0000-0000-000000000006"), "6 Draft Only St", "Paddington", "House", 3, 2, 950_000m, null, ListingStatus.Draft));
         await db.SaveChangesAsync();
     }
 }

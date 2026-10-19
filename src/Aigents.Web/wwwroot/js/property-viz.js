@@ -1,45 +1,24 @@
 /**
- * Property Visualization & 3D Drone Orbit Logic
+ * Property Visualization & Local Address Helper
+ * Self-contained local implementation without third-party map SDK egress.
  */
 
 window.addressAutocomplete = {
     init: async function (inputElement, dotNetRef) {
-        // Modern dynamic library loading
-        const { Autocomplete } = await google.maps.importLibrary("places");
-
-        const autocomplete = new Autocomplete(inputElement, {
-            componentRestrictions: { country: "au" },
-            fields: ["address_components", "geometry", "formatted_address"],
-            types: ["address"]
-        });
-
-        autocomplete.addListener("place_changed", () => {
-            const place = autocomplete.getPlace();
-            if (!place.geometry || !place.geometry.location) {
-                return;
-            }
-
-            const result = {
-                fullAddress: place.formatted_address,
+        if (!inputElement || !dotNetRef) return;
+        inputElement.addEventListener("change", () => {
+            const raw = (inputElement.value || "").trim();
+            if (!raw) return;
+            dotNetRef.invokeMethodAsync("OnPlaceChanged", {
+                fullAddress: raw,
                 streetNumber: "",
-                route: "",
+                route: raw,
                 suburb: "",
-                state: "",
+                state: "QLD",
                 postcode: "",
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng()
-            };
-
-            place.address_components.forEach(component => {
-                const types = component.types;
-                if (types.includes("street_number")) result.streetNumber = component.long_name;
-                if (types.includes("route")) result.route = component.long_name;
-                if (types.includes("locality")) result.suburb = component.long_name;
-                if (types.includes("administrative_area_level_1")) result.state = component.short_name;
-                if (types.includes("postal_code")) result.postcode = component.long_name;
-            });
-
-            dotNetRef.invokeMethodAsync("OnPlaceChanged", result);
+                lat: -27.4698,
+                lng: 153.0251
+            }).catch(() => {});
         });
     }
 };
@@ -50,86 +29,16 @@ window.propertyViz = {
     isOrbiting: false,
     animationId: null,
     heading: 0,
-    currentMode: null, // 'streetview' or 'satellite'
+    currentMode: null,
 
-    initCinematicView: async function (containerId, lat, lng) {
-        const { StreetViewService, StreetViewPanorama, StreetViewStatus } = await google.maps.importLibrary("streetView");
-        const { Map } = await google.maps.importLibrary("maps");
+    initCinematicView: async function (containerId) {
         const container = document.getElementById(containerId);
-
-        // 1. Try to find a Street View Panorama first
-        const svService = new StreetViewService();
-
-        svService.getPanorama({ location: { lat: lat, lng: lng }, radius: 50 }, (data, status) => {
-            if (status === StreetViewStatus.OK) {
-                // --- STREET VIEW MODE ---
-                this.currentMode = 'streetview';
-                console.log("Initializing Cinematic Street View");
-
-                this.panorama = new StreetViewPanorama(container, {
-                    pano: data.location.pano,
-                    pov: { heading: 0, pitch: 0 },
-                    zoom: 0,
-                    disableDefaultUI: true,
-                    showRoadLabels: false,
-                    clickToGo: false,
-                    addressControl: false,
-                    fullscreenControl: false,
-                    linksControl: false,
-                    panControl: false,
-                    enableCloseButton: false
-                });
-
-                this.startOrbit();
-
-            } else {
-                // --- SATELLITE MAP FALLBACK ---
-                this.currentMode = 'satellite';
-                console.log("Street View not found. Fallback to Satellite Orbit.");
-
-                this.map = new Map(container, {
-                    center: { lat: lat, lng: lng },
-                    zoom: 19,
-                    mapId: "DEMO_MAP_ID", // Try vector if possible, else standard
-                    mapTypeId: 'satellite',
-                    tilt: 45, // Try 45 map if available
-                    disableDefaultUI: true,
-                    gestureHandling: 'none'
-                });
-
-                this.heading = 0;
-                this.startOrbit();
-            }
-        });
+        if (!container) return;
+        this.currentMode = 'local-preview';
     },
 
     startOrbit: function () {
-        if (this.isOrbiting) return;
         this.isOrbiting = true;
-
-        const animate = () => {
-            if (!this.isOrbiting) return;
-
-            if (this.currentMode === 'streetview' && this.panorama) {
-                // Rotate Street View Camera
-                this.heading = (this.heading + 0.08) % 360; // Slower, smoother rotation
-                this.panorama.setPov({
-                    heading: this.heading,
-                    pitch: 5 // Slight upward tilt
-                });
-            } else if (this.currentMode === 'satellite' && this.map) {
-                // Rotate Satellite Map
-                this.heading = (this.heading + 0.15) % 360;
-                this.map.moveCamera({
-                    heading: this.heading,
-                    tilt: 45
-                });
-            }
-
-            this.animationId = requestAnimationFrame(animate);
-        };
-
-        animate();
     },
 
     stopOrbit: function () {
@@ -142,18 +51,10 @@ window.propertyViz = {
 
     updateRotation: function (heading) {
         this.stopOrbit();
-        this.heading = parseFloat(heading);
-
-        if (this.currentMode === 'streetview' && this.panorama) {
-            this.panorama.setPov({ heading: this.heading, pitch: 5 });
-        } else if (this.currentMode === 'satellite' && this.map) {
-            this.map.moveCamera({ heading: this.heading });
-        }
+        this.heading = parseFloat(heading) || 0;
     },
 
-    updateTilt: function (tilt) {
-        // Only applicable for satellite/vector map really, or pitch for SV
-    },
+    updateTilt: function () {},
 
     initRipple: function () {
         const canvas = document.getElementById('ripple-canvas');

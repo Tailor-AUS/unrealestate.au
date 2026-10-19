@@ -4,41 +4,50 @@
 @inject IListingService ListingService
 @inject NavigationManager Navigation
 
-<PageTitle>@_listing?.Address | Premium Property</PageTitle>
+<PageTitle>@(_listing is not null ? $"{_listing.Address} | unrealestate.au" : "Property unavailable | unrealestate.au")</PageTitle>
 
-@if (_listing == null)
+@if (!_loaded)
 {
-    <div class="loading-state">
+    <div class="loading-state" data-testid="property-loading">
         <div class="spinner"></div>
         <p>Loading property details...</p>
     </div>
 }
+else if (_listing == null)
+{
+    <div class="unavailable-state" data-testid="property-not-found">
+        <h1>Property unavailable</h1>
+        <p>This listing is not published or could not be found. Draft, withdrawn, and off-market properties are not publicly accessible.</p>
+        <div class="unavailable-actions">
+            <a class="primary-link" href="/buyer/matches">Back to buyer matches</a>
+            <a class="secondary-link" href="/buy">Browse published listings</a>
+        </div>
+    </div>
+}
 else
 {
-    <div class="property-page">
+    <div class="property-page" data-testid="property-details-page">
         <!-- Hero Section -->
         <div class="hero-section">
             <div class="hero-content">
-                <span class="status-badge">@_listing.Status</span>
+                <span class="status-badge">Published</span>
                 <h1>@_listing.Address</h1>
                 <p class="suburb">@_listing.Suburb, @_listing.State @_listing.Postcode</p>
                 <div class="price-tag">
                     @_listing.PriceDisplay
                 </div>
                 <div class="status-row">
-                    <span class="status-pill open">OPEN listing · any agent can sell it</span>
+                    <span class="status-pill open">OPEN listing · any licensed agent can introduce a buyer</span>
                 </div>
             </div>
         </div>
 
-        <!-- Live activity strip: social proof for buyers -->
-        <div class="activity-strip">
-            <div class="activity-pulse" aria-hidden="true"></div>
-            <div class="activity-stat"><strong>@_viewersToday</strong><span>viewing today</span></div>
-            <div class="activity-stat"><strong>@_enquiriesToday</strong><span>enquiries (24h)</span></div>
-            <div class="activity-stat"><strong>@_offersTotal</strong><span>offers received</span></div>
-            <div class="activity-stat"><strong>@_savedCount</strong><span>buyers saved</span></div>
-            <div class="activity-meta">Last enquiry @_lastEnquiryAgo ago</div>
+        <!-- Verifiable listing facts strip (no fabricated urgency counters) -->
+        <div class="facts-strip" data-testid="property-verifiable-facts">
+            <div class="fact-item"><strong>Published</strong><span>Status</span></div>
+            <div class="fact-item"><strong>@(string.IsNullOrWhiteSpace(_listing.PropertyType) ? "Unspecified" : _listing.PropertyType)</strong><span>Property type</span></div>
+            <div class="fact-item"><strong>@_listing.Suburb @(_listing.Postcode)</strong><span>Location</span></div>
+            <div class="fact-item"><strong>@((_listing.PublishedAt ?? _listing.CreatedAt).ToString("dd MMM yyyy"))</strong><span>Listed date</span></div>
         </div>
 
         <!-- Main Content -->
@@ -48,37 +57,40 @@ else
                 <div class="key-features">
                     <div class="feature">
                         <span class="icon">🛏</span>
-                        <span class="value">@_listing.Bedrooms</span>
+                        <span class="value">@(_listing.Bedrooms?.ToString() ?? "—")</span>
                         <span class="label">Bed</span>
                     </div>
                     <div class="feature">
                         <span class="icon">🛁</span>
-                        <span class="value">@_listing.Bathrooms</span>
+                        <span class="value">@(_listing.Bathrooms?.ToString() ?? "—")</span>
                         <span class="label">Bath</span>
                     </div>
                     <div class="feature">
                         <span class="icon">🚗</span>
-                        <span class="value">@_listing.CarSpaces</span>
+                        <span class="value">@(_listing.CarSpaces?.ToString() ?? "—")</span>
                         <span class="label">Car</span>
                     </div>
                     <div class="feature">
                         <span class="icon">📐</span>
-                        <span class="value">@(_listing.LandSize.HasValue ? _listing.LandSize + " m²" : "Large Block")</span>
+                        <span class="value">@(_listing.LandSize.HasValue ? _listing.LandSize + " m²" : "Not stated")</span>
                         <span class="label">Land</span>
                     </div>
                 </div>
 
                 <div class="description-section">
                     <h2>About this property</h2>
-                    <p>@_listing.Description</p>
-                    
-                    <h3>Property Features</h3>
-                    <ul class="features-list">
-                        <li>Premium Location</li>
-                        <li>Modern Design</li>
-                        <li>Spacious Living Areas</li>
-                        <li>Close to Transport</li>
-                    </ul>
+                    <p>@(string.IsNullOrWhiteSpace(_listing.Description) ? "No additional description has been supplied for this listing yet." : _listing.Description)</p>
+
+                    @if (_listing.Features.Length > 0)
+                    {
+                        <h3>Supplied Property Features</h3>
+                        <ul class="features-list">
+                            @foreach (var feat in _listing.Features)
+                            {
+                                <li>@feat</li>
+                            }
+                        </ul>
+                    }
                 </div>
             </div>
 
@@ -86,9 +98,9 @@ else
             <div class="action-sidebar">
                 <div class="action-card">
                     <h3>Interested?</h3>
-                    <p>Make an offer or enquire directly with the owner.</p>
-                    
-                    <button class="primary-btn pulse" @onclick="MakeOffer">
+                    <p>Make an offer or enquire regarding this published property.</p>
+
+                    <button class="primary-btn" @onclick="MakeOffer">
                         Make an Offer
                     </button>
 
@@ -101,10 +113,10 @@ else
                     </button>
 
                     <div class="agent-profile">
-                        <div class="avatar">H</div>
+                        <div class="avatar">L</div>
                         <div class="details">
-                            <span class="name">Direct to Homeowner</span>
-                            <span class="role">No agent fee · powered by unreal.estate</span>
+                            <span class="name">Listing Contact</span>
+                            <span class="role">Enquiries routed to the listing representative</span>
                         </div>
                     </div>
                 </div>
@@ -123,8 +135,8 @@ else
         {
             <div class="modal-backdrop" @onclick="CloseEnquiry">
                 <div class="modal-content" @onclick:stopPropagation>
-                    <h3>Ask the owner a question</h3>
-                    <p>Direct message — no agent middleman, no spam list.</p>
+                    <h3>Ask a question</h3>
+                    <p>Send your question regarding this property.</p>
                     <div class="form-group">
                         <label>Your name</label>
                         <input type="text" @bind="_enqName" placeholder="Sienna Brooks" />
@@ -151,13 +163,13 @@ else
             <div class="modal-backdrop" @onclick="CloseInspection">
                 <div class="modal-content" @onclick:stopPropagation>
                     <h3>Book an inspection</h3>
-                    <p>Pick a slot. Owner confirms by reply.</p>
+                    <p>Pick a preferred inspection window.</p>
                     <div class="form-group">
                         <label>Your name</label>
                         <input type="text" @bind="_inspName" placeholder="Sienna Brooks" />
                     </div>
                     <div class="form-group">
-                        <label>Phone (so the owner can reach you fast)</label>
+                        <label>Phone</label>
                         <input type="tel" @bind="_inspPhone" placeholder="04xx xxx xxx" />
                     </div>
                     <div class="form-group">
@@ -189,21 +201,21 @@ else
             <div class="modal-backdrop">
                 <div class="modal-content">
                     <h3>Make an Offer</h3>
-                    <p>Submit your offer to the owner.</p>
-                    
+                    <p>Submit your offer for this property.</p>
+
                     <div class="form-group">
                         <label>Your Offer Price ($)</label>
                         <input type="number" @bind="_offerPrice" placeholder="e.g. 1200000" />
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Your Name</label>
                         <input type="text" @bind="_offerName" placeholder="John Doe" />
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Message (Optional)</label>
-                        <textarea @bind="_offerMessage" placeholder="I love this property because..."></textarea>
+                        <textarea @bind="_offerMessage" placeholder="Any conditions or settlement terms..."></textarea>
                     </div>
 
                     <div class="modal-actions">
@@ -218,16 +230,61 @@ else
 
 <style>
     .property-page {
-        font-family: 'Inter', sans-serif;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: #f8fafc;
         min-height: 100vh;
     }
 
+    .unavailable-state {
+        max-width: 640px;
+        margin: 80px auto;
+        padding: 32px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        text-align: center;
+    }
+
+    .unavailable-state h1 {
+        font-size: 1.8rem;
+        color: #0f172a;
+        margin: 0 0 12px;
+    }
+
+    .unavailable-state p {
+        color: #475569;
+        margin: 0 0 24px;
+        line-height: 1.6;
+    }
+
+    .unavailable-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .primary-link {
+        padding: 10px 16px;
+        border-radius: 8px;
+        background: #0f766e;
+        color: #ffffff;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .secondary-link {
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
     .hero-section {
-        background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url('/images/property-hero.jpg');
-        background-size: cover;
-        background-position: center;
-        height: 60vh;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        min-height: 36vh;
         display: flex;
         align-items: flex-end;
         padding: 40px;
@@ -241,14 +298,13 @@ else
     }
 
     h1 {
-        font-size: 3rem;
+        font-size: 2.6rem;
         font-weight: 800;
         margin: 10px 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
     .suburb {
-        font-size: 1.5rem;
+        font-size: 1.35rem;
         opacity: 0.9;
     }
 
@@ -264,94 +320,73 @@ else
     .price-tag {
         font-size: 2rem;
         font-weight: 700;
-        margin-top: 10px;
+        margin-top: 16px;
+        color: #fbbf24;
     }
 
     .content-grid {
+        max-width: 1200px;
+        margin: 24px auto 0;
+        padding: 0 24px 32px;
         display: grid;
         grid-template-columns: 2fr 1fr;
-        gap: 40px;
-        max-width: 1200px;
-        margin: -60px auto 40px;
-        padding: 0 20px;
-        position: relative;
+        gap: 32px;
     }
 
-    .main-details {
+    .main-details, .action-card {
         background: white;
-        padding: 30px;
         border-radius: 16px;
+        padding: 32px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     }
 
     .key-features {
         display: flex;
-        justify-content: space-between;
-        padding-bottom: 30px;
-        border-bottom: 1px solid #e5e7eb;
-        margin-bottom: 30px;
+        justify-content: space-around;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 24px;
     }
 
     .feature {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
     }
 
-    .feature .icon { font-size: 24px; }
-    .feature .value { font-weight: 700; font-size: 18px; color: #1f2937; }
-    .feature .label { font-size: 14px; color: #6b7280; }
+    .feature .icon { font-size: 1.5rem; }
+    .feature .value { font-size: 1.25rem; font-weight: 700; color: #1e293b; }
+    .feature .label { font-size: 0.875rem; color: #64748b; }
 
-    .description-section h2, .description-section h3 {
-        color: #111827;
-        margin-top: 0;
-    }
+    .description-section h2 { font-size: 1.5rem; color: #1e293b; margin-bottom: 16px; }
+    .description-section p { line-height: 1.7; color: #475569; margin-bottom: 24px; }
 
     .features-list {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
+        gap: 12px;
+        padding-left: 20px;
+        color: #475569;
     }
 
-    .action-card {
-        background: white;
-        padding: 30px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        position: sticky;
-        top: 20px;
-    }
+    .action-card { position: sticky; top: 24px; }
+    .action-card h3 { font-size: 1.4rem; margin-bottom: 8px; }
+    .action-card p { color: #64748b; margin-bottom: 20px; }
 
-    .primary-btn {
-        width: 100%;
-        padding: 16px;
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 16px;
-        cursor: pointer;
-        margin-bottom: 12px;
-        transition: transform 0.2s;
-    }
-
-    .primary-btn:hover {
-        background: #059669;
-        transform: translateY(-2px);
-    }
-
-    .secondary-btn {
+    .primary-btn, .secondary-btn {
         width: 100%;
         padding: 14px;
-        background: white;
-        color: #374151;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
+        border-radius: 12px;
         font-weight: 600;
+        font-size: 1rem;
         cursor: pointer;
+        margin-bottom: 12px;
+        border: none;
     }
+
+    .primary-btn { background: #10b981; color: white; }
+    .secondary-btn { background: #f1f5f9; color: #334155; }
 
     .agent-profile {
         display: flex;
@@ -359,13 +394,13 @@ else
         gap: 12px;
         margin-top: 20px;
         padding-top: 20px;
-        border-top: 1px solid #f3f4f6;
+        border-top: 1px solid #e2e8f0;
     }
 
     .avatar {
-        width: 40px;
-        height: 40px;
-        background: #10b981;
+        width: 44px;
+        height: 44px;
+        background: #0f766e;
         color: white;
         border-radius: 50%;
         display: flex;
@@ -374,160 +409,77 @@ else
         font-weight: 700;
     }
 
-    .details {
-        display: flex;
-        flex-direction: column;
-    }
+    .details { display: flex; flex-direction: column; }
+    .details .name { font-weight: 600; color: #1e293b; }
+    .details .role { font-size: 0.85rem; color: #64748b; }
 
-    .details .name { font-weight: 600; color: #1f2937; font-size: 14px; }
-    .details .role { color: #6b7280; font-size: 12px; }
-
-    /* Modal Styles */
     .modal-backdrop {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
+        inset: 0;
         background: rgba(0,0,0,0.5);
         display: flex;
-        justify-content: center;
         align-items: center;
+        justify-content: center;
         z-index: 1000;
     }
 
     .modal-content {
         background: white;
-        padding: 30px;
+        padding: 28px;
         border-radius: 16px;
         width: 100%;
-        max-width: 500px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        max-width: 480px;
     }
 
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #374151;
-    }
-
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; }
     .form-group input, .form-group textarea {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #d1d5db;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
-        font-family: inherit;
     }
 
-    .modal-actions {
-        display: flex;
-        gap: 12px;
-        margin-top: 30px;
-    }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
 
-    .status-row {
-        margin-top: 14px;
-    }
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(99, 102, 241, 0.85);
-        color: white;
-        backdrop-filter: blur(8px);
-    }
+    .status-row { margin-top: 12px; }
     .status-pill.open {
-        background: rgba(16, 185, 129, 0.92);
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(16, 185, 129, 0.22);
+        border: 1px solid rgba(16, 185, 129, 0.55);
+        color: #ecfdf5;
     }
 
-    .activity-strip {
+    .facts-strip {
         max-width: 1200px;
-        margin: -24px auto 0 auto;
-        padding: 14px 22px;
-        background: white;
-        border-radius: 16px;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        margin: 20px auto 0;
+        padding: 14px 24px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
         display: flex;
         align-items: center;
-        gap: 18px;
-        position: relative;
-        z-index: 5;
+        gap: 28px;
         flex-wrap: wrap;
     }
-    .activity-pulse {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #10b981;
-        position: relative;
-        flex-shrink: 0;
-    }
-    .activity-pulse::after {
-        content: '';
-        position: absolute;
-        inset: -6px;
-        border-radius: 50%;
-        background: #10b981;
-        opacity: 0.4;
-        animation: pulse-ring 1.6s ease-out infinite;
-    }
-    @@keyframes pulse-ring {
-        0%   { transform: scale(0.5); opacity: 0.6; }
-        100% { transform: scale(1.8); opacity: 0; }
-    }
-    .activity-stat {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 6px;
-    }
-    .activity-stat strong {
-        font-size: 18px;
-        font-weight: 800;
-        color: #1a1a2e;
-    }
-    .activity-stat span {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #6b7280;
-    }
-    .activity-meta {
-        margin-left: auto;
-        font-size: 12px;
-        color: #6b7280;
-        font-style: italic;
-    }
+    .fact-item { display: flex; flex-direction: column; gap: 2px; }
+    .fact-item strong { font-size: 1rem; font-weight: 700; color: #0f172a; }
+    .fact-item span { font-size: 0.78rem; color: #64748b; }
 
     .ghost-btn {
-        background: none;
-        border: 1px dashed rgba(99, 102, 241, 0.45);
-        color: #6366f1;
-        border-radius: 10px;
-        padding: 11px 16px;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        font-family: inherit;
-        margin-top: 10px;
         width: 100%;
-        transition: background 0.15s, border-color 0.15s;
-    }
-    .ghost-btn:hover {
-        background: rgba(99, 102, 241, 0.06);
-        border-color: #6366f1;
-        border-style: solid;
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        background: transparent;
+        color: #0f172a;
+        border: 1px dashed #cbd5e1;
     }
 
     .slot-grid {
@@ -536,42 +488,31 @@ else
         gap: 8px;
     }
     .slot {
-        background: white;
-        border: 1.5px solid rgba(0, 0, 0, 0.08);
-        border-radius: 10px;
         padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        font-weight: 600;
         font-size: 13px;
-        font-weight: 700;
-        color: #1a1a2e;
         cursor: pointer;
-        font-family: inherit;
-        transition: border-color .15s, background .15s;
     }
-    .slot:hover { border-color: #6366f1; }
     .slot.selected {
-        border-color: #6366f1;
-        background: #ede9fe;
-        color: #5b21b6;
+        background: #10b981;
+        border-color: #10b981;
+        color: #ffffff;
     }
 
     .page-toast {
         position: fixed;
         bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1a1a2e;
-        color: white;
-        padding: 12px 22px;
-        border-radius: 999px;
-        font-size: 13px;
-        font-weight: 700;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+        right: 24px;
+        background: #0f172a;
+        color: #ffffff;
+        padding: 14px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
         z-index: 1100;
-        animation: pd-toast-in .25s ease;
-    }
-    @@keyframes pd-toast-in {
-        from { opacity: 0; transform: translate(-50%, 12px); }
-        to   { opacity: 1; transform: translate(-50%, 0); }
     }
 
     .sell-promo-wrap {
@@ -581,22 +522,7 @@ else
     }
 
     @@media (max-width: 768px) {
-        .content-grid {
-            grid-template-columns: 1fr;
-            margin-top: 0;
-        }
-        .hero-section {
-            height: 40vh;
-        }
-        .sell-promo-wrap {
-            padding: 12px 16px 40px 16px;
-        }
-        .activity-strip {
-            margin: -8px 16px 0 16px;
-            padding: 12px 16px;
-        }
-        .activity-meta { display: none; }
-        .activity-stat strong { font-size: 16px; }
+        .content-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -605,12 +531,12 @@ else
     public Guid Id { get; set; }
 
     private Listing? _listing;
-    private bool _showOfferModal = false;
+    private bool _loaded;
+    private bool _showOfferModal;
     private decimal? _offerPrice;
     private string _offerName = "";
     private string _offerMessage = "";
 
-    // Enquiry + inspection state
     private bool _showEnquiryModal;
     private string _enqName = "";
     private string _enqEmail = "";
@@ -620,32 +546,23 @@ else
     private string _inspName = "";
     private string _inspPhone = "";
     private string _inspSlot = "";
-    private readonly string[] _inspectionSlots = new[]
-    {
+    private readonly string[] _inspectionSlots =
+    [
         "Sat 10:00 am", "Sat 11:30 am", "Sat 1:00 pm",
         "Sun 10:00 am", "Sun 11:30 am",
         "Wed 5:30 pm"
-    };
+    ];
 
     private string? _toast;
 
-    // Live activity counters — mock for now; back with telemetry in a follow-up.
-    private int _viewersToday = 47;
-    private int _enquiriesToday = 3;
-    private int _offersTotal = 5;
-    private int _savedCount = 18;
-    private string _lastEnquiryAgo = "12 min";
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        _listing = await ListingService.GetListingAsync(Id);
+        _loaded = false;
+        _listing = await ListingService.GetPublishedListingByIdAsync(Id);
+        _loaded = true;
     }
 
-    private void MakeOffer()
-    {
-        _showOfferModal = true;
-    }
-
+    private void MakeOffer() => _showOfferModal = true;
     private void OpenEnquiry() => _showEnquiryModal = true;
     private void CloseEnquiry() => _showEnquiryModal = false;
     private void OpenInspection() => _showInspectionModal = true;
@@ -655,10 +572,6 @@ else
     {
         if (string.IsNullOrWhiteSpace(_enqMessage) || _listing is null) return;
 
-        // Persist the enquiry alongside the listing's inquiry collection.
-        // Note: ListingInquiry currently requires an Agent — we mirror the existing
-        // hack from SubmitOffer (store sender name on a transient Agent) until
-        // ListingInquiry is properly modelled with optional buyer fields.
         var inquiry = new ListingInquiry
         {
             Id = Guid.NewGuid(),
@@ -668,14 +581,17 @@ else
             CreatedAt = DateTime.UtcNow,
             Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_enqName) ? "Anonymous buyer" : _enqName }
         };
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
-
-        _enquiriesToday += 1;
-        _lastEnquiryAgo = "just now";
+        var ok = await ListingService.AddPublishedListingInquiryAsync(_listing.Id, inquiry);
         _showEnquiryModal = false;
-        Toast("✓ Question sent to the owner. They'll reply by email.");
-        _enqMessage = "";
+        if (ok)
+        {
+            Toast("✓ Question recorded for the listing representative.");
+            _enqMessage = "";
+        }
+        else
+        {
+            Toast("This property is no longer published.");
+        }
     }
 
     private async Task SubmitInspection()
@@ -691,14 +607,17 @@ else
             CreatedAt = DateTime.UtcNow,
             Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_inspName) ? "Anonymous buyer" : _inspName }
         };
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
-
-        _enquiriesToday += 1;
-        _lastEnquiryAgo = "just now";
+        var ok = await ListingService.AddPublishedListingInquiryAsync(_listing.Id, inquiry);
         _showInspectionModal = false;
-        Toast($"✓ Inspection request sent for {_inspSlot}. Owner confirms by reply.");
-        _inspSlot = "";
+        if (ok)
+        {
+            Toast($"✓ Inspection request recorded for {_inspSlot}.");
+            _inspSlot = "";
+        }
+        else
+        {
+            Toast("This property is no longer published.");
+        }
     }
 
     private void Toast(string message)
@@ -718,21 +637,21 @@ else
     {
         if (_listing == null || !_offerPrice.HasValue) return;
 
-        // Create inquiry/offer
         var inquiry = new ListingInquiry
         {
-             Id = Guid.NewGuid(),
-             ListingId = _listing.Id,
-             Message = $"OFFER: ${_offerPrice:N0} - {_offerMessage} (by {_offerName})",
-             Status = InquiryStatus.OfferMade,
-             CreatedAt = DateTime.UtcNow,
-             Agent = new Aigents.Domain.Entities.Agent { Name = _offerName } // Hacky way to store sender name for now
+            Id = Guid.NewGuid(),
+            ListingId = _listing.Id,
+            Message = $"OFFER: ${_offerPrice:N0} - {_offerMessage} (by {_offerName})",
+            Status = InquiryStatus.OfferMade,
+            CreatedAt = DateTime.UtcNow,
+            Agent = new Aigents.Domain.Entities.Agent { Name = string.IsNullOrWhiteSpace(_offerName) ? "Anonymous buyer" : _offerName }
         };
 
-        _listing.Inquiries.Add(inquiry);
-        await ListingService.UpdateListingAsync(_listing);
-
+        var ok = await ListingService.AddPublishedListingInquiryAsync(_listing.Id, inquiry);
         _showOfferModal = false;
-        // Optionally show success message
+        if (ok)
+        {
+            Toast("✓ Offer recorded for the listing representative.");
+        }
     }
 }

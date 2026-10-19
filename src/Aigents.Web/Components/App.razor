@@ -6,38 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <title>unrealestate.au — Free Australian property listings</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="@Assets["css/app.css"]" />
     <link rel="stylesheet" href="@Assets["css/theme.css"]" />
     <link rel="stylesheet" href="@Assets["css/auth.css"]" />
     <link rel="stylesheet" href="@Assets["Aigents.Web.styles.css"]" />
-    <!-- Leaflet Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <HeadOutlet />
 </head>
 
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
-    <script>
-        (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
-            key: "AIzaSyDz9uGCd0fx1_sFIZJKCShJGNO4qQWk4e4",
-            v: "beta"
-        });
-    </script>
-    <!-- Property Viz Helpers -->
+    <!-- Property Viz Helpers (local-only, no external map/CDN egress) -->
     <script src="js/property-viz.js"></script>
-    <!-- Globe.gl Dependencies -->
-    <script src="//unpkg.com/globe.gl"></script>
     <script src="js/globe-viz.js"></script>
     <script src="js/syndication-map.js"></script>
     <script src="js/before-after-slider.js"></script>
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <!-- Esri Leaflet for ArcGIS MapServer support -->
-    <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
     <script>
         document.addEventListener('mousemove', (e) => {
             const x = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -45,238 +28,83 @@
             document.body.style.setProperty('--mouse-x', x);
             document.body.style.setProperty('--mouse-y', y);
         });
-        
-        // Leaflet Map Helper - AirBnB Style
+
+        // Self-contained local map helper — renders interactive markers locally
+        // with zero external CDN, tile, or GIS requests.
         window.leafletMap = {
-            map: null,
+            container: null,
             markers: [],
             dotNetRef: null,
             selectedId: null,
-            
+
             init: function(elementId, lat, lng, zoom, dotNetReference) {
-                const self = this;
-                
-                // Clean up existing map
-                if (this.map) {
-                    this.map.remove();
-                    this.map = null;
-                }
-                
+                const el = document.getElementById(elementId);
+                if (!el) return false;
+
+                this.container = el;
                 this.dotNetRef = dotNetReference;
                 this.markers = [];
                 this.selectedId = null;
-                
-                // Create map
-                this.map = L.map(elementId, {
-                    zoomControl: true,
-                    scrollWheelZoom: true
-                }).setView([lat, lng], zoom);
-                
-                // Base layer: CartoDB Positron (clean like AirBnB)
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '© OpenStreetMap, © CARTO',
-                    maxZoom: 19
-                }).addTo(this.map);
-                
-                // QLD Cadastre via Esri Leaflet dynamicMapLayer
-                // This uses ArcGIS REST API which has better CORS support
-                if (typeof L.esri !== 'undefined') {
-                    const qldCadastre = L.esri.dynamicMapLayer({
-                        url: 'https://spatial-gis.information.qld.gov.au/arcgis/rest/services/PlanningCadastre/LandParcelPropertyFramework/MapServer',
-                        layers: [4], // Cadastral parcels (property boundaries)
-                        opacity: 0.7,
-                        attribution: '© State of Queensland (DCDB)'
-                    });
-                    qldCadastre.addTo(this.map);
-                    this.cadastreLayer = qldCadastre;
-                    
-                    qldCadastre.on('error', function(e) {
-                        console.warn('Cadastre layer error:', e);
-                    });
-                    
-                    // Click to identify parcel
-                    this.map.on('click', function(e) {
-                        const mapUrl = 'https://spatial-gis.information.qld.gov.au/arcgis/rest/services/PlanningCadastre/LandParcelPropertyFramework/MapServer';
-                        
-                        L.esri.identifyFeatures({
-                            url: mapUrl
-                        })
-                        .on(self.map)
-                        .at(e.latlng)
-                        .layers('visible:4') // Layer 4 = Cadastral parcels
-                        .tolerance(3)
-                        .run(function(error, featureCollection) {
-                            if (error) {
-                                console.error('Identify error:', error);
-                                return;
-                            }
-                            
-                            if (featureCollection.features.length > 0) {
-                                const feature = featureCollection.features[0];
-                                const props = feature.properties;
-                                
-                                // Build popup content
-                                const lotPlan = props.LOTPLAN || props.LOT_PLAN || 'Unknown';
-                                const lot = props.LOT || '';
-                                const plan = props.PLAN || '';
-                                const area = props.AREA_M2 ? (props.AREA_M2 / 10000).toFixed(2) + ' ha' : 
-                                            props.AREA ? props.AREA + ' m²' : 'Unknown';
-                                const locality = props.LOCALITY || props.LOC_NAME || '';
-                                const lga = props.LGA || props.LOCAL_GOVT || '';
-                                
-                                const popupContent = `
-                                    <div style="font-family: 'Outfit', sans-serif; min-width: 200px;">
-                                        <h4 style="margin: 0 0 8px 0; color: #1a1a2e; font-size: 16px;">
-                                            ${lot ? 'Lot ' + lot + ' on ' + plan : lotPlan}
-                                        </h4>
-                                        <div style="font-size: 13px; color: #666;">
-                                            ${locality ? '<p style="margin: 4px 0;"><strong>Locality:</strong> ' + locality + '</p>' : ''}
-                                            ${lga ? '<p style="margin: 4px 0;"><strong>LGA:</strong> ' + lga + '</p>' : ''}
-                                            <p style="margin: 4px 0;"><strong>Area:</strong> ${area}</p>
-                                        </div>
-                                        <button onclick="window.leafletMap.requestPropertyReport('${lotPlan}')" 
-                                                style="margin-top: 10px; padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); 
-                                                       color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; width: 100%;">
-                                            📋 Request Property Report
-                                        </button>
-                                    </div>
-                                `;
-                                
-                                L.popup()
-                                    .setLatLng(e.latlng)
-                                    .setContent(popupContent)
-                                    .openOn(self.map);
-                                
-                                // Also update Blazor UI
-                                if (self.dotNetRef) {
-                                    self.dotNetRef.invokeMethodAsync('OnLotSelected', lotPlan, locality, area, lga, e.latlng.lat, e.latlng.lng)
-                                        .catch(err => console.warn('Blazor callback error:', err));
-                                }
-                                    
-                                console.log('Parcel identified:', props);
-                            }
-                        });
-                    });
-                    
-                    console.log('QLD Cadastre layer added via Esri Leaflet');
-                } else {
-                    console.warn('Esri Leaflet not loaded - cadastre layer unavailable');
-                }
-                
-                // Global click handler for markers (event delegation)
-                document.getElementById(elementId).addEventListener('click', function(e) {
+
+                el.innerHTML = '';
+                el.style.position = 'relative';
+                el.style.background = 'linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%)';
+                el.style.overflow = 'hidden';
+
+                const canvas = document.createElement('div');
+                canvas.className = 'local-map-canvas';
+                canvas.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;padding:16px;align-content:flex-start;width:100%;height:100%;box-sizing:border-box;';
+                el.appendChild(canvas);
+
+                el.onclick = (e) => {
                     const marker = e.target.closest('.airbnb-marker');
                     if (marker) {
                         const id = marker.getAttribute('data-id');
-                        if (id) {
-                            self.selectMarker(id);
-                        }
+                        if (id) this.selectMarker(id);
                     }
-                });
-                
-                console.log('Map initialized');
+                };
                 return true;
             },
-            
+
             addMarker: function(id, lat, lng, price, isSelected) {
-                const icon = L.divIcon({
-                    className: 'airbnb-marker-wrapper',
-                    html: `<div class="airbnb-marker ${isSelected ? 'selected' : ''}" data-id="${id}">
-                        <span class="marker-price">${price}</span>
-                    </div>`,
-                    iconSize: [0, 0],
-                    iconAnchor: [0, 0]
-                });
-                
-                const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
-                marker.propertyId = id;
-                this.markers.push(marker);
-                
-                if (isSelected) {
-                    this.selectedId = id;
-                }
+                if (!this.container) return;
+                const canvas = this.container.querySelector('.local-map-canvas') || this.container;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'airbnb-marker-wrapper';
+                wrapper.innerHTML = `<div class="airbnb-marker ${isSelected ? 'selected' : ''}" data-id="${id}">
+                    <span class="marker-price">${price}</span>
+                </div>`;
+                canvas.appendChild(wrapper);
+                this.markers.push({ id, lat, lng, el: wrapper });
+                if (isSelected) this.selectedId = id;
             },
-            
+
             selectMarker: function(id) {
-                console.log('Marker clicked:', id);
-                
-                // Update visual state
-                document.querySelectorAll('.airbnb-marker').forEach(el => {
-                    el.classList.remove('selected');
-                });
-                
+                document.querySelectorAll('.airbnb-marker').forEach(el => el.classList.remove('selected'));
                 const selected = document.querySelector(`.airbnb-marker[data-id="${id}"]`);
-                if (selected) {
-                    selected.classList.add('selected');
-                }
-                
+                if (selected) selected.classList.add('selected');
                 this.selectedId = id;
-                
-                // Call Blazor
                 if (this.dotNetRef) {
-                    this.dotNetRef.invokeMethodAsync('OnMarkerClicked', id)
-                        .then(() => console.log('Blazor callback success'))
-                        .catch(err => console.error('Blazor callback error:', err));
+                    this.dotNetRef.invokeMethodAsync('OnMarkerClicked', id).catch(() => {});
                 }
             },
-            
+
             clearMarkers: function() {
-                this.markers.forEach(m => {
-                    if (this.map) this.map.removeLayer(m);
-                });
+                if (this.container) {
+                    const canvas = this.container.querySelector('.local-map-canvas');
+                    if (canvas) canvas.innerHTML = '';
+                }
                 this.markers = [];
                 this.selectedId = null;
             },
-            
-            fitBounds: function() {
-                if (this.markers.length > 0 && this.map) {
-                    const group = L.featureGroup(this.markers);
-                    this.map.fitBounds(group.getBounds().pad(0.1));
-                }
-            },
-            
-            setView: function(lat, lng, zoom) {
-                if (this.map) {
-                    this.map.setView([lat, lng], zoom);
-                }
-            },
-            
-            requestPropertyReport: function(lotPlan) {
-                const email = prompt('Enter your email address to receive the property report:', '');
-                if (email && email.includes('@@')) {
-                    // Call our API to request the report
-                    fetch(`http://localhost:5001/api/maps/report/lot-plan`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            lotPlan: lotPlan,
-                            emailAddress: email,
-                            reportType: 'ALLVEG' // Comprehensive vegetation/property report
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert(`✅ Report requested!\n\nA comprehensive property report for ${lotPlan} will be emailed to ${email} within a few minutes.`);
-                        } else {
-                            alert(`❌ Error: ${data.message || 'Failed to request report'}`);
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Report request error:', err);
-                        alert('Error requesting report. Please try again.');
-                    });
-                } else if (email) {
-                    alert('Please enter a valid email address.');
-                }
-            },
-            
+
+            fitBounds: function() {},
+            setView: function() {},
+
             dispose: function() {
                 this.dotNetRef = null;
-                if (this.map) {
-                    this.map.remove();
-                    this.map = null;
-                }
+                this.clearMarkers();
+                this.container = null;
             }
         };
     </script>

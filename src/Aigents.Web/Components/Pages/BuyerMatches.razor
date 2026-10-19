@@ -48,7 +48,9 @@
     }
     else
     {
-        <p class="bm-note" data-testid="matches-count">@_matches.Count published @(_matches.Count == 1 ? "listing" : "listings") ranked by fit.</p>
+        <p class="bm-note" data-testid="matches-count">
+            @_matches.Count published @(_matches.Count == 1 ? "listing" : "listings") ranked by fit@(_truncated ? $" (from the newest {_evaluatedCount} of {_totalCandidates} matching candidates)" : "").
+        </p>
         <ol class="bm-list">
             @foreach (var m in _matches)
             {
@@ -128,6 +130,9 @@
     private BuyerPreferences _prefs = new();
     private IReadOnlyList<BuyerMatch> _matches = [];
     private Dictionary<Guid, Listing> _byId = new();
+    private int _evaluatedCount;
+    private int _totalCandidates;
+    private bool _truncated;
     private bool _loading;
 
     protected override async Task OnParametersSetAsync()
@@ -158,14 +163,24 @@
             MinBathrooms: _minBaths is > 0 ? _minBaths : null,
             MinPrice: _minPrice is > 0 ? _minPrice : null,
             MaxPrice: _maxPrice is > 0 ? _maxPrice : null);
-        if (!_prefs.HasAny) { _matches = []; return; }
+        if (!_prefs.HasAny)
+        {
+            _matches = [];
+            _evaluatedCount = 0;
+            _totalCandidates = 0;
+            _truncated = false;
+            return;
+        }
 
         _loading = true;
         try
         {
-            var listings = await ListingService.GetPublishedListingsAsync();
-            _byId = listings.ToDictionary(l => l.Id);
-            _matches = BuyerMatcher.Rank(_prefs, listings.Select(l =>
+            var result = await ListingService.QueryPublishedListingsForMatcherAsync(_prefs);
+            _evaluatedCount = result.Listings.Count;
+            _totalCandidates = result.TotalCandidateCount;
+            _truncated = result.Truncated;
+            _byId = result.Listings.ToDictionary(l => l.Id);
+            _matches = BuyerMatcher.Rank(_prefs, result.Listings.Select(l =>
                 new ListingFacts(l.Id, l.Suburb, l.PropertyType, l.Bedrooms, l.Bathrooms, l.AskingPrice, l.EstimatedValue)));
         }
         finally { _loading = false; }

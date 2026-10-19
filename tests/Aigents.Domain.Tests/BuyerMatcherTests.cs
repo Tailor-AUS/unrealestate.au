@@ -1,4 +1,9 @@
+using Aigents.Domain.Entities;
 using Aigents.Domain.Matching;
+using Aigents.Infrastructure.Data;
+using Aigents.Web.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aigents.Domain.Tests;
 
@@ -9,6 +14,14 @@ public class BuyerMatcherTests
         new(Guid.NewGuid(), suburb, type, beds, baths, asking, estimate);
 
     private static MatchCriterion C(BuyerMatch m, string name) => Assert.Single(m.Criteria, c => c.Name == name);
+
+    private static AigentsDbContext NewDb()
+    {
+        var opts = new DbContextOptionsBuilder<AigentsDbContext>()
+            .UseInMemoryDatabase($"aigents-test-{Guid.NewGuid():N}")
+            .Options;
+        return new AigentsDbContext(opts);
+    }
 
     [Fact]
     public void Full_fit_scores_100_and_explains_every_criterion()
@@ -107,5 +120,90 @@ public class BuyerMatcherTests
         var prefs = new BuyerPreferences(["Paddington"], "House", 3, MaxPrice: 1_000_000m);
         Assert.True(BuyerMatcher.Evaluate(prefs, elsewhere).Score > 0); // still explainable on its own
         Assert.Empty(BuyerMatcher.Rank(prefs, [elsewhere, unit]));
+    }
+
+    [Fact]
+    public async Task U2_GetPublishedListingByIdAsync_returns_only_Active_and_rejects_Draft_Withdrawn_PendingSignature()
+    {
+        await using var db = NewDb();
+        var svc = new ListingService(db, NullLogger<ListingService>.Instance);
+
+        var activeId = Guid.NewGuid();
+        var draftId = Guid.NewGuid();
+        var withdrawnId = Guid.NewGuid();
+        var pendingSigId = Guid.NewGuid();
+
+        db.Listings.AddRange(
+            new Listing { Id = activeId, Address = "1 Active St", Suburb = "Paddington", PropertyType = "House", Status = ListingStatus.Active },
+            new Listing { Id = draftId, Address = "2 Draft St", Suburb = "Paddington", PropertyType = "House", Status = ListingStatus.Draft },
+            new Listing { Id = withdrawnId, Address = "3 Withdrawn St", Suburb = "Paddington", PropertyType = "House", Status = ListingStatus.Withdrawn },
+            new Listing { Id = pendingSigId, Address = "4 PendingSignature St", Suburb = "Paddington", PropertyType = "House", Status = ListingStatus.PendingSignature }
+        );
+        await db.SaveChangesAsync();
+
+        Assert.NotNull(await svc.GetPublishedListingByIdAsync(activeId));
+        Assert.Null(await svc.GetPublishedListingByIdAsync(draftId));
+        Assert.Null(await svc.GetPublishedListingByIdAsync(withdrawnId));
+        Assert.Null(await svc.GetPublishedListingByIdAsync(pendingSigId));
+
+        // Enquiries/inspections/offers must also be rejected on non-Active listings
+        var draftInquiry = new ListingInquiry { Message = "Attempt on draft" };
+        Assert.False(await svc.AddPublishedListingInquiryAsync(draftId, draftInquiry));
+        Assert.True(await svc.AddPublishedListingInquiryAsync(activeId, new ListingInquiry { Message = "Valid enquiry" }));
+    }
+
+    [Fact]
+    public async Task U3_QueryPublishedListingsForMatcherAsync_pushes_filters_before_Take_so_older_Paddington_match_is_never_dropped()
+    {
+        await using var db = NewDb();
+        var svc = new ListingService(db, NullLogger<ListingService>.Instance);
+        var baseTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var olderPaddingtonId = Guid.NewGuid();
+        db.Listings.Add(new Listing
+        {
+            Id = olderPaddingtonId,
+            Address = "10 Older Paddington Tce",
+            Suburb = "Paddington",
+            PropertyType = "House",
+            Bedrooms = 3,
+            Bathrooms = 2,
+            AskingPrice = 950_000m,
+            Status = ListingStatus.Active,
+            PublishedAt = baseTime,
+            CreatedAt = baseTime,
+        });
+
+        // Seed 220 newer published listings in other suburbs so an unfiltered Take(200) would drop the Paddington listing.
+        for (var i = 1; i <= 220; i++)
+        {
+            db.Listings.Add(new Listing
+            {
+                Id = Guid.NewGuid(),
+                Address = $"{i} Newer Elsewhere Rd",
+                Suburb = "New Farm",
+                PropertyType = "Unit",
+                Bedrooms = 1,
+                Bathrooms = 1,
+                AskingPrice = 1_800_000m,
+                Status = ListingStatus.Active,
+                PublishedAt = baseTime.AddMinutes(i),
+                CreatedAt = baseTime.AddMinutes(i),
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var suburbPrefs = new BuyerPreferences(["Paddington"], "House", MinBedrooms: 3, MaxPrice: 1_000_000m);
+        var suburbQuery = await svc.QueryPublishedListingsForMatcherAsync(suburbPrefs, take: 200);
+        var matchedSuburb = Assert.Single(suburbQuery.Listings);
+        Assert.Equal(olderPaddingtonId, matchedSuburb.Id);
+        Assert.False(suburbQuery.Truncated);
+
+        // Also verify when only soft criteria (e.g. MinBedrooms: 3) are provided without a suburb filter:
+        // the 220 1-bedroom units cannot displace the older 3-bedroom house.
+        var bedsOnlyPrefs = new BuyerPreferences(MinBedrooms: 3);
+        var bedsOnlyQuery = await svc.QueryPublishedListingsForMatcherAsync(bedsOnlyPrefs, take: 200);
+        var matchedBeds = Assert.Single(bedsOnlyQuery.Listings);
+        Assert.Equal(olderPaddingtonId, matchedBeds.Id);
     }
 }
