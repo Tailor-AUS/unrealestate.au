@@ -2,6 +2,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -37,6 +39,52 @@ public sealed record SovrgnResolvedConfig(
     string ApiKey,
     string Model,
     string Tenant);
+
+public static class SovrgnRoutingServiceCollectionExtensions
+{
+    /// <summary>
+    /// Registers <see cref="SovrgnAiOptions"/>, <see cref="SovrgnRoutingClient"/>, and its dedicated
+    /// no-redirect <see cref="HttpClient"/> with Aspire global resilience/service-discovery handlers
+    /// stripped so non-idempotent POST LLM completions are never aborted at 10s or retried up to 3x.
+    /// </summary>
+    public static IServiceCollection AddSovrgnRouting(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<SovrgnAiOptions>(configuration.GetSection(SovrgnAiOptions.SectionName));
+        services.AddHttpClient(SovrgnRoutingClient.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(45);
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+        });
+
+        // Strip global Aspire AddStandardResilienceHandler() (10s attempt timeout + 3x POST retries)
+        // and AddServiceDiscovery() added via ConfigureHttpClientDefaults() in ServiceDefaults.
+        services.PostConfigure<HttpClientFactoryOptions>(
+            SovrgnRoutingClient.HttpClientName,
+            options =>
+            {
+                options.HttpMessageHandlerBuilderActions.Add(builder =>
+                {
+                    for (var i = builder.AdditionalHandlers.Count - 1; i >= 0; i--)
+                    {
+                        var handlerType = builder.AdditionalHandlers[i].GetType();
+                        var fullName = handlerType.FullName ?? handlerType.Name;
+                        if (fullName.Contains("Resilience", StringComparison.OrdinalIgnoreCase)
+                            || fullName.Contains("ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
+                        {
+                            builder.AdditionalHandlers.RemoveAt(i);
+                        }
+                    }
+                });
+            });
+
+        services.AddScoped<SovrgnRoutingClient>();
+        return services;
+    }
+}
 
 /// <summary>
 /// OpenAI-compatible HTTP client targeting Tailor Routing (<c>https://api.sovrgn.ai/v1/chat/completions</c>).
@@ -87,6 +135,8 @@ public sealed class SovrgnRoutingClient
     public static Uri? BuildChatCompletionsUri(string? rawUrl)
     {
         var input = string.IsNullOrWhiteSpace(rawUrl) ? DefaultBaseUrl : rawUrl.Trim();
+        if (input.Contains('?') || input.Contains('#') || input.Contains('@'))
+            return null;
         if (!Uri.TryCreate(input, UriKind.Absolute, out var uri))
             return null;
         if (uri.Scheme != Uri.UriSchemeHttps)
@@ -109,7 +159,16 @@ public sealed class SovrgnRoutingClient
     {
         if (string.IsNullOrWhiteSpace(rawUrl))
             return false;
-        if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var uri))
+        var trimmed = rawUrl.Trim();
+        if (trimmed.Contains('?') || trimmed.Contains('#') || trimmed.Contains('@'))
+            return false;
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            return false;
+        if (uri.Scheme != Uri.UriSchemeHttps)
+            return false;
+        if (string.IsNullOrWhiteSpace(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo))
+            return false;
+        if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
             return false;
 
         return uri.Host.EndsWith(".openai.azure.com", StringComparison.OrdinalIgnoreCase)
@@ -141,19 +200,27 @@ public sealed class SovrgnRoutingClient
             return true;
         }
 
-        // Zero-mount migration path: existing AzureAI__Endpoint / AzureAI__ApiKey pointed at https://api.sovrgn.ai/v1
+        // Zero-mount migration path: existing AzureAI__Endpoint / AzureAI__ApiKey pointed at an
+        // OpenAI-compatible HTTPS endpoint (e.g. https://api.sovrgn.ai/v1). Always fail closed
+        // for any non-Azure-OpenAI (or non-HTTPS Azure) URL so DefaultAzureCredential can never
+        // send Entra ID tokens to an arbitrary host.
         if (!string.IsNullOrWhiteSpace(_azureOptions.Endpoint)
-            && !IsAzureOpenAiEndpoint(_azureOptions.Endpoint)
-            && !string.IsNullOrWhiteSpace(_azureOptions.ApiKey))
+            && !IsAzureOpenAiEndpoint(_azureOptions.Endpoint))
         {
             var endpointUri = BuildChatCompletionsUri(_azureOptions.Endpoint);
             if (endpointUri is null)
             {
-                configError = "AzureAI:Endpoint is configured for a non-Azure OpenAI host but is not a valid HTTPS URL without credentials, query, or fragment.";
+                configError = "AzureAI:Endpoint is not a valid HTTPS URL (no embedded credentials, query, or fragment).";
                 return false;
             }
 
-            var model = FirstNonEmpty(_azureOptions.DeploymentName, DefaultModel)!;
+            if (string.IsNullOrWhiteSpace(_azureOptions.ApiKey))
+            {
+                configError = "AzureAI:Endpoint points to a non-Azure OpenAI host but AzureAI:ApiKey is missing; refusing to fall back to Entra ID credentials.";
+                return false;
+            }
+
+            var model = FirstNonEmpty(_configuration["SOVRGN_MODEL"], _azureOptions.DeploymentName, DefaultModel)!;
             var tenant = FirstNonEmpty(_configuration["SOVRGN_TENANT"], _sovrgnOptions.Tenant, DefaultTenant)!;
             resolved = new SovrgnResolvedConfig(endpointUri, _azureOptions.ApiKey.Trim(), model, tenant);
             return true;
@@ -162,7 +229,7 @@ public sealed class SovrgnRoutingClient
         return false;
     }
 
-    public async Task<AiResponse> CompleteChatAsync(
+    public Task<AiResponse> CompleteChatAsync(
         IReadOnlyList<(string Role, string Content)> messages,
         int maxTokens,
         double? temperature,
@@ -172,6 +239,17 @@ public sealed class SovrgnRoutingClient
         if (!TryResolveConfig(out var cfg, out var error) || cfg is null)
             throw new InvalidOperationException(error ?? "Tailor Routing (SOVRGN) is not configured.");
 
+        return CompleteChatAsync(cfg, messages, maxTokens, temperature, jsonObjectResponse, ct);
+    }
+
+    public async Task<AiResponse> CompleteChatAsync(
+        SovrgnResolvedConfig cfg,
+        IReadOnlyList<(string Role, string Content)> messages,
+        int maxTokens,
+        double? temperature,
+        bool jsonObjectResponse,
+        CancellationToken ct = default)
+    {
         var payload = BuildPayload(cfg.Model, messages, maxTokens, temperature, jsonObjectResponse);
 
         var client = _httpClientFactory.CreateClient(HttpClientName);
@@ -200,16 +278,35 @@ public sealed class SovrgnRoutingClient
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
 
-        var content = "No response generated.";
+        string? rawContent = null;
+        string? finishReason = null;
         if (root.TryGetProperty("choices", out var choices)
             && choices.ValueKind == JsonValueKind.Array
-            && choices.GetArrayLength() > 0
-            && choices[0].TryGetProperty("message", out var msg)
-            && msg.TryGetProperty("content", out var contentProp)
-            && contentProp.ValueKind == JsonValueKind.String)
+            && choices.GetArrayLength() > 0)
         {
-            content = contentProp.GetString() ?? "No response generated.";
+            var first = choices[0];
+            if (first.TryGetProperty("finish_reason", out var fr) && fr.ValueKind == JsonValueKind.String)
+                finishReason = fr.GetString();
+            if (first.TryGetProperty("message", out var msg)
+                && msg.ValueKind == JsonValueKind.Object
+                && msg.TryGetProperty("content", out var contentProp)
+                && contentProp.ValueKind == JsonValueKind.String)
+            {
+                rawContent = contentProp.GetString();
+            }
         }
+
+        if (string.Equals(finishReason, "length", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "Tailor Routing completion hit max_tokens length limit from {Host} for model {Model}",
+                cfg.EndpointUri.Host,
+                cfg.Model);
+        }
+
+        var content = string.IsNullOrWhiteSpace(rawContent)
+            ? (jsonObjectResponse ? "{}" : "No response generated.")
+            : rawContent;
 
         var tokensUsed = 0;
         if (root.TryGetProperty("usage", out var usage) && usage.ValueKind == JsonValueKind.Object)

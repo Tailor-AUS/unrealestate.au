@@ -118,7 +118,7 @@ public class AzureAiService : IAiService
             var systemPrompt = SystemPrompts.GetValueOrDefault(mode.ToLower(), SystemPrompts["buy"]);
 
             // Primary path: Tailor Routing (https://api.sovrgn.ai/v1/chat/completions)
-            if (_sovrgnClient.TryResolveConfig(out _, out var sovrgnError))
+            if (_sovrgnClient.TryResolveConfig(out var sovrgnConfig, out var sovrgnError) && sovrgnConfig is not null)
             {
                 var wireMessages = new List<(string Role, string Content)>
                 {
@@ -134,8 +134,9 @@ public class AzureAiService : IAiService
                 }
 
                 return await _sovrgnClient.CompleteChatAsync(
+                    sovrgnConfig,
                     wireMessages,
-                    maxTokens: 1536,
+                    maxTokens: 3072,
                     temperature: 0.7,
                     jsonObjectResponse: false,
                     ct: ct);
@@ -226,11 +227,12 @@ public class AzureAiService : IAiService
             var userPrompt = $"Provide property details for: {address}";
             string content;
 
-            if (_sovrgnClient.TryResolveConfig(out _, out var sovrgnError))
+            if (_sovrgnClient.TryResolveConfig(out var sovrgnConfig, out var sovrgnError) && sovrgnConfig is not null)
             {
                 var sovrgnResponse = await _sovrgnClient.CompleteChatAsync(
+                    sovrgnConfig,
                     [("system", systemPrompt), ("user", userPrompt)],
-                    maxTokens: 1200,
+                    maxTokens: 2560,
                     temperature: 0.3,
                     jsonObjectResponse: true,
                     ct: ct);

@@ -58,16 +58,7 @@ builder.AddRedisDistributedCache("redis");
 
 builder.Services.Configure<AzureAiOptions>(
     builder.Configuration.GetSection(AzureAiOptions.SectionName));
-builder.Services.Configure<SovrgnAiOptions>(
-    builder.Configuration.GetSection(SovrgnAiOptions.SectionName));
-builder.Services.AddHttpClient(SovrgnRoutingClient.HttpClientName, client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(30);
-}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-{
-    AllowAutoRedirect = false,
-});
-builder.Services.AddScoped<SovrgnRoutingClient>();
+builder.Services.AddSovrgnRouting(builder.Configuration);
 builder.Services.AddScoped<IAiService, AzureAiService>();
 builder.Services.AddScoped<ICallIntelligenceService, CallIntelligenceService>();
 
