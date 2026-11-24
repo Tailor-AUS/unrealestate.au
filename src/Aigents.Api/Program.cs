@@ -58,6 +58,7 @@ builder.AddRedisDistributedCache("redis");
 
 builder.Services.Configure<AzureAiOptions>(
     builder.Configuration.GetSection(AzureAiOptions.SectionName));
+builder.Services.AddSovrgnRouting(builder.Configuration);
 builder.Services.AddScoped<IAiService, AzureAiService>();
 builder.Services.AddScoped<ICallIntelligenceService, CallIntelligenceService>();
 
