@@ -22,9 +22,10 @@ public interface IAiService
 
 public class AzureAiService : IAiService
 {
-    private readonly ChatClient _chatClient;
+    private readonly SovrgnRoutingClient _sovrgnClient;
     private readonly ILogger<AzureAiService> _logger;
     private readonly AzureAiOptions _options;
+    private ChatClient? _legacyAzureChatClient;
 
     private static readonly Dictionary<string, string> SystemPrompts = new()
     {
@@ -79,30 +80,35 @@ public class AzureAiService : IAiService
             """,
     };
 
-    public AzureAiService(IOptions<AzureAiOptions> options, ILogger<AzureAiService> logger)
+    public AzureAiService(
+        IOptions<AzureAiOptions> options,
+        SovrgnRoutingClient sovrgnClient,
+        ILogger<AzureAiService> logger)
     {
         _options = options.Value;
+        _sovrgnClient = sovrgnClient;
         _logger = logger;
+    }
 
-        // Create Azure OpenAI client
-        AzureOpenAIClient azureClient;
-        
-        if (!string.IsNullOrEmpty(_options.ApiKey))
-        {
-            // Use API key authentication
-            azureClient = new AzureOpenAIClient(
+    private ChatClient GetLegacyAzureChatClient()
+    {
+        if (_legacyAzureChatClient is not null)
+            return _legacyAzureChatClient;
+
+        if (string.IsNullOrWhiteSpace(_options.Endpoint))
+            throw new InvalidOperationException(
+                "No AI provider configured. Set SOVRGN_API_KEY (recommended) or AzureAI:Endpoint.");
+
+        AzureOpenAIClient azureClient = !string.IsNullOrEmpty(_options.ApiKey)
+            ? new AzureOpenAIClient(
                 new Uri(_options.Endpoint),
-                new System.ClientModel.ApiKeyCredential(_options.ApiKey));
-        }
-        else
-        {
-            // Use Managed Identity (recommended for production)
-            azureClient = new AzureOpenAIClient(
+                new System.ClientModel.ApiKeyCredential(_options.ApiKey))
+            : new AzureOpenAIClient(
                 new Uri(_options.Endpoint),
                 new DefaultAzureCredential());
-        }
 
-        _chatClient = azureClient.GetChatClient(_options.DeploymentName);
+        _legacyAzureChatClient = azureClient.GetChatClient(_options.DeploymentName);
+        return _legacyAzureChatClient;
     }
 
     public async Task<AiResponse> ChatAsync(IEnumerable<ChatMessage> messages, string mode, CancellationToken ct = default)
@@ -110,8 +116,35 @@ public class AzureAiService : IAiService
         try
         {
             var systemPrompt = SystemPrompts.GetValueOrDefault(mode.ToLower(), SystemPrompts["buy"]);
-            
-            // Build messages list
+
+            // Primary path: Tailor Routing (https://api.sovrgn.ai/v1/chat/completions)
+            if (_sovrgnClient.TryResolveConfig(out _, out var sovrgnError))
+            {
+                var wireMessages = new List<(string Role, string Content)>
+                {
+                    ("system", systemPrompt),
+                };
+
+                foreach (var msg in messages)
+                {
+                    if (msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                        wireMessages.Add(("user", msg.Content));
+                    else if (msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
+                        wireMessages.Add(("assistant", msg.Content));
+                }
+
+                return await _sovrgnClient.CompleteChatAsync(
+                    wireMessages,
+                    maxTokens: 1536,
+                    temperature: 0.7,
+                    jsonObjectResponse: false,
+                    ct: ct);
+            }
+
+            if (sovrgnError is not null)
+                throw new InvalidOperationException(sovrgnError);
+
+            // Legacy direct Azure OpenAI path (retained temporarily until prod secrets swap to api.sovrgn.ai)
             var chatMessages = new List<OpenAI.Chat.ChatMessage>
             {
                 new SystemChatMessage(systemPrompt)
@@ -135,7 +168,7 @@ public class AzureAiService : IAiService
                 Temperature = 0.7f,
             };
 
-            var response = await _chatClient.CompleteChatAsync(chatMessages, options, ct);
+            var response = await GetLegacyAzureChatClient().CompleteChatAsync(chatMessages, options, ct);
             
             var content = response.Value.Content.FirstOrDefault()?.Text ?? "No response generated.";
             var usage = response.Value.Usage;
@@ -154,7 +187,7 @@ public class AzureAiService : IAiService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling Azure AI Foundry");
+            _logger.LogError(ex, "Error calling AI service");
             throw;
         }
     }
@@ -191,21 +224,39 @@ public class AzureAiService : IAiService
                 """;
 
             var userPrompt = $"Provide property details for: {address}";
+            string content;
 
-            var chatMessages = new List<OpenAI.Chat.ChatMessage>
+            if (_sovrgnClient.TryResolveConfig(out _, out var sovrgnError))
             {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userPrompt)
-            };
-
-            var options = new ChatCompletionOptions
+                var sovrgnResponse = await _sovrgnClient.CompleteChatAsync(
+                    [("system", systemPrompt), ("user", userPrompt)],
+                    maxTokens: 1200,
+                    temperature: 0.3,
+                    jsonObjectResponse: true,
+                    ct: ct);
+                content = sovrgnResponse.Content;
+            }
+            else if (sovrgnError is not null)
             {
-                MaxOutputTokenCount = 512,
-                Temperature = 0.3f, // Lower temperature for more consistent JSON
-            };
+                throw new InvalidOperationException(sovrgnError);
+            }
+            else
+            {
+                var chatMessages = new List<OpenAI.Chat.ChatMessage>
+                {
+                    new SystemChatMessage(systemPrompt),
+                    new UserChatMessage(userPrompt)
+                };
 
-            var response = await _chatClient.CompleteChatAsync(chatMessages, options, ct);
-            var content = response.Value.Content.FirstOrDefault()?.Text ?? "{}";
+                var options = new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = 512,
+                    Temperature = 0.3f, // Lower temperature for more consistent JSON
+                };
+
+                var response = await GetLegacyAzureChatClient().CompleteChatAsync(chatMessages, options, ct);
+                content = response.Value.Content.FirstOrDefault()?.Text ?? "{}";
+            }
             
             _logger.LogInformation("Property intelligence response for {Address}: {Response}", address, content);
 
