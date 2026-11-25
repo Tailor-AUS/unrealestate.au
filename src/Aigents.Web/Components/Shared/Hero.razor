@@ -7,109 +7,123 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Nav
 @inject IListingService ListingService
-@inject IJSRuntime JS
 
 <div class="ue-home" data-testid="liquid-glass-home">
-    @* ─── Full-bleed Apple Liquid Glass Hero (strictly <= 3 elements) ─── *@
+    @* ─── Full-Viewport Sunlit Apple Liquid Glass Hero (1:1 Keynote Layout) ─── *@
     <section class="ue-hero">
         <div class="ue-hero-photo" aria-hidden="true"></div>
         <div class="ue-hero-scrim" aria-hidden="true"></div>
 
-        <div class="ue-hero-inner">
-            @* Element 1: Headline *@
-            <div class="ue-hero-copy">
-                <span class="ue-nfp-pill">Not-for-profit · Australian-owned · Free forever</span>
-                <h1 class="ue-hero-title">Australian homes. $0 to list.</h1>
-                <p class="ue-hero-sub">
-                    Search, match &amp; enquire with zero pay-to-rank clutter — or paste your agency listing link and auto-post for $0.
-                </p>
-            </div>
+        <div class="ue-hero-stage">
+            <div class="ue-hero-spacer" aria-hidden="true"></div>
 
-            @* Element 2: Refractive Liquid Glass Search / Buyer Brief / Agent Link Capsule *@
-            <div class="ue-capsule-wrap">
-                <div class="ue-mode-pills" role="tablist" aria-label="Search mode">
-                    <button type="button" class="ue-mode-pill @(_mode == "buy" ? "active" : "")" @onclick='() => _mode = "buy"'>Buy</button>
-                    <button type="button" class="ue-mode-pill @(_mode == "match" ? "active" : "")" @onclick='() => _mode = "match"'>AI Match</button>
-                    <button type="button" class="ue-mode-pill @(_mode == "map" ? "active" : "")" @onclick='() => _mode = "map"'>Map</button>
-                    <button type="button" class="ue-mode-pill @(_mode == "agentlink" ? "active" : "")" @onclick='() => _mode = "agentlink"'>Paste Agent Link</button>
-                </div>
+            @* Strictly 2 clean elements in the center: Headline + Clear Frosted Search Capsule *@
+            <div class="ue-hero-center">
+                <h1 class="ue-hero-title">Australian homes. $0 to list.</h1>
 
                 <div class="ue-search-capsule lg-refract">
-                    <span class="ue-search-icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="M21 21l-4.35-4.35" stroke-linecap="round" />
-                        </svg>
-                    </span>
                     <input type="text"
                            class="ue-search-input"
                            data-testid="hero-search-input"
-                           placeholder="@GetPlaceholder()"
+                           placeholder="Search Paddington, New Farm, Burleigh..."
                            @bind="_query"
                            @bind:event="oninput"
                            @onkeyup="HandleKeyup" />
                     <button type="button"
-                            class="ue-search-go"
+                            class="ue-sparkle-btn"
                             data-testid="hero-search-submit"
+                            aria-label="Search or AI Match"
+                            title="Search or AI Match"
                             @onclick="HandleSearch">
-                        <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path d="M10 1.5l2.1 5.4 5.4 2.1-5.4 2.1L10 16.5l-2.1-5.4L2.5 9l5.4-2.1L10 1.5z" />
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M11 2l2.1 6.3L19.4 10.4 13.1 12.5 11 18.8 8.9 12.5 2.6 10.4 8.9 8.3 11 2zm8 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z" />
                         </svg>
-                        <span>@(_mode == "agentlink" ? "Auto-Post" : "Match")</span>
                     </button>
                 </div>
             </div>
 
-            @* Element 3: Floating Liquid Glass Property Preview Cards over pool reflections *@
-            <div class="ue-preview-strip" data-testid="hero-preview-cards">
+            @* Desktop: 3 Luminous Clear Liquid Glass Cards floating over the turquoise pool *@
+            <div class="ue-desktop-cards" data-testid="hero-preview-cards">
+                @if (_featured.Count > 0)
+                {
+                    @for (var idx = 0; idx < _featured.Count; idx++)
+                    {
+                        var l = _featured[idx];
+                        var thumb = ResolveCardImage(l, idx);
+                        <a href="@($"/property/{l.Id}")" class="ue-glass-card lg-refract">
+                            <div class="ue-card-thumb">
+                                <img src="@thumb" alt="@l.Address" referrerpolicy="no-referrer" />
+                            </div>
+                            <div class="ue-card-meta">
+                                <span class="ue-sage-pill">Pre-Market · $0 VPA</span>
+                                <div class="ue-card-bottom">
+                                    <div class="ue-card-price">@FormatPriceShort(l)</div>
+                                    <div class="ue-card-suburb">@FormatSuburbLine(l)</div>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                }
+                else
+                {
+                    <a href="/buyer/matches" class="ue-glass-card lg-refract">
+                        <div class="ue-card-thumb"><img src="/images/hero-queenslander.jpg" alt="Paddington Queenslander" /></div>
+                        <div class="ue-card-meta">
+                            <span class="ue-sage-pill">Pre-Market · $0 VPA</span>
+                            <div class="ue-card-bottom">
+                                <div class="ue-card-price">AI Match</div>
+                                <div class="ue-card-suburb">Explainable buyer brief</div>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="/agents#quick-link-post" class="ue-glass-card lg-refract">
+                        <div class="ue-card-thumb"><img src="/images/card-newfarm.jpg" alt="New Farm residence" /></div>
+                        <div class="ue-card-meta">
+                            <span class="ue-sage-pill">Agents · $0 Forever</span>
+                            <div class="ue-card-bottom">
+                                <div class="ue-card-price">Paste Link</div>
+                                <div class="ue-card-suburb">Auto-post in seconds</div>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="/explore?mode=buy" class="ue-glass-card lg-refract">
+                        <div class="ue-card-thumb"><img src="/images/card-burleigh.jpg" alt="Burleigh coastal home" /></div>
+                        <div class="ue-card-meta">
+                            <span class="ue-sage-pill">Not-for-profit · AU</span>
+                            <div class="ue-card-bottom">
+                                <div class="ue-card-price">Explore Map</div>
+                                <div class="ue-card-suburb">Zero US portal tax</div>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+
+            @* Phone-Native: Swipeable Single Frosted Glass Bottom Sheet (EXACT iPhone reference) *@
+            <div class="ue-phone-sheets" aria-label="Featured homes" data-testid="hero-preview-cards-mobile">
                 @if (_featured.Count > 0)
                 {
                     @foreach (var item in _featured)
                     {
                         var l = item;
-                        var isSaved = _savedIds.Contains(l.Id.ToString());
-                        <article class="ue-glass-card lg-refract">
-                            <a href="@($"/property/{l.Id}")" class="ue-card-thumb" aria-label="View @l.Address">
-                                <img src="@ResolveCardImage(l)" alt="@l.Address" referrerpolicy="no-referrer" />
-                            </a>
-                            <div class="ue-card-body">
-                                <div class="ue-card-top">
-                                    <span class="ue-card-pill">$0 VPA · Free</span>
-                                    <button type="button"
-                                            class="ue-heart @(isSaved ? "saved" : "")"
-                                            aria-label="@(isSaved ? "Remove from shortlist" : "Save to shortlist")"
-                                            @onclick="() => ToggleSaveAsync(l)">
-                                        @(isSaved ? "♥" : "♡")
-                                    </button>
-                                </div>
-                                <a href="@($"/property/{l.Id}")" class="ue-card-price">@FormatPrice(l)</a>
-                                <div class="ue-card-suburb">@l.Suburb @l.State @l.Postcode</div>
-                                <div class="ue-card-specs">@FormatSpecs(l)</div>
+                        <a href="@($"/property/{l.Id}")" class="ue-phone-sheet lg-refract">
+                            <div class="ue-sheet-grabber" aria-hidden="true"></div>
+                            <div class="ue-sheet-title">@l.Address, @l.Suburb</div>
+                            <div class="ue-sheet-row">
+                                <span>@FormatPhoneSpecs(l)</span>
+                                <span class="ue-sheet-pill">@FormatPriceShort(l) · $0 VPA</span>
                             </div>
-                        </article>
+                        </a>
                     }
                 }
                 else
                 {
-                    <a href="/buyer/matches" class="ue-glass-card ue-empty-card lg-refract">
-                        <div class="ue-card-body">
-                            <span class="ue-card-pill">For Buyers</span>
-                            <div class="ue-card-price">Explainable AI Match</div>
-                            <div class="ue-card-suburb">Ranked by your brief — never by who paid $4,000 for Premiere+.</div>
-                        </div>
-                    </a>
-                    <a href="/agents#quick-link-post" class="ue-glass-card ue-empty-card lg-refract">
-                        <div class="ue-card-body">
-                            <span class="ue-card-pill">For Agents · $0</span>
-                            <div class="ue-card-price">Paste 1 Listing Link</div>
-                            <div class="ue-card-suburb">Auto-post free forever with Call, SMS &amp; 24/7 Voice AI enquiries.</div>
-                        </div>
-                    </a>
-                    <a href="/explore?mode=buy" class="ue-glass-card ue-empty-card lg-refract">
-                        <div class="ue-card-body">
-                            <span class="ue-card-pill">Australian-Owned</span>
-                            <div class="ue-card-price">Explore Spatial Map</div>
-                            <div class="ue-card-suburb">No login wall. No US ad trackers. Open source (Apache 2.0).</div>
+                    <a href="/buyer/matches" class="ue-phone-sheet lg-refract">
+                        <div class="ue-sheet-grabber" aria-hidden="true"></div>
+                        <div class="ue-sheet-title">Find homes that fit your brief</div>
+                        <div class="ue-sheet-row">
+                            <span>Australian-owned · Not-for-profit</span>
+                            <span class="ue-sheet-pill">AI Match</span>
                         </div>
                     </a>
                 }
@@ -117,51 +131,44 @@
         </div>
     </section>
 
-    @* ─── Re-imagined Phone-Native Buyer Pillars ─── *@
+    @* ─── Below-the-fold: Clean Airy Apple Sections ─── *@
     <section class="ue-section">
         <div class="ue-section-head">
-            <span class="ue-eyebrow">Re-imagining Australian Property Sales</span>
-            <h2>Built for your phone. Free for everyone.</h2>
+            <span class="ue-eyebrow">Not-for-profit · Open Source · Australian-Owned</span>
+            <h2>Built for your phone. Free forever.</h2>
             <p>
-                A$1.7 billion leaves Australia every year to US-owned listing portals (News Corp's REA and CoStar's Domain).
-                unrealestate.au is a <strong>not-for-profit</strong> open-source alternative built by Tailor.
+                A$1.7 billion leaves Australia every year to US-owned portals (News Corp's REA and CoStar's Domain).
+                unrealestate.au is the free Australian alternative — listings, search, and buyer enquiries cost $0, always.
             </p>
         </div>
 
         <div class="ue-pillars">
             <article class="lg-surface-strong ue-pillar">
-                <div class="ue-pillar-icon" aria-hidden="true">🎯</div>
-                <h3>Honest buyer matching</h3>
-                <p>Tell us your suburbs, budget, and rooms. Every match explains <em>why</em> it fits — missing details stay marked unknown, and paid bumps don't exist.</p>
-                <a href="/buyer/matches" class="ue-link">Start your buyer brief →</a>
+                <h3>Explainable buyer matching</h3>
+                <p>Tell us your suburbs, budget, and rooms. Every match shows exactly why it scored — missing facts stay marked unknown, and paid bumps don't exist.</p>
+                <a href="/buyer/matches" class="ue-link">Open buyer brief →</a>
             </article>
 
             <article class="lg-surface-strong ue-pillar">
-                <div class="ue-pillar-icon" aria-hidden="true">📱</div>
-                <h3>True cost &amp; zero-signup shortlist</h3>
-                <p>See estimated monthly repayments and state stamp duty right on each home, and heart properties into your phone shortlist without creating an account.</p>
-                <a href="/explore?mode=buy" class="ue-link">Explore homes on map →</a>
+                <h3>True monthly cost &amp; shortlist</h3>
+                <p>Check estimated repayments and state transfer duty right on every listing, and heart homes privately on your phone with zero signup.</p>
+                <a href="/explore?mode=buy" class="ue-link">Explore spatial map →</a>
             </article>
 
             <article class="lg-surface-strong ue-pillar">
-                <div class="ue-pillar-icon" aria-hidden="true">🎙</div>
-                <h3>Call, text or 24/7 AI voice</h3>
-                <p>Tap to call, text, book an inspection, or ask the property's ElevenLabs voice concierge (via <code>api.sovrgn.ai</code>) — straight to the listing agent.</p>
-                <a href="/enquiries" class="ue-link">See enquiry &amp; voice hub →</a>
+                <h3>1-link auto-post &amp; instant enquiries</h3>
+                <p>Agents paste their listing link once to publish for $0, then handle buyer calls, texts, and opt-in 24/7 ElevenLabs voice enquiries via <code>api.sovrgn.ai</code>.</p>
+                <a href="/agents#quick-link-post" class="ue-link">Paste a listing link →</a>
             </article>
         </div>
     </section>
 
-    @* ─── Agent 1-Link Auto-Post Quick Strip ─── *@
     <section class="ue-section">
         <div class="lg-surface-strong ue-agent-banner">
-            <div class="ue-agent-copy">
+            <div>
                 <span class="ue-eyebrow">For Australian Real Estate Agents</span>
                 <h2>Just give us your listing link. We auto-post it for $0.</h2>
-                <p>
-                    Stop asking vendors for $4,000 upfront VPA just to test the market. Paste your agency listing URL — we pull the specs,
-                    publish free forever, and handle buyer calls, texts &amp; voice AI enquiries.
-                </p>
+                <p>Stop asking vendors for $4,000 upfront VPA just to test the market. Keep your commission intact.</p>
             </div>
             <div class="ue-agent-form">
                 <input type="url"
@@ -170,30 +177,28 @@
                        @bind="_quickAgentUrl"
                        @bind:event="oninput" />
                 <button type="button" class="lg-btn lg-btn-primary" @onclick="GoToAgentImport">
-                    Auto-Post Free ($0) →
+                    Continue to Auto-Post ($0) →
                 </button>
             </div>
         </div>
     </section>
 
-    @* ─── Why we exist: funds flow ─── *@
     <section class="ue-section" id="why-we-exist">
         <div class="lg-surface-strong ue-sankey-card">
             <PhotoTaxSankey />
         </div>
     </section>
 
-    @* ─── Clean Not-for-Profit Footer ─── *@
     <footer class="ue-footer">
         <div class="ue-footer-inner lg-surface-strong">
             <div>
-                <strong>unrealestate.au</strong> · Not-for-profit community project by Tailor · Apache 2.0 · Hosted in Australia.
+                <strong>unrealestate.au</strong> · Not-for-profit by Tailor · Apache 2.0 · Hosted in Australia.
                 <div class="ue-footer-sub">No profit margin. No equity. Listings, search &amp; buyer enquiries are free — always.</div>
             </div>
             <div class="ue-footer-links">
-                <a href="/buyer/matches">AI Match</a>
+                <a href="/buyer/matches">Pre-Market &amp; Match</a>
                 <a href="/explore?mode=buy">Map</a>
-                <a href="/agents">For Agents ($0)</a>
+                <a href="/agents">Agents ($0)</a>
                 <a href="/enquiries">Enquiries</a>
                 <a href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener">GitHub</a>
             </div>
@@ -202,140 +207,88 @@
 </div>
 
 <style>
-    .ue-home {
-        width: 100%;
-    }
+    .ue-home { width: 100%; }
 
+    /* Full-viewport sunlit hero stage */
     .ue-hero {
         position: relative;
-        margin-top: calc(-70px - env(safe-area-inset-top, 0px));
-        min-height: 610px;
-        padding: calc(112px + env(safe-area-inset-top, 0px)) 16px 38px;
+        min-height: 100vh;
+        min-height: 100svh;
+        width: 100%;
         display: flex;
-        align-items: flex-end;
         overflow: hidden;
     }
 
     .ue-hero-photo {
         position: absolute;
         inset: 0;
-        background: url('/images/hero-queenslander.jpg') center 45%/cover no-repeat;
-        transform: scale(1.015);
+        background: url('/images/hero-queenslander.jpg') center 42%/cover no-repeat;
+        transform: scale(1.01);
     }
 
     .ue-hero-scrim {
         position: absolute;
         inset: 0;
-        background:
-            radial-gradient(ellipse 75% 48% at 50% 42%, rgba(6, 12, 24, 0.56) 0%, transparent 74%),
-            linear-gradient(
-                180deg,
-                rgba(7, 13, 25, 0.46) 0%,
-                rgba(7, 13, 25, 0.28) 38%,
-                rgba(7, 13, 25, 0.54) 72%,
-                rgba(7, 13, 25, 0.78) 100%
-            );
+        background: var(--lg-photo-scrim);
+        pointer-events: none;
     }
 
-    .ue-hero-inner {
+    .ue-hero-stage {
         position: relative;
         z-index: 2;
-        max-width: 1160px;
+        max-width: 1220px;
         width: 100%;
         margin: 0 auto;
+        padding: calc(88px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
         display: flex;
         flex-direction: column;
+        justify-content: space-between;
         align-items: center;
         gap: 24px;
     }
 
-    .ue-hero-copy {
-        text-align: center;
-        max-width: 760px;
-        color: #ffffff;
+    .ue-hero-spacer {
+        flex: 0.7;
+        min-height: 24px;
     }
 
-    .ue-nfp-pill {
-        display: inline-flex;
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 12px;
-        font-weight: 700;
-        color: #ffffff;
-        background: rgba(16, 185, 129, 0.34);
-        border: 1px solid rgba(255, 255, 255, 0.46);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-    }
-
-    .ue-hero-title {
-        margin: 14px 0 8px;
-        font-size: clamp(34px, 6.2vw, 60px);
-        font-weight: 700;
-        line-height: 1.04;
-        letter-spacing: -0.035em;
-        color: #ffffff;
-        text-shadow: 0 6px 32px rgba(6, 14, 28, 0.46);
-    }
-
-    .ue-hero-sub {
-        margin: 0 auto;
-        max-width: 580px;
-        font-size: clamp(14px, 2vw, 17px);
-        line-height: 1.5;
-        color: rgba(255, 255, 255, 0.92);
-        text-shadow: 0 2px 14px rgba(6, 14, 28, 0.5);
-    }
-
-    .ue-capsule-wrap {
+    .ue-hero-center {
         width: 100%;
-        max-width: 720px;
+        max-width: 780px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
+        text-align: center;
+        gap: 26px;
     }
 
-    .ue-mode-pills {
-        display: inline-flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .ue-mode-pill {
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 12px;
+    .ue-hero-title {
+        margin: 0;
+        font-size: clamp(34px, 5.4vw, 62px);
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
-        background: rgba(12, 20, 36, 0.38);
-        border: 1px solid rgba(255, 255, 255, 0.30);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        cursor: pointer;
-        transition: all 0.2s var(--lg-ease);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        color: #ffffff;
+        text-shadow: 0 3px 28px rgba(10, 22, 40, 0.44), 0 1px 4px rgba(10, 22, 40, 0.34);
     }
 
-    .ue-mode-pill.active {
-        background: rgba(255, 255, 255, 0.92);
-        color: #0b1220;
-        border-color: #ffffff;
-    }
-
+    /* Clear refractive frosted-glass search capsule */
     .ue-search-capsule {
         width: 100%;
+        max-width: 580px;
         border-radius: 9999px;
-        padding: 7px 7px 7px 16px;
+        padding: 6px 6px 6px 18px;
         display: flex;
         align-items: center;
         gap: 10px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(16, 40, 52, 0.28) 100%);
     }
 
-    .ue-search-icon {
-        color: rgba(255, 255, 255, 0.9);
-        display: inline-flex;
-        flex-shrink: 0;
+    @@media (min-width: 520px) {
+        .ue-search-capsule {
+            padding: 7px 8px 7px 24px;
+            gap: 12px;
+        }
     }
 
     .ue-search-input {
@@ -346,54 +299,62 @@
         background: transparent;
         color: #ffffff;
         font-family: inherit;
-        font-size: 15px;
-        font-weight: 500;
-        padding: 9px 4px;
+        font-size: 14px;
+        font-weight: 400;
+        padding: 8px 0;
+        text-shadow: 0 1px 6px rgba(10, 20, 36, 0.25);
+    }
+
+    @@media (min-width: 520px) {
+        .ue-search-input {
+            font-size: 16px;
+        }
     }
 
     .ue-search-input::placeholder {
-        color: rgba(255, 255, 255, 0.78);
+        color: rgba(255, 255, 255, 0.88);
     }
 
-    .ue-search-go {
+    .ue-sparkle-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.90);
+        color: #1f2937;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        min-height: 42px;
-        padding: 0 18px;
-        border-radius: 9999px;
-        border: 1px solid rgba(255, 255, 255, 0.85);
-        background: rgba(255, 255, 255, 0.92);
-        color: #0b1220;
-        font-family: inherit;
-        font-size: 13px;
-        font-weight: 700;
+        justify-content: center;
         cursor: pointer;
         flex-shrink: 0;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
-        transition: transform 0.2s var(--lg-ease);
+        box-shadow: 0 6px 18px rgba(10, 22, 40, 0.18);
+        transition: transform 0.22s var(--lg-spring), background 0.2s ease;
     }
 
-    .ue-search-go:hover {
-        transform: scale(1.02);
+    .ue-sparkle-btn:hover {
+        transform: scale(1.06);
         background: #ffffff;
     }
 
-    .ue-search-go svg { color: #059669; }
-
-    /* Floating Glass Preview Cards over pool water */
-    .ue-preview-strip {
+    /* Desktop: 3 Floating Clear Liquid Glass Cards over the pool */
+    .ue-desktop-cards {
+        display: none;
         width: 100%;
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-top: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: auto;
+        padding-top: 24px;
     }
 
-    @@media (min-width: 720px) {
-        .ue-preview-strip {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
+    @@media (min-width: 860px) {
+        .ue-desktop-cards {
+            display: grid;
+        }
+    }
+
+    @@media (min-width: 1040px) {
+        .ue-desktop-cards {
+            gap: 18px;
         }
     }
 
@@ -401,28 +362,42 @@
         border-radius: 26px;
         padding: 12px;
         display: flex;
-        align-items: center;
+        align-items: stretch;
         gap: 12px;
         color: #ffffff;
         text-decoration: none;
-        transition: transform 0.28s var(--lg-ease);
+        min-height: 106px;
+        min-width: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.17) 0%, rgba(16, 44, 58, 0.34) 100%);
+    }
+
+    @@media (min-width: 1040px) {
+        .ue-glass-card {
+            padding: 14px;
+            gap: 14px;
+            min-height: 112px;
+        }
     }
 
     .ue-glass-card:hover {
-        transform: translateY(-3px);
-    }
-
-    .ue-empty-card {
-        padding: 16px 18px;
+        transform: translateY(-4px);
     }
 
     .ue-card-thumb {
-        width: 84px;
-        height: 84px;
-        border-radius: 18px;
+        width: 88px;
+        height: 74px;
+        border-radius: 14px;
         overflow: hidden;
         flex-shrink: 0;
-        display: block;
+        box-shadow: 0 6px 16px rgba(10, 20, 36, 0.22);
+    }
+
+    @@media (min-width: 1040px) {
+        .ue-card-thumb {
+            width: 112px;
+            height: 84px;
+            border-radius: 16px;
+        }
     }
 
     .ue-card-thumb img {
@@ -432,54 +407,49 @@
         display: block;
     }
 
-    .ue-card-body {
+    .ue-card-meta {
         flex: 1;
         min-width: 0;
-    }
-
-    .ue-card-top {
         display: flex;
+        flex-direction: column;
         justify-content: space-between;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 4px;
     }
 
-    .ue-card-pill {
-        display: inline-block;
+    .ue-sage-pill {
+        align-self: flex-end;
+        max-width: 100%;
         padding: 3px 9px;
         border-radius: 9999px;
-        font-size: 11px;
-        font-weight: 700;
-        background: rgba(16, 185, 129, 0.72);
-        color: #ffffff;
+        font-size: 10.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.96);
+        background: var(--lg-sage-glass);
+        backdrop-filter: blur(12px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .ue-heart {
-        border: none;
-        background: rgba(12, 20, 36, 0.35);
-        color: #ffffff;
-        width: 30px;
-        height: 30px;
-        border-radius: 9999px;
-        font-size: 15px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    @@media (min-width: 1040px) {
+        .ue-sage-pill {
+            padding: 4px 11px;
+            font-size: 11px;
+        }
     }
 
-    .ue-heart.saved {
-        background: rgba(239, 68, 68, 0.85);
+    .ue-card-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
 
     .ue-card-price {
-        display: block;
-        font-size: 19px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
         color: #ffffff;
-        text-decoration: none;
+        text-shadow: 0 1px 10px rgba(8, 18, 34, 0.28);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -487,49 +457,110 @@
 
     .ue-card-suburb {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.86);
+        color: rgba(255, 255, 255, 0.90);
+        text-shadow: 0 1px 8px rgba(8, 18, 34, 0.26);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .ue-card-specs {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.76);
-        margin-top: 2px;
+    /* Phone-Native Swipeable Frosted Bottom Sheet above the circular dock */
+    .ue-phone-sheets {
+        width: 100%;
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding-bottom: 66px;
+        scrollbar-width: none;
     }
 
-    /* Sections below hero */
+    .ue-phone-sheets::-webkit-scrollbar { display: none; }
+
+    @@media (min-width: 860px) {
+        .ue-phone-sheets { display: none; }
+    }
+
+    .ue-phone-sheet {
+        flex: 0 0 100%;
+        scroll-snap-align: center;
+        border-radius: 26px;
+        padding: 10px 18px 16px;
+        color: #ffffff;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(14, 42, 58, 0.42) 100%);
+    }
+
+    .ue-sheet-grabber {
+        width: 34px;
+        height: 4px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.48);
+        margin: 0 auto 2px;
+    }
+
+    .ue-sheet-title {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        text-shadow: 0 1px 10px rgba(8, 18, 34, 0.30);
+    }
+
+    .ue-sheet-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.90);
+    }
+
+    .ue-sheet-pill {
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.24);
+        border: 1px solid rgba(255, 255, 255, 0.36);
+        color: #ffffff;
+        white-space: nowrap;
+    }
+
+    /* Below-the-fold sections */
     .ue-section {
         max-width: 1160px;
-        margin: 34px auto 0;
-        padding: 0 16px;
+        margin: 56px auto 0;
+        padding: 0 20px;
     }
 
     .ue-section-head {
         text-align: center;
-        max-width: 680px;
-        margin: 0 auto 24px;
+        max-width: 660px;
+        margin: 0 auto 28px;
     }
 
     .ue-eyebrow {
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--lg-emerald);
     }
 
     .ue-section-head h2 {
-        margin: 6px 0 8px;
-        font-size: clamp(24px, 4vw, 36px);
+        margin: 6px 0 10px;
+        font-size: clamp(26px, 4vw, 38px);
+        font-weight: 700;
         letter-spacing: -0.03em;
     }
 
     .ue-section-head p {
         margin: 0;
         font-size: 15px;
-        line-height: 1.6;
+        line-height: 1.65;
         color: var(--lg-ink-secondary);
     }
 
@@ -545,32 +576,31 @@
 
     .ue-pillar {
         border-radius: 28px;
-        padding: 24px;
+        padding: 26px;
         display: flex;
         flex-direction: column;
         gap: 10px;
     }
 
-    .ue-pillar-icon { font-size: 28px; }
-    .ue-pillar h3 { margin: 0; font-size: 18px; letter-spacing: -0.02em; }
+    .ue-pillar h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
     .ue-pillar p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); flex: 1; }
-    .ue-link { font-size: 14px; font-weight: 700; color: var(--lg-emerald); text-decoration: none; }
+    .ue-link { font-size: 14px; font-weight: 600; color: var(--lg-emerald); text-decoration: none; }
 
     .ue-agent-banner {
         border-radius: 30px;
-        padding: 26px;
+        padding: 28px;
         display: grid;
         grid-template-columns: 1fr;
-        gap: 18px;
+        gap: 20px;
         align-items: center;
     }
 
     @@media (min-width: 860px) {
-        .ue-agent-banner { grid-template-columns: 1.25fr 1fr; padding: 30px; }
+        .ue-agent-banner { grid-template-columns: 1.25fr 1fr; padding: 34px; }
     }
 
-    .ue-agent-copy h2 { margin: 6px 0 8px; font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.02em; }
-    .ue-agent-copy p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); }
+    .ue-agent-banner h2 { margin: 6px 0 8px; font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.025em; }
+    .ue-agent-banner p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); }
     .ue-agent-form { display: flex; flex-direction: column; gap: 10px; }
 
     .ue-sankey-card {
@@ -582,8 +612,8 @@
 
     .ue-footer {
         max-width: 1160px;
-        margin: 32px auto 12px;
-        padding: 0 16px;
+        margin: 40px auto 0;
+        padding: 0 20px 32px;
     }
 
     .ue-footer-inner {
@@ -598,8 +628,8 @@
     }
 
     .ue-footer-sub { font-size: 12px; color: var(--lg-ink-secondary); margin-top: 3px; }
-    .ue-footer-links { display: flex; flex-wrap: wrap; gap: 14px; }
-    .ue-footer-links a { font-weight: 600; color: var(--lg-ink-secondary); text-decoration: none; }
+    .ue-footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    .ue-footer-links a { font-weight: 500; color: var(--lg-ink-secondary); text-decoration: none; }
     .ue-footer-links a:hover { color: var(--lg-ink); }
 </style>
 
@@ -607,56 +637,36 @@
     [Parameter]
     public EventCallback<string> OnGetStarted { get; set; }
 
-    private string _mode = "buy";
+    private static readonly string[] DefaultCardPhotos =
+    [
+        "/images/hero-queenslander.jpg",
+        "/images/card-newfarm.jpg",
+        "/images/card-burleigh.jpg"
+    ];
+
     private string _query = "";
     private string _quickAgentUrl = "";
     private List<Listing> _featured = [];
-    private HashSet<string> _savedIds = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
-        var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
-        _mode = path switch
-        {
-            "/agent" or "/agents" => "agentlink",
-            "/rent" => "map",
-            _ => "buy"
-        };
-
         try
         {
-            _featured = await ListingService.GetPublishedListingsAsync(3);
+            // Prefer listings with an explicit asking price first, then estimates, then deterministic newest
+            var published = await ListingService.GetPublishedListingsAsync(12);
+            _featured = published
+                .OrderByDescending(l => l.AskingPrice.HasValue)
+                .ThenByDescending(l => l.EstimatedValue.HasValue)
+                .ThenByDescending(l => l.PublishedAt ?? l.CreatedAt)
+                .ThenBy(l => l.Id)
+                .Take(3)
+                .ToList();
         }
         catch
         {
             _featured = [];
         }
     }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                var items = await JS.InvokeAsync<List<LiquidGlassChrome.ShortlistItem>>("ueGlass.getShortlist");
-                if (items is not null)
-                {
-                    _savedIds = items.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    StateHasChanged();
-                }
-            }
-            catch { }
-        }
-    }
-
-    private string GetPlaceholder() => _mode switch
-    {
-        "agentlink" => "Paste your listing URL (https://agency.com.au/...)",
-        "match" => "e.g. Paddington 3 bed under $1.2M",
-        "map" => "Explore suburb or postcode on map...",
-        _ => "Search Paddington, New Farm, Burleigh — or describe your brief..."
-    };
 
     private void HandleKeyup(KeyboardEventArgs e)
     {
@@ -668,23 +678,12 @@
     {
         var q = _query.Trim();
 
-        if (_mode == "agentlink" || q.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || q.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (q.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || q.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            var target = string.IsNullOrEmpty(q)
-                ? "/agents#quick-link-post"
-                : $"/agents?link={Uri.EscapeDataString(q)}#quick-link-post";
-            Nav.NavigateTo(target);
+            Nav.NavigateTo($"/agents?link={Uri.EscapeDataString(q)}#quick-link-post");
             return;
         }
 
-        if (_mode == "map")
-        {
-            var loc = string.IsNullOrEmpty(q) ? "Brisbane" : q;
-            Nav.NavigateTo($"/explore?mode=buy&location={Uri.EscapeDataString(loc)}");
-            return;
-        }
-
-        // Parse simple phone natural-language brief into explainable /buyer/matches query params
         var qs = BuildBriefQuery(q);
         Nav.NavigateTo(string.IsNullOrEmpty(qs) ? "/buyer/matches" : $"/buyer/matches?{qs}");
     }
@@ -695,31 +694,6 @@
         Nav.NavigateTo(string.IsNullOrEmpty(q)
             ? "/agents#quick-link-post"
             : $"/agents?link={Uri.EscapeDataString(q)}#quick-link-post");
-    }
-
-    private async Task ToggleSaveAsync(Listing l)
-    {
-        try
-        {
-            var saved = await JS.InvokeAsync<bool>("ueGlass.toggleShortlist", new
-            {
-                id = l.Id.ToString(),
-                address = l.Address,
-                suburb = l.Suburb,
-                state = string.IsNullOrWhiteSpace(l.State) ? "QLD" : l.State,
-                postcode = l.Postcode,
-                priceDisplay = FormatPrice(l),
-                askingPrice = l.AskingPrice ?? l.EstimatedValue,
-                bedrooms = l.Bedrooms,
-                bathrooms = l.Bathrooms,
-                carSpaces = l.CarSpaces,
-                propertyType = l.PropertyType
-            });
-
-            if (saved) _savedIds.Add(l.Id.ToString());
-            else _savedIds.Remove(l.Id.ToString());
-        }
-        catch { }
     }
 
     private static string BuildBriefQuery(string raw)
@@ -782,7 +756,7 @@
         return string.Join("&", parts);
     }
 
-    private static string ResolveCardImage(Listing l)
+    private static string ResolveCardImage(Listing l, int slotIndex)
     {
         if (!string.IsNullOrWhiteSpace(l.ImageUrls) && l.ImageUrls.StartsWith('['))
         {
@@ -802,24 +776,31 @@
             }
             catch { }
         }
-        return "/images/hero-queenslander.jpg";
+        return DefaultCardPhotos[slotIndex % DefaultCardPhotos.Length];
     }
 
-    private static string FormatPrice(Listing l)
+    private static string FormatPriceShort(Listing l)
     {
         if (!string.IsNullOrWhiteSpace(l.PriceDisplay)) return l.PriceDisplay;
-        if (l.AskingPrice is decimal a && a > 0) return a >= 1_000_000m ? $"${a / 1_000_000m:0.##}M" : $"${a:N0}";
-        if (l.EstimatedValue is decimal e && e > 0) return $"~${e:N0} (est.)";
+        if (l.AskingPrice is decimal a && a > 0)
+            return a >= 1_000_000m ? $"${a / 1_000_000m:0.##}M" : $"${a / 1_000m:0}k";
+        if (l.EstimatedValue is decimal e && e > 0)
+            return e >= 1_000_000m ? $"~${e / 1_000_000m:0.##}M (est.)" : $"~${e / 1_000m:0}k (est.)";
         return "Contact Agent";
     }
 
-    private static string FormatSpecs(Listing l)
+    private static string FormatSuburbLine(Listing l)
     {
-        var specs = new List<string>();
-        if (l.Bedrooms.HasValue) specs.Add($"{l.Bedrooms} bd");
-        if (l.Bathrooms.HasValue) specs.Add($"{l.Bathrooms} ba");
-        if (l.CarSpaces.HasValue) specs.Add($"{l.CarSpaces} car");
-        if (specs.Count == 0) specs.Add(string.IsNullOrWhiteSpace(l.PropertyType) ? "Property" : l.PropertyType);
-        return string.Join(" · ", specs);
+        var state = string.IsNullOrWhiteSpace(l.State) ? "QLD" : l.State.Trim();
+        return $"{l.Suburb} {state}";
+    }
+
+    private static string FormatPhoneSpecs(Listing l)
+    {
+        var parts = new List<string>();
+        if (l.Bedrooms.HasValue) parts.Add($"{l.Bedrooms} bed");
+        if (l.Bathrooms.HasValue) parts.Add($"{l.Bathrooms} bath");
+        if (l.CarSpaces.HasValue) parts.Add($"{l.CarSpaces} car");
+        return parts.Count > 0 ? string.Join(" · ", parts) : l.PropertyType;
     }
 }

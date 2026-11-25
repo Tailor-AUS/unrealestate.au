@@ -420,9 +420,8 @@ else
 
     .pd-hero {
         position: relative;
-        margin-top: calc(-70px - env(safe-area-inset-top, 0px));
-        min-height: 410px;
-        padding: calc(102px + env(safe-area-inset-top, 0px)) 16px 26px;
+        min-height: 52svh;
+        padding: calc(96px + env(safe-area-inset-top, 0px)) 16px 28px;
         display: flex;
         align-items: flex-end;
         overflow: hidden;
@@ -438,7 +437,7 @@ else
         display: block;
     }
 
-    .pd-hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 24, 0.48) 0%, rgba(6, 12, 24, 0.22) 40%, rgba(6, 12, 24, 0.78) 100%); }
+    .pd-hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16, 28, 46, 0.36) 0%, rgba(12, 22, 38, 0.12) 42%, rgba(8, 18, 34, 0.56) 100%); }
     .pd-hero-inner { position: relative; z-index: 2; max-width: 1140px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
     .pd-hero-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
     .pd-badges, .pd-hero-utils { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -450,11 +449,11 @@ else
     .pd-glass-icon { min-height: 38px; padding: 0 14px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.45); background: rgba(12, 20, 36, 0.48); backdrop-filter: blur(18px); color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; }
     .pd-glass-icon.saved { background: rgba(239, 68, 68, 0.85); border-color: rgba(255, 255, 255, 0.7); }
 
-    .pd-hero-sheet { border-radius: 28px; padding: 20px 22px; color: #ffffff; }
+    .pd-hero-sheet { border-radius: 28px; padding: 20px 22px; color: #ffffff; background: linear-gradient(135deg, rgba(16, 30, 48, 0.42) 0%, rgba(12, 24, 40, 0.56) 100%); text-shadow: 0 1px 12px rgba(8, 18, 34, 0.35); }
     .pd-hero-sheet h1 { margin: 0; font-size: clamp(24px, 4.4vw, 38px); font-weight: 800; letter-spacing: -0.03em; }
-    .pd-suburb { margin: 4px 0 12px; font-size: 15px; color: rgba(255, 255, 255, 0.90); }
+    .pd-suburb { margin: 4px 0 12px; font-size: 15px; color: rgba(255, 255, 255, 0.92); }
     .pd-price-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-    .pd-price { font-size: clamp(22px, 3.2vw, 30px); font-weight: 800; color: #fde68a; }
+    .pd-price { font-size: clamp(22px, 3.2vw, 30px); font-weight: 700; color: #ffffff; }
     .pd-mode-pill { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 9999px; background: rgba(16, 185, 129, 0.32); border: 1px solid rgba(255, 255, 255, 0.34); }
 
     .pd-wrap { max-width: 1140px; margin: 18px auto 0; padding: 0 16px; display: flex; flex-direction: column; gap: 18px; }
