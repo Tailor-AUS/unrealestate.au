@@ -17,6 +17,7 @@ using Carter;
 using Fido2NetLib;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -47,10 +48,21 @@ builder.AddServiceDefaults();
 builder.AddNpgsqlDbContext<AigentsDbContext>("unrealestate");
 
 // ───────────────────────────────────────────────────────────────
-// REDIS CACHE
+// REDIS CACHE (FALLBACK TO IN-MEMORY WHEN REDIS IS UNSET)
 // ───────────────────────────────────────────────────────────────
 
-builder.AddRedisDistributedCache("redis");
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("redis")))
+    builder.AddRedisDistributedCache("redis");
+else
+    builder.Services.AddDistributedMemoryCache();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ───────────────────────────────────────────────────────────────
 // AI SERVICES
@@ -175,6 +187,8 @@ var app = builder.Build();
 // ───────────────────────────────────────────────────────────────
 // MIDDLEWARE
 // ───────────────────────────────────────────────────────────────
+
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {

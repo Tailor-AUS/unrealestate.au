@@ -16,6 +16,8 @@ WORKDIR /src
 
 # Copy csproj files and restore
 COPY ["src/Aigents.Web/Aigents.Web.csproj", "src/Aigents.Web/"]
+COPY ["src/Aigents.Domain/Aigents.Domain.csproj", "src/Aigents.Domain/"]
+COPY ["src/Aigents.Infrastructure/Aigents.Infrastructure.csproj", "src/Aigents.Infrastructure/"]
 COPY ["src/Aigents.ServiceDefaults/Aigents.ServiceDefaults.csproj", "src/Aigents.ServiceDefaults/"]
 RUN dotnet restore "src/Aigents.Web/Aigents.Web.csproj"
 
