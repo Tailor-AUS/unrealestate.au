@@ -221,9 +221,9 @@ if (localFixtureDb)
 
 app.UseForwardedHeaders();
 app.MapStaticAssets();
-app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 app.UseOutputCache();
 
 // ───────────────────────────────────────────────────────────────
