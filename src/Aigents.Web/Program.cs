@@ -11,6 +11,7 @@ using Aigents.Web.Components;
 using Aigents.Web.Components.Account;
 using Aigents.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Http;
 
@@ -53,10 +54,22 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 
 // ───────────────────────────────────────────────────────────────
-// OUTPUT CACHING (REDIS)
+// OUTPUT CACHING (REDIS WHEN CONFIGURED, IN-MEMORY OTHERWISE)
 // ───────────────────────────────────────────────────────────────
 
-builder.AddRedisOutputCache("redis");
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("redis")))
+    builder.AddRedisOutputCache("redis");
+else
+    builder.Services.AddOutputCache();
+
+// Trust TLS-terminating reverse proxy headers (Azure Container Apps Envoy / Caddy)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ───────────────────────────────────────────────────────────────
 // API CLIENT
@@ -206,10 +219,11 @@ if (localFixtureDb)
 // MIDDLEWARE
 // ───────────────────────────────────────────────────────────────
 
+app.UseForwardedHeaders();
 app.MapStaticAssets();
-app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 app.UseOutputCache();
 
 // ───────────────────────────────────────────────────────────────
