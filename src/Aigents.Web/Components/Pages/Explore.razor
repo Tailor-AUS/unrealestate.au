@@ -21,14 +21,7 @@
     <div class="glow-orb glow-1"></div>
     <div class="glow-orb glow-2"></div>
 
-    <header class="explore-header glass-header">
-        <div class="logo-group">
-            <a href="/" class="logo-link">
-                <span class="logo-icon">✦</span>
-                <span class="logo-text">unreal<span class="logo-tld">.estate</span></span>
-            </a>
-        </div>
-        
+    <header class="explore-header glass-header lg-surface-strong">
         <div class="search-bar glass-search">
             <div class="mode-badge">@_modeDisplay</div>
             <div class="search-input-wrapper">
@@ -51,9 +44,6 @@
             <button class="action-btn primary" @onclick="StartChat">
                 @(Mode?.ToLower().Contains("sell") == true ? "Get Valuation" : "Chat with Agent")
             </button>
-            <div class="user-avatar">
-                @(User?.Identity?.Name?[0] ?? 'G')
-            </div>
         </div>
     </header>
 
@@ -688,60 +678,33 @@
 .explore-container {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: calc(100vh - 76px);
     width: 100%;
     position: relative;
     overflow: hidden;
-    font-family: 'Inter', 'Outfit', -apple-system, sans-serif;
-    background: #ffffff;
+    font-family: var(--lg-font);
+    background: transparent;
+    color: var(--lg-ink);
     
-    --bg-base: #ffffff;
-    --accent: #6366f1;
-    --accent-glow: rgba(99, 102, 241, 0.15);
-    --gradient-1: #7c3aed;
-    --gradient-2: #4f46e5;
-    --text-primary: #1a1a2e;
-    --text-secondary: #4b5563;
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(0, 0, 0, 0.08);
-    --card-bg: rgba(255, 255, 255, 0.9);
-}
-
-/* Persona Themes - Pure white backgrounds */
-.explore-container.persona-buy {
-    --accent: #22d3ee;
-    --accent-glow: rgba(34, 211, 238, 0.06);
-    --gradient-1: #06b6d4;
-    --gradient-2: #3b82f6;
-    --bg-base: #ffffff;
-    background: #ffffff;
-}
-
-.explore-container.persona-sell {
-    --accent: #10b981;
-    --accent-glow: rgba(16, 185, 129, 0.06);
+    --bg-base: var(--lg-bg);
+    --accent: var(--lg-emerald-bright);
+    --accent-glow: rgba(16, 185, 129, 0.12);
     --gradient-1: #059669;
-    --gradient-2: #fbbf24;
-    --bg-base: #ffffff;
-    background: #ffffff;
+    --gradient-2: #0284c7;
+    --text-primary: var(--lg-ink);
+    --text-secondary: var(--lg-ink-secondary);
+    --glass-bg: var(--lg-glass-strong);
+    --glass-border: var(--lg-border);
+    --card-bg: var(--lg-glass-strong);
 }
 
-.explore-container.persona-rent {
-    --accent: #ec4899;
-    --accent-glow: rgba(236, 72, 153, 0.06);
-    --gradient-1: #db2777;
-    --gradient-2: #f43f5e;
-    --bg-base: #ffffff;
-    background: #ffffff;
-}
-
+/* Persona Themes inherit Auto Light/Dark Liquid Glass */
+.explore-container.persona-buy,
+.explore-container.persona-sell,
+.explore-container.persona-rent,
 .explore-container.persona-agent {
-    --accent: #8b5cf6;
-    --accent-glow: rgba(139, 92, 246, 0.06);
-    --gradient-1: #7c3aed;
-    --gradient-2: #6366f1;
-    --bg-base: #ffffff;
-    background: #ffffff;
+    --bg-base: var(--lg-bg);
+    background: transparent;
 }
 
 /* Animated Mesh Background - Very subtle for light theme */
@@ -786,18 +749,19 @@
     right: -100px;
 }
 
-/* Glass Header - Light version */
+/* Glass Header — sits cleanly below global Liquid Glass topbar and adapts to auto light/dark */
 .glass-header {
     position: sticky;
-    top: 0;
-    z-index: 100;
+    top: 68px;
+    z-index: 40;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 32px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 12px 24px;
+    background: var(--lg-glass-strong);
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    border-bottom: 1px solid var(--lg-border-subtle);
 }
 
 .logo-group {
@@ -823,18 +787,18 @@
     color: var(--accent);
 }
 
-/* Search Bar - Light theme */
+/* Search Bar - Auto Light/Dark */
 .glass-search {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--lg-input-bg);
+    border: 1px solid var(--lg-input-border);
     border-radius: 100px;
     padding: 8px 8px 8px 16px;
     max-width: 500px;
     flex: 1;
-    margin: 0 32px;
+    margin: 0 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -860,12 +824,12 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #1a1a2e;
+    color: var(--lg-ink);
     font-size: 14px;
 }
 
 .search-input-wrapper input::placeholder {
-    color: #9ca3af;
+    color: var(--lg-ink-muted);
 }
 
 .search-btn {
@@ -952,7 +916,7 @@
     .explore-promo-wrap { padding: 12px 16px 0 16px; }
 }
 
-/* Filter Panel - Light theme */
+/* Filter Panel - Auto Light/Dark */
 .filter-panel {
     position: fixed;
     left: -320px;
@@ -960,13 +924,14 @@
     bottom: 0;
     width: 300px;
     padding: 80px 24px 24px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(0, 0, 0, 0.08);
-    z-index: 99;
+    background: var(--lg-glass-sheet);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-right: 1px solid var(--lg-border-subtle);
+    z-index: 60;
     transition: left 0.3s ease;
     overflow-y: auto;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.06);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
 }
 
 .filter-panel.open {

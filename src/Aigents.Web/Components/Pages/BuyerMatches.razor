@@ -1,25 +1,34 @@
 @page "/buyer/matches"
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using Aigents.Web.Components.Shared
 @using Aigents.Web.Services
 @using Aigents.Domain.Entities
 @using Aigents.Domain.Matching
 @inject IListingService ListingService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Your matches | unrealestate.au</PageTitle>
 
 <div class="bm-wrap">
     <header class="bm-head">
+        <span class="bm-eyebrow">Explainable Buyer Match · Zero Pay-to-Rank</span>
         <h1>Homes that match your brief</h1>
         <p class="bm-sub">Tell us what you want. Every match shows why it scored — from the details the listing agent supplied.</p>
+
+        <div class="bm-presets" aria-label="Quick buyer briefs">
+            <button type="button" class="lg-surface bm-preset" @onclick='() => ApplyPreset("Paddington", "House", 3, 1_200_000m)'>Paddington Houses ≤ $1.2M</button>
+            <button type="button" class="lg-surface bm-preset" @onclick='() => ApplyPreset("New Farm", "Unit", 2, 1_000_000m)'>New Farm Units</button>
+            <button type="button" class="lg-surface bm-preset" @onclick='() => ApplyPreset("Paddington, New Farm", "", 3, null)'>3+ Bed Homes</button>
+        </div>
     </header>
 
-    <form class="bm-form" @onsubmit="ApplyAsync" @onsubmit:preventDefault="true" data-testid="buyer-prefs-form">
+    <form class="bm-form lg-surface-strong" @onsubmit="ApplyAsync" @onsubmit:preventDefault="true" data-testid="buyer-prefs-form">
         <label>Suburbs <span class="bm-hint">comma-separated</span>
-            <input data-testid="pref-suburbs" @bind="_suburbs" placeholder="Paddington, New Farm" />
+            <input class="lg-input" data-testid="pref-suburbs" @bind="_suburbs" placeholder="Paddington, New Farm" />
         </label>
         <label>Property type
-            <select data-testid="pref-type" @bind="_type">
+            <select class="lg-select" data-testid="pref-type" @bind="_type">
                 <option value="">Any</option>
                 <option>House</option>
                 <option>Unit</option>
@@ -27,11 +36,11 @@
                 <option>Land</option>
             </select>
         </label>
-        <label>Min beds <input data-testid="pref-beds" type="number" min="0" @bind="_minBeds" /></label>
-        <label>Min baths <input data-testid="pref-baths" type="number" min="0" @bind="_minBaths" /></label>
-        <label>Min price <input data-testid="pref-min-price" type="number" min="0" step="1000" @bind="_minPrice" /></label>
-        <label>Max price <input data-testid="pref-max-price" type="number" min="0" step="1000" @bind="_maxPrice" /></label>
-        <button type="submit" class="bm-go" data-testid="pref-submit">Find matches</button>
+        <label>Min beds <input class="lg-input" data-testid="pref-beds" type="number" min="0" @bind="_minBeds" /></label>
+        <label>Min baths <input class="lg-input" data-testid="pref-baths" type="number" min="0" @bind="_minBaths" /></label>
+        <label>Min price <input class="lg-input" data-testid="pref-min-price" type="number" min="0" step="1000" @bind="_minPrice" /></label>
+        <label>Max price <input class="lg-input" data-testid="pref-max-price" type="number" min="0" step="1000" @bind="_maxPrice" /></label>
+        <button type="submit" class="lg-btn lg-btn-primary bm-go" data-testid="pref-submit">Find matches</button>
     </form>
 
     @if (_loading)
@@ -40,11 +49,11 @@
     }
     else if (!_prefs.HasAny)
     {
-        <p class="bm-note" data-testid="matches-empty-brief">Add at least one preference to see matches.</p>
+        <p class="bm-note lg-surface-strong bm-notice" data-testid="matches-empty-brief">Add at least one preference to see matches.</p>
     }
     else if (_matches.Count == 0)
     {
-        <p class="bm-note" data-testid="matches-none">No published listings match yet. Try widening your brief.</p>
+        <p class="bm-note lg-surface-strong bm-notice" data-testid="matches-none">No published listings match yet. Try widening your brief.</p>
     }
     else
     {
@@ -55,13 +64,22 @@
             @foreach (var m in _matches)
             {
                 var l = _byId[m.ListingId];
-                <li class="bm-card" data-testid="match-card">
+                var isSaved = _savedIds.Contains(l.Id.ToString());
+                <li class="bm-card lg-surface-strong" data-testid="match-card">
                     <div class="bm-card-top">
                         <div>
                             <div class="bm-addr" data-testid="match-address">@l.Address</div>
-                            <div class="bm-meta">@l.Suburb · @l.PropertyType · @Rooms(l)</div>
+                            <div class="bm-meta">@l.Suburb · @l.PropertyType · @Rooms(l) · @FormatPrice(l)</div>
                         </div>
-                        <div class="bm-score" data-testid="match-score" aria-label="Match score @m.Score out of 100">@m.Score<span>/100</span></div>
+                        <div class="bm-score-wrap">
+                            <div class="bm-score" data-testid="match-score" aria-label="Match score @m.Score out of 100">@m.Score<span>/100</span></div>
+                            <button type="button"
+                                    class="bm-heart @(isSaved ? "saved" : "")"
+                                    aria-label="@(isSaved ? "Remove from shortlist" : "Save to shortlist")"
+                                    @onclick="() => ToggleSaveAsync(l)">
+                                @(isSaved ? "♥" : "♡")
+                            </button>
+                        </div>
                     </div>
                     <ul class="bm-why" data-testid="match-why">
                         @foreach (var c in m.Criteria)
@@ -72,7 +90,9 @@
                             </li>
                         }
                     </ul>
-                    <a class="bm-view" href="@($"/property/{l.Id}")" data-testid="match-view">View property →</a>
+                    <div class="bm-card-foot">
+                        <a class="lg-btn lg-btn-primary bm-view" href="@($"/property/{l.Id}")" data-testid="match-view">View property →</a>
+                    </div>
                 </li>
             }
         </ol>
@@ -87,33 +107,70 @@
 </div>
 
 <style>
-    .bm-wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
-    .bm-head h1 { font-size: 1.9rem; margin: 0 0 6px; }
-    .bm-sub { color: #475569; margin: 0 0 20px; }
-    .bm-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
-    .bm-form label { display: flex; flex-direction: column; font-size: .85rem; font-weight: 600; color: #334155; gap: 4px; }
-    .bm-form input, .bm-form select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: .95rem; }
-    .bm-hint { font-weight: 400; color: #64748b; font-size: .75rem; }
-    .bm-go { padding: 10px 14px; border: 0; border-radius: 8px; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
-    .bm-go:focus-visible, .bm-view:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
-    .bm-note { color: #334155; }
-    .bm-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
-    .bm-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: #fff; }
-    .bm-card-top { display: flex; justify-content: space-between; gap: 12px; }
-    .bm-addr { font-weight: 700; font-size: 1.05rem; }
-    .bm-meta { color: #64748b; font-size: .9rem; }
-    .bm-score { font-size: 1.8rem; font-weight: 800; color: #0f766e; white-space: nowrap; }
-    .bm-score span { font-size: .9rem; color: #64748b; font-weight: 600; }
-    .bm-why { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; font-size: .92rem; }
-    .bm-c { padding: 6px 10px; border-radius: 8px; }
-    .bm-met { background: #ecfdf5; }
-    .bm-partial { background: #fffbeb; }
-    .bm-notmet { background: #fef2f2; }
-    .bm-unknown { background: #f1f5f9; }
-    .bm-icon { display: inline-block; width: 1.2em; }
+    .bm-wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 64px; }
+    .bm-eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--lg-emerald); }
+    .bm-head h1 { font-size: clamp(26px, 4.5vw, 38px); letter-spacing: -0.03em; margin: 4px 0 6px; }
+    .bm-sub { color: var(--lg-ink-secondary); margin: 0 0 14px; font-size: 15px; }
+
+    .bm-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .bm-preset {
+        padding: 8px 14px;
+        border-radius: 9999px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--lg-ink);
+        cursor: pointer;
+    }
+
+    .bm-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        gap: 12px;
+        align-items: end;
+        border-radius: 28px;
+        padding: 18px;
+        margin-bottom: 20px;
+    }
+    .bm-form label { display: flex; flex-direction: column; font-size: 12px; font-weight: 600; color: var(--lg-ink-secondary); gap: 5px; }
+    .bm-hint { font-weight: 500; color: var(--lg-ink-muted); font-size: 11px; }
+    .bm-go { width: 100%; }
+
+    .bm-note { color: var(--lg-ink-secondary); font-size: 14px; margin: 0 0 14px; }
+    .bm-notice { border-radius: 22px; padding: 18px 20px; }
+
+    .bm-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+    .bm-card { border-radius: 28px; padding: 20px; }
+    .bm-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .bm-addr { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .bm-meta { color: var(--lg-ink-secondary); font-size: 13px; margin-top: 2px; }
+    .bm-score-wrap { display: flex; align-items: center; gap: 10px; }
+    .bm-score { font-size: 28px; font-weight: 800; color: var(--lg-emerald); white-space: nowrap; letter-spacing: -0.03em; }
+    .bm-score span { font-size: 13px; color: var(--lg-ink-muted); font-weight: 600; }
+
+    .bm-heart {
+        width: 38px;
+        height: 38px;
+        border-radius: 9999px;
+        border: 1px solid var(--lg-border-subtle);
+        background: var(--lg-glass);
+        color: var(--lg-ink);
+        font-size: 17px;
+        cursor: pointer;
+    }
+    .bm-heart.saved { background: rgba(239, 68, 68, 0.85); border-color: transparent; color: #ffffff; }
+
+    .bm-why { list-style: none; padding: 0; margin: 14px 0 16px; display: grid; gap: 7px; font-size: 13px; }
+    .bm-c { padding: 8px 12px; border-radius: 14px; line-height: 1.45; }
+    .bm-met { background: var(--lg-emerald-soft); color: var(--lg-ink); }
+    .bm-partial { background: var(--lg-amber-soft); color: var(--lg-ink); }
+    .bm-notmet { background: var(--lg-danger-soft); color: var(--lg-ink); }
+    .bm-unknown { background: var(--lg-border-subtle); color: var(--lg-ink-secondary); }
+
+    .bm-icon { display: inline-block; width: 1.25em; font-weight: 700; }
     .bm-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .bm-view { font-weight: 700; color: #0f766e; }
-    .bm-foot { margin-top: 24px; font-size: .82rem; color: #64748b; }
+    .bm-card-foot { display: flex; justify-content: flex-end; }
+    .bm-view { min-height: 40px; padding: 8px 18px; font-size: 13px; }
+    .bm-foot { margin-top: 24px; font-size: 12px; line-height: 1.55; color: var(--lg-ink-muted); }
 </style>
 
 @code {
@@ -130,6 +187,7 @@
     private BuyerPreferences _prefs = new();
     private IReadOnlyList<BuyerMatch> _matches = [];
     private Dictionary<Guid, Listing> _byId = new();
+    private HashSet<string> _savedIds = new(StringComparer.OrdinalIgnoreCase);
     private int _evaluatedCount;
     private int _totalCandidates;
     private bool _truncated;
@@ -139,6 +197,34 @@
     {
         _suburbs = QSuburbs; _type = QType; _minBeds = QBeds; _minBaths = QBaths; _minPrice = QMinPrice; _maxPrice = QMaxPrice;
         await RunAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var items = await JS.InvokeAsync<List<LiquidGlassChrome.ShortlistItem>>("ueGlass.getShortlist");
+                if (items is not null)
+                {
+                    _savedIds = items.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private Task ApplyPreset(string suburbs, string type, int? beds, decimal? maxPrice)
+    {
+        _suburbs = suburbs;
+        _type = type;
+        _minBeds = beds;
+        _minBaths = null;
+        _minPrice = null;
+        _maxPrice = maxPrice;
+        return ApplyAsync();
     }
 
     private Task ApplyAsync()
@@ -184,6 +270,39 @@
                 new ListingFacts(l.Id, l.Suburb, l.PropertyType, l.Bedrooms, l.Bathrooms, l.AskingPrice, l.EstimatedValue)));
         }
         finally { _loading = false; }
+    }
+
+    private async Task ToggleSaveAsync(Listing l)
+    {
+        try
+        {
+            var saved = await JS.InvokeAsync<bool>("ueGlass.toggleShortlist", new
+            {
+                id = l.Id.ToString(),
+                address = l.Address,
+                suburb = l.Suburb,
+                state = string.IsNullOrWhiteSpace(l.State) ? "QLD" : l.State,
+                postcode = l.Postcode,
+                priceDisplay = FormatPrice(l),
+                askingPrice = l.AskingPrice ?? l.EstimatedValue,
+                bedrooms = l.Bedrooms,
+                bathrooms = l.Bathrooms,
+                carSpaces = l.CarSpaces,
+                propertyType = l.PropertyType
+            });
+
+            if (saved) _savedIds.Add(l.Id.ToString());
+            else _savedIds.Remove(l.Id.ToString());
+        }
+        catch { }
+    }
+
+    private static string FormatPrice(Listing l)
+    {
+        if (!string.IsNullOrWhiteSpace(l.PriceDisplay)) return l.PriceDisplay;
+        if (l.AskingPrice is decimal a && a > 0) return $"${a:N0}";
+        if (l.EstimatedValue is decimal e && e > 0) return $"~${e:N0} (est.)";
+        return "Price on enquiry";
     }
 
     private static string Rooms(Listing l) =>

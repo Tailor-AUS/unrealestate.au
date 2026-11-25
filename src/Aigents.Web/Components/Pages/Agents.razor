@@ -1,1183 +1,613 @@
 @page "/agents"
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using System.Security.Claims
+@using System.Text.Json
+@using Aigents.Domain.Entities
+@using Aigents.Domain.Matching
+@using Aigents.Infrastructure.Services.AI
+@using Aigents.Infrastructure.Services.Import
+@using Aigents.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
+@inject IListingLinkImporter LinkImporter
+@inject IListingService ListingService
+@inject ISovrgnVoiceAssistantClient VoiceClient
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
-<PageTitle>unreal.estate for Agents — Free, not-for-profit, open source. By Tailor (50k+ users).</PageTitle>
+<PageTitle>For Agents — Paste a link, auto-post free forever · unrealestate.au</PageTitle>
 
-<div class="agent-wrapper">
-    @* Interactive ripple background *@
-    <canvas id="ripple-canvas-agents" class="ripple-canvas"></canvas>
-    <div class="agent-bg"></div>
-    
-    @* Navigation *@
-    <nav class="agent-nav">
-        <div class="nav-container">
-            <a href="/" class="logo">
-                <span class="logo-mark">◆</span>
-                <span class="logo-text">unreal.estate</span>
-            </a>
-            <div class="nav-links">
-                <a href="/chat?mode=buy" class="nav-link">For Buyers</a>
-                <a href="#how-it-works" class="nav-link">How It Works</a>
-                <a href="#pricing" class="nav-link">Pricing</a>
-                <button class="nav-cta" @onclick="GoToRegister">Try Free</button>
-            </div>
-        </div>
-    </nav>
+<div class="ag-page">
+    @* Hero + 1-Link Auto-Post Studio *@
+    <section class="ag-hero" id="quick-link-post">
+        <div class="ag-hero-bg" aria-hidden="true"></div>
+        <div class="ag-hero-scrim" aria-hidden="true"></div>
 
-    @* Hero Section - Split Layout *@
-    <section class="hero-section">
-        <div class="hero-grid">
-            @* Left Content *@
-            <div class="hero-left animate-fade-up">
-                <div class="eyebrow">
-                    <span class="eyebrow-icon">◆</span>
-                    <span>A not-for-profit by Tailor · Open source · No commercial agenda</span>
-                </div>
-
-                <h1 class="hero-headline">
-                    A$1.7 billion.<br/>
-                    Every year.<br/>
-                    <span class="headline-gradient">Out of Australia.</span>
-                </h1>
-
-                <p class="hero-subheadline">
-                    unreal.estate isn't a SaaS. It's a not-for-profit community project by
-                    <strong>Tailor</strong> — the team behind the open Australian fuel-price app
-                    already used by <strong>50,000+ Aussies</strong>. Every Australian home sale
-                    routes through a US-owned listing portal that charges thousands just to
-                    publish photos and a description. News Corp owns realestate.com.au. CoStar
-                    (Virginia) bought Domain in August 2025. We got fed up. So we built the
-                    open-source alternative.
+        <div class="ag-hero-inner">
+            <div class="ag-copy">
+                <span class="ag-pill-badge">Not-for-profit · Australian-owned · Apache 2.0</span>
+                <h1>Paste your listing link. We auto-post it for $0 — forever.</h1>
+                <p>
+                    Stop making your vendors wire $4,000 upfront to US-owned portals just to test the market.
+                    Give us your listing URL — we pull the details, publish for <strong>$0</strong>, and handle buyer
+                    <strong>calls, texts &amp; 24/7 AI voice enquiries</strong> straight to you.
                 </p>
 
-                @* Single primary CTA — agent register *@
-                <div class="agent-paths">
-                    <div class="agent-path" @onclick="GoToRegister">
-                        <div class="path-icon">🇦🇺</div>
-                        <div class="path-content">
-                            <strong>Try unreal.estate free</strong>
-                            <span>For Australian-licensed real estate agents — Brisbane &amp; Gold Coast first.</span>
-                        </div>
-                        <span class="path-arrow">→</span>
-                    </div>
-                </div>
-
-                @* Trust Badges *@
-                <div class="trust-badges">
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>Australian-owned</span>
-                    </div>
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>Open source</span>
-                    </div>
-                    <div class="trust-badge">
-                        <span class="badge-check">✓</span>
-                        <span>No per-listing fees</span>
-                    </div>
+                <div class="ag-trust-row">
+                    <span>✓ $0 listing fees, always</span>
+                    <span>✓ Zero margin · Not-for-profit</span>
+                    <span>✓ Keep 100% of your commission</span>
                 </div>
             </div>
-            
-            @* Right Visual — agent dashboard mockup *@
-            <div class="hero-right animate-fade-up delay-2">
-                <div class="mockup-container">
-                    @* Dashboard Mockup *@
-                    <div class="dashboard-mockup">
-                        <div class="dashboard-header">
-                            <span class="dash-title">Your listings on unreal.estate</span>
-                            <span class="dash-count">3 active · $1.27 in AI</span>
+
+            @* Liquid Glass 1-Link Importer Card *@
+            <div class="ag-import-card lg-surface-strong" data-testid="agent-link-importer">
+                <div class="ag-import-head">
+                    <h2>Auto-post from a link</h2>
+                    <span class="ag-free-chip">$0 Forever</span>
+                </div>
+                <p class="ag-import-sub">
+                    Paste any public listing URL from your agency site or portal. We extract structured details automatically.
+                </p>
+
+                <div class="ag-url-row">
+                    <input type="url"
+                           class="lg-input"
+                           data-testid="agent-import-url"
+                           placeholder="https://youragency.com.au/42-latrobe-terrace-paddington-qld-4064"
+                           @bind="_sourceUrl"
+                           @bind:event="oninput"
+                           @onkeyup="HandleUrlKeyup" />
+                    @if (_currentUserId.HasValue)
+                    {
+                        <button type="button"
+                                class="lg-btn lg-btn-primary ag-fetch-btn"
+                                data-testid="agent-import-fetch"
+                                disabled="@_isImporting"
+                                @onclick="ImportFromLinkAsync">
+                            @(_isImporting ? "Reading link…" : "Import link")
+                        </button>
+                    }
+                    else
+                    {
+                        <a href="@LoginReturnHref"
+                           class="lg-btn lg-btn-primary ag-fetch-btn"
+                           data-testid="agent-signin-to-import">
+                            Sign in to import
+                        </a>
+                    }
+                </div>
+
+                @if (!_currentUserId.HasValue)
+                {
+                    <div class="ag-alert ag-alert-info" role="status">
+                        Sign in with your verified agent account to import a link, publish for $0, and receive private buyer enquiries in your Enquiry Hub.
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_importError))
+                {
+                    <div class="ag-alert ag-alert-error" role="alert">@_importError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_importNotice))
+                {
+                    <div class="ag-alert ag-alert-info" role="status">@_importNotice</div>
+                }
+
+                @if (_currentUserId.HasValue && _draftLoaded)
+                {
+                    <div class="ag-draft-form" data-testid="agent-import-draft">
+                        @if (!string.IsNullOrWhiteSpace(_heroImageUrl))
+                        {
+                            <div class="ag-draft-thumb">
+                                <img src="@_heroImageUrl" alt="Imported listing preview" referrerpolicy="no-referrer" />
+                            </div>
+                        }
+
+                        <div class="ag-form-grid">
+                            <label class="ag-field ag-span-2">
+                                <span>Street address *</span>
+                                <input class="lg-input" maxlength="200" @bind="_address" placeholder="42 Latrobe Terrace" />
+                            </label>
+                            <label class="ag-field">
+                                <span>Suburb *</span>
+                                <input class="lg-input" maxlength="100" @bind="_suburb" placeholder="Paddington" />
+                            </label>
+                            <div class="ag-row-2">
+                                <label class="ag-field">
+                                    <span>State *</span>
+                                    <select class="lg-select" @bind="_state">
+                                        @foreach (var st in ManualAddressResolution.ValidAustralianStates)
+                                        {
+                                            <option value="@st">@st</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label class="ag-field">
+                                    <span>Postcode *</span>
+                                    <input class="lg-input" maxlength="4" @bind="_postcode" placeholder="4064" />
+                                </label>
+                            </div>
+
+                            <label class="ag-field">
+                                <span>Price guide / display</span>
+                                <input class="lg-input" maxlength="100" @bind="_priceDisplay" placeholder="Offers over $1.65M" />
+                            </label>
+                            <label class="ag-field">
+                                <span>Numeric guide ($)</span>
+                                <input class="lg-input" type="number" min="0" step="10000" @bind="_askingPrice" placeholder="1650000" />
+                            </label>
+
+                            <div class="ag-row-3 ag-span-2">
+                                <label class="ag-field">
+                                    <span>Beds</span>
+                                    <input class="lg-input" type="number" min="0" max="20" @bind="_bedrooms" />
+                                </label>
+                                <label class="ag-field">
+                                    <span>Baths</span>
+                                    <input class="lg-input" type="number" min="0" max="15" @bind="_bathrooms" />
+                                </label>
+                                <label class="ag-field">
+                                    <span>Cars</span>
+                                    <input class="lg-input" type="number" min="0" max="20" @bind="_carSpaces" />
+                                </label>
+                            </div>
+
+                            <label class="ag-field ag-span-2">
+                                <span>Description</span>
+                                <textarea class="lg-textarea" rows="3" maxlength="2000" @bind="_description" placeholder="Key highlights, aspect, school zone, inspection notes..."></textarea>
+                            </label>
+
+                            <label class="ag-field">
+                                <span>Listing agent name *</span>
+                                <input class="lg-input" maxlength="80" @bind="_agentName" placeholder="Sarah Lawson" />
+                            </label>
+                            <label class="ag-field">
+                                <span>Agent mobile (for buyer calls/SMS) *</span>
+                                <input class="lg-input" type="tel" maxlength="20" @bind="_agentPhone" placeholder="0412 345 678" />
+                            </label>
                         </div>
 
-                        <div class="listing-preview">
-                            <div class="listing-img-placeholder"></div>
-                            <div class="listing-info">
-                                <div class="listing-address">42 Ocean View Dr, Byron Bay</div>
-                                <div class="listing-meta">5 bed · AI-drafted listing · 0.51¢ in tokens</div>
-                                <div class="listing-status">
-                                    <span class="status-dot"></span>
-                                    14 buyer matches
-                                </div>
-                            </div>
-                        </div>
+                        <label class="ag-check">
+                            <input type="checkbox" @bind="_enableVoiceAssistant" />
+                            <span>
+                                <strong>Opt-in: Provision 24/7 ElevenLabs Voice Concierge</strong> via <code>api.sovrgn.ai</code>
+                                <small>(answers buyer calls &amp; captures inspection/offer enquiries grounded in these verified facts)</small>
+                            </span>
+                        </label>
 
-                        <div class="listing-preview">
-                            <div class="listing-img-placeholder alt"></div>
-                            <div class="listing-info">
-                                <div class="listing-address">18 Teneriffe Dr, Brisbane</div>
-                                <div class="listing-meta">3 bed · River views · 0.38¢ in tokens</div>
-                                <div class="listing-status hot">
-                                    <span class="status-dot"></span>
-                                    Pre-approved buyer · Mark D.
-                                </div>
-                            </div>
-                        </div>
+                        <label class="ag-check">
+                            <input type="checkbox" @bind="_confirmAuthorised" data-testid="agent-confirm-auth" />
+                            <span>I confirm I am authorised by the vendor/agency to publish this listing on unrealestate.au for $0.</span>
+                        </label>
 
-                        <div class="listing-preview">
-                            <div class="listing-img-placeholder"></div>
-                            <div class="listing-info">
-                                <div class="listing-address">67 Northview Outlook, Moorooka 4105</div>
-                                <div class="listing-meta">4 bed · AI valuation $1.20–1.28M · 0.42¢</div>
-                                <div class="listing-status new">
-                                    <span class="status-dot"></span>
-                                    Listing draft ready
-                                </div>
-                            </div>
+                        <div class="ag-publish-actions">
+                            <button type="button"
+                                    class="lg-btn lg-btn-primary ag-publish-btn"
+                                    data-testid="agent-publish-btn"
+                                    disabled="@(!CanPublish || _isPublishing)"
+                                    @onclick="PublishImportedListingAsync">
+                                @(_isPublishing ? "Publishing…" : "Auto-Post Free ($0) →")
+                            </button>
+                            <button type="button" class="lg-btn lg-btn-secondary" @onclick="ResetDraft">Clear</button>
                         </div>
                     </div>
+                }
 
-                    @* Floating Badges *@
-                    <div class="floating-badge badge-1">
-                        <span class="float-icon">🇦🇺</span>
-                        <div class="float-text">
-                            <strong>Australia East</strong>
-                            <span>All inference local</span>
+                @if (_publishedListing is not null)
+                {
+                    <div class="ag-published-box lg-surface" data-testid="agent-published-result">
+                        <div class="ag-pub-badge">✓ Live on unrealestate.au ($0)</div>
+                        <h3>@_publishedListing.Address, @_publishedListing.Suburb</h3>
+                        <p>Your listing is live for buyers, explainable AI matching, and direct enquiries.</p>
+                        @if (_voiceResult is not null)
+                        {
+                            <div class="ag-voice-note @(_voiceResult.Succeeded ? "ok" : "pending")">
+                                <strong>🎙 Voice Concierge:</strong> @_voiceResult.Message
+                            </div>
+                        }
+                        <div class="ag-pub-actions">
+                            <a href="@($"/property/{_publishedListing.Id}")" class="lg-btn lg-btn-primary">View live listing →</a>
+                            <a href="/enquiries" class="lg-btn lg-btn-secondary">Open Enquiry Hub</a>
+                            <button type="button" class="lg-btn lg-btn-secondary" @onclick="CopyLiveLink">@(_copied ? "✓ Copied" : "Copy link")</button>
                         </div>
                     </div>
-                    <div class="floating-badge badge-2">
-                        <span class="float-icon">⚡</span>
-                        <div class="float-text">
-                            <strong>$1.27</strong>
-                            <span>Total AI cost so far</span>
-                        </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    @* Interactive Vendor VPA Savings & Not-For-Profit Pledge *@
+    <section class="ag-section">
+        <div class="ag-two-col">
+            <div class="lg-surface-strong ag-panel">
+                <span class="ag-eyebrow">Vendor Cash Kept in Australia</span>
+                <h2>See what your office stops sending offshore</h2>
+                <p class="ag-muted">
+                    News Corp controls ~61% of REA Group. US-based CoStar bought Domain for A$3B in August 2025.
+                    Use REA's 1 Jan 2027 25% flex window to run a 14-day $0 pre-market launch first.
+                </p>
+
+                <div class="ag-slider-group">
+                    <div class="ag-slider-label">
+                        <span>Listings per year</span>
+                        <strong>@_calcListings / yr</strong>
                     </div>
+                    <input type="range" min="4" max="120" step="2" @bind="_calcListings" @bind:event="oninput" class="ag-range" />
+                </div>
+
+                <div class="ag-slider-group">
+                    <div class="ag-slider-label">
+                        <span>Typical portal VPA (REA + Domain)</span>
+                        <strong>$@_calcVpa.ToString("N0")</strong>
+                    </div>
+                    <input type="range" min="2000" max="9000" step="250" @bind="_calcVpa" @bind:event="oninput" class="ag-range" />
+                </div>
+
+                <div class="ag-savings-pill">
+                    <span>Vendor ad spend kept out of offshore portals</span>
+                    <strong>$@((_calcListings * _calcVpa).ToString("N0")) / yr</strong>
+                    <small>Listing fee on unrealestate.au: $0 · forever</small>
+                </div>
+            </div>
+
+            <div class="lg-surface-strong ag-panel">
+                <span class="ag-eyebrow">Built for Speed on Mobile</span>
+                <h2>Instant enquiry handling included</h2>
+                <ul class="ag-feature-list">
+                    <li>
+                        <strong>1-Link Auto-Post</strong>
+                        <span>Paste your existing agency URL — no manual re-typing, no CRM gatekeeping to start.</span>
+                    </li>
+                    <li>
+                        <strong>1-Tap Call &amp; Pre-filled SMS</strong>
+                        <span>Every buyer enquiry lands in your phone-native Enquiry Hub with instant tap-to-call and tap-to-text.</span>
+                    </li>
+                    <li>
+                        <strong>24/7 ElevenLabs Voice Concierge (via api.sovrgn.ai)</strong>
+                        <span>Answers buyer questions after hours using only your verified listing facts and logs callbacks + inspection requests.</span>
+                    </li>
+                    <li>
+                        <strong>100% Not-for-Profit · Apache 2.0</strong>
+                        <span>No subscriptions, no Premiere pay-to-rank, no profit margin, no equity. Hosted in Australia.</span>
+                    </li>
+                </ul>
+                <div class="ag-panel-cta">
+                    <a href="/enquiries" class="lg-btn lg-btn-primary">Open Enquiry &amp; Voice Hub →</a>
+                    <a href="/agents/register" class="lg-btn lg-btn-secondary">Register agency account</a>
                 </div>
             </div>
         </div>
     </section>
 
-    @* Stats band — the funds-flow hero (self-contained SVG) *@
-    <section class="stats-band">
-        <div class="stats-container">
+    <section class="ag-section">
+        <div class="lg-surface-strong ag-sankey-wrap">
             <PhotoTaxSankey />
-        </div>
-    </section>
-
-    @* How It Works Section *@
-    <section class="how-section" id="how-it-works">
-        <div class="how-container">
-            <h2 class="section-title">How it works for agents</h2>
-            <p class="section-subtitle">Drop your photos in. We do the rest.</p>
-
-            <div class="how-steps">
-                <div class="how-step">
-                    <div class="step-num">01</div>
-                    <h3>Upload your photos</h3>
-                    <p>Drop in the photos and address. Our AI writes the listing copy, the suburb pitch, the buyer Q&amp;A, and a comparable-sales valuation in under a minute. All inference runs in Azure Australia East.</p>
-                </div>
-                <div class="how-step">
-                    <div class="step-num">02</div>
-                    <h3>Buyers come to you</h3>
-                    <p>Buyers chatting with the unreal.estate buyer-side AI get matched to your listing in real time. You see warm leads with budget, pre-approval status, and what they want — no realestate.com.au required.</p>
-                </div>
-                <div class="how-step">
-                    <div class="step-num">03</div>
-                    <h3>You close the deal</h3>
-                    <p>You stay the agent of record. You keep the relationship and the full commission. We just bill you for the GPT tokens we used on your behalf, plus a flat margin. Cancel anytime.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    @* Pricing Section — not-for-profit, you pay AI cost only *@
-    <section class="pricing-section" id="pricing">
-        <div class="pricing-container">
-            <h2 class="section-title">It's free. We're a not-for-profit.</h2>
-            <p class="section-subtitle">No subscription. No tiers. No upsell. You pay only what the AI cost us on your behalf — every cent itemised in your dashboard. We don't take a margin. Nothing leaves the country.</p>
-
-            <div class="pricing-cards" style="grid-template-columns: 1fr 1fr; max-width: 880px; margin: 0 auto;">
-                <div class="pricing-card featured">
-                    <div class="featured-badge">For Australian agents</div>
-                    <div class="price-header">
-                        <h3>Hosted by Tailor</h3>
-                        <div class="price">AI cost<span>only · no margin</span></div>
-                    </div>
-                    <ul class="price-features">
-                        <li>✓ Unlimited AI listings</li>
-                        <li>✓ Buyer-side AI matches</li>
-                        <li>✓ One-click migration off REA / Domain</li>
-                        <li>✓ Live token-cost dashboard (every cent)</li>
-                        <li>✓ Inference in Australia East</li>
-                        <li>✓ No subscription, no lock-in</li>
-                    </ul>
-                    <button class="price-cta primary" @onclick="GoToRegister">Use it free</button>
-                </div>
-
-                <div class="pricing-card">
-                    <div class="price-header">
-                        <h3>Self-host</h3>
-                        <div class="price">$0<span>· Apache 2.0</span></div>
-                    </div>
-                    <ul class="price-features">
-                        <li>✓ Full source on GitHub</li>
-                        <li>✓ Run on your own Azure / Hetzner / bare metal</li>
-                        <li>✓ Bring your own AI key</li>
-                        <li>✓ Community support</li>
-                        <li>✓ No usage limits</li>
-                        <li>✓ Fork it, extend it, share it back</li>
-                    </ul>
-                    <a class="price-cta secondary" href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener">View on GitHub</a>
-                </div>
-            </div>
-
-            <p class="pricing-footnote" style="text-align:center; margin-top:32px; font-size:14px; color:#6b7280; max-width:680px; margin-left:auto; margin-right:auto;">
-                Tailor is the team behind the open Australian fuel-price app used by 50,000+
-                Aussies to find cheap petrol. unreal.estate is the same idea applied to real estate
-                listings. We're not trying to build a unicorn. We're trying to keep the A$1.7B/yr
-                in Australia.
-            </p>
-        </div>
-    </section>
-
-    @* Final CTA *@
-    <section class="final-cta">
-        <div class="cta-container">
-            <h2>Help us keep A$1.7B in Australia.</h2>
-            <p>This is a not-for-profit community project. Use it free. Fork it. Tell your agent. Tell your neighbour selling their house. The more of us who refuse to fund the offshore middlemen, the faster the A$1.7B/yr starts staying in Australia.</p>
-            <button class="mega-cta" @onclick="GoToRegister">Use it free</button>
         </div>
     </section>
 </div>
 
 <style>
-/* ═══════════════════════════════════════════════════════════════
-   AGENT PORTAL - Premium Design
-═══════════════════════════════════════════════════════════════ */
-
-@@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-.agent-wrapper {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #fafafa;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    position: relative;
-    overflow-x: hidden;
-}
-
-.ripple-canvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.agent-bg {
-    position: fixed;
-    inset: 0;
-    background: 
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.12), transparent),
-        radial-gradient(ellipse 60% 50% at 80% 50%, rgba(99, 102, 241, 0.08), transparent);
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* Navigation */
-.agent-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: rgba(250, 250, 250, 0.8);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.nav-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 16px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.logo-mark {
-    font-size: 20px;
-    color: #8b5cf6;
-}
-
-.logo-text {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1a2e;
-    letter-spacing: -0.02em;
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-}
-
-.nav-link {
-    font-size: 14px;
-    font-weight: 500;
-    color: #6b7280;
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.nav-link:hover {
-    color: #1a1a2e;
-}
-
-.nav-cta {
-    padding: 10px 20px;
-    background: #1a1a2e;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.nav-cta:hover {
-    background: #2d2d44;
-    transform: translateY(-1px);
-}
-
-/* Hero Section */
-.hero-section {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 100px 24px 60px;
-    position: relative;
-    z-index: 2;
-}
-
-.hero-grid {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 60px;
-    align-items: center;
-}
-
-.hero-left {
-    text-align: left;
-}
-
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #8b5cf6;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 20px;
-}
-
-.eyebrow-icon {
-    font-size: 12px;
-}
-
-.hero-headline {
-    font-size: clamp(40px, 6vw, 64px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    color: #1a1a2e;
-    margin-bottom: 20px;
-}
-
-.headline-gradient {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradientFlow 8s ease infinite;
-}
-
-@@keyframes gradientFlow {
-    0%, 100% { background-position: 0% center; }
-    50% { background-position: 100% center; }
-}
-
-.hero-subheadline {
-    font-size: 18px;
-    line-height: 1.7;
-    color: #6b7280;
-    margin-bottom: 32px;
-    max-width: 480px;
-}
-
-/* Agent Path Selection */
-.agent-paths {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 32px;
-}
-
-.agent-path {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    background: white;
-    border: 2px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.agent-path:hover {
-    border-color: #8b5cf6;
-    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
-    transform: translateX(4px);
-}
-
-.path-icon {
-    font-size: 24px;
-}
-
-.path-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.path-content strong {
-    font-size: 15px;
-    font-weight: 700;
-    color: #1a1a2e;
-}
-
-.path-content span {
-    font-size: 13px;
-    color: #9ca3af;
-}
-
-.path-arrow {
-    font-size: 18px;
-    color: #8b5cf6;
-    transition: transform 0.2s;
-}
-
-.agent-path:hover .path-arrow {
-    transform: translateX(4px);
-}
-
-/* Trust Badges */
-.trust-badges {
-    display: flex;
-    gap: 24px;
-}
-
-.trust-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    color: #6b7280;
-}
-
-.badge-check {
-    color: #8b5cf6;
-    font-weight: 600;
-}
-
-/* Hero Right - Dashboard Mockup */
-.hero-right {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.mockup-container {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-}
-
-.dashboard-mockup {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.12);
-    overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    padding: 20px;
-}
-
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.dash-title {
-    font-weight: 700;
-    font-size: 18px;
-    color: #1a1a2e;
-}
-
-.dash-count {
-    font-size: 13px;
-    color: #8b5cf6;
-    font-weight: 600;
-    background: rgba(139, 92, 246, 0.1);
-    padding: 4px 10px;
-    border-radius: 20px;
-}
-
-.listing-preview {
-    display: flex;
-    gap: 14px;
-    padding: 14px;
-    background: #f8fafc;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    transition: all 0.2s;
-}
-
-.listing-preview:hover {
-    background: #f1f5f9;
-}
-
-.listing-img-placeholder {
-    width: 70px;
-    height: 70px;
-    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
-.listing-img-placeholder.alt {
-    background: linear-gradient(135deg, #c4b5fd, #a78bfa);
-}
-
-.listing-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.listing-address {
-    font-weight: 600;
-    font-size: 14px;
-    color: #1a1a2e;
-    margin-bottom: 4px;
-}
-
-.listing-meta {
-    font-size: 12px;
-    color: #9ca3af;
-    margin-bottom: 6px;
-}
-
-.listing-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #6b7280;
-}
-
-.status-dot {
-    width: 6px;
-    height: 6px;
-    background: #6b7280;
-    border-radius: 50%;
-}
-
-.listing-status.hot .status-dot {
-    background: #f97316;
-    animation: pulse 1s infinite;
-}
-
-.listing-status.new .status-dot {
-    background: #10b981;
-}
-
-@@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-/* Floating Badges */
-.floating-badge {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    animation: floatBadge 4s ease-in-out infinite;
-}
-
-.badge-1 {
-    top: 0;
-    right: -10px;
-    animation-delay: 0s;
-}
-
-.badge-2 {
-    bottom: 20%;
-    left: -20px;
-    animation-delay: 2s;
-}
-
-@@keyframes floatBadge {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-.float-icon {
-    font-size: 20px;
-}
-
-.float-text {
-    display: flex;
-    flex-direction: column;
-}
-
-.float-text strong {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1a1a2e;
-}
-
-.float-text span {
-    font-size: 11px;
-    color: #9ca3af;
-}
-
-/* How Section */
-.how-section {
-    padding: 120px 24px;
-    background: white;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.how-container {
-    max-width: 1000px;
-    margin: 0 auto;
-}
-
-.section-title {
-    font-size: 36px;
-    font-weight: 800;
-    color: #1a1a2e;
-    text-align: center;
-    margin-bottom: 12px;
-}
-
-.section-subtitle {
-    font-size: 18px;
-    color: #6b7280;
-    text-align: center;
-    margin-bottom: 64px;
-}
-
-.how-steps {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 48px;
-}
-
-.how-step {
-    text-align: left;
-}
-
-.step-num {
-    font-size: 48px;
-    font-weight: 800;
-    color: rgba(139, 92, 246, 0.15);
-    margin-bottom: 16px;
-    line-height: 1;
-}
-
-.how-step h3 {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin-bottom: 12px;
-}
-
-.how-step p {
-    font-size: 15px;
-    line-height: 1.6;
-    color: #6b7280;
-}
-
-/* International Section */
-.intl-section {
-    padding: 120px 24px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-}
-
-.intl-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 80px;
-    align-items: center;
-}
-
-.intl-badge {
-    display: inline-block;
-    padding: 6px 14px;
-    background: rgba(139, 92, 246, 0.1);
-    color: #8b5cf6;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 20px;
-    margin-bottom: 20px;
-}
-
-.intl-content h2 {
-    font-size: 36px;
-    font-weight: 800;
-    color: #1a1a2e;
-    line-height: 1.2;
-    margin-bottom: 20px;
-}
-
-.intl-content p {
-    font-size: 17px;
-    line-height: 1.7;
-    color: #6b7280;
-    margin-bottom: 24px;
-}
-
-.intl-features {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 32px;
-}
-
-.intl-feature {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 15px;
-    color: #1a1a2e;
-}
-
-.feature-icon {
-    color: #10b981;
-    font-weight: 700;
-}
-
-.intl-cta {
-    padding: 14px 28px;
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.intl-cta:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35);
-}
-
-.intl-visual {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.globe-graphic {
-    position: relative;
-    width: 300px;
-    height: 300px;
-}
-
-.globe-dot {
-    position: absolute;
-    font-size: 28px;
-    animation: orbitFloat 6s ease-in-out infinite;
-}
-
-.dot-1 { top: 10%; left: 10%; animation-delay: 0s; }
-.dot-2 { top: 5%; right: 20%; animation-delay: 1s; }
-.dot-3 { top: 30%; right: 5%; animation-delay: 2s; }
-.dot-4 { bottom: 20%; left: 5%; animation-delay: 3s; }
-.dot-5 { bottom: 10%; right: 15%; animation-delay: 4s; }
-
-.globe-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 64px;
-    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
-}
-
-@@keyframes orbitFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-/* Pricing Section */
-.pricing-section {
-    padding: 120px 24px;
-    background: white;
-}
-
-.pricing-container {
-    max-width: 1100px;
-    margin: 0 auto;
-}
-
-.pricing-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 32px;
-    margin-top: 48px;
-}
-
-.pricing-card {
-    background: #f8fafc;
-    border-radius: 20px;
-    padding: 32px;
-    border: 2px solid transparent;
-    transition: all 0.3s;
-    position: relative;
-}
-
-.pricing-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-}
-
-.pricing-card.featured {
-    background: white;
-    border-color: #8b5cf6;
-    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
-}
-
-.featured-badge {
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 16px;
-    border-radius: 20px;
-}
-
-.price-header h3 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin-bottom: 8px;
-}
-
-.price {
-    font-size: 48px;
-    font-weight: 800;
-    color: #1a1a2e;
-    margin-bottom: 24px;
-}
-
-.price span {
-    font-size: 16px;
-    font-weight: 500;
-    color: #9ca3af;
-}
-
-.price-features {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 32px 0;
-}
-
-.price-features li {
-    padding: 10px 0;
-    font-size: 14px;
-    color: #4b5563;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.price-features li.disabled {
-    color: #d1d5db;
-}
-
-.price-cta {
-    width: 100%;
-    padding: 14px 24px;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.price-cta.primary {
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
-    color: white;
-    border: none;
-}
-
-.price-cta.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35);
-}
-
-.price-cta.secondary {
-    background: transparent;
-    color: #1a1a2e;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-}
-
-.price-cta.secondary:hover {
-    border-color: #1a1a2e;
-}
-
-/* Final CTA */
-.final-cta {
-    padding: 100px 24px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
-    text-align: center;
-}
-
-.cta-container {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.final-cta h2 {
-    font-size: 36px;
-    font-weight: 800;
-    color: white;
-    margin-bottom: 16px;
-}
-
-.final-cta p {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 32px;
-}
-
-.mega-cta {
-    padding: 18px 40px;
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.mega-cta:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(139, 92, 246, 0.4);
-}
-
-/* Animations */
-.animate-fade-up {
-    opacity: 0;
-    transform: translateY(30px);
-    animation: fadeUp 0.8s ease forwards;
-}
-
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-
-@@keyframes fadeUp {
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    .ag-page { padding-bottom: 48px; }
+
+    .ag-hero {
+        position: relative;
+        margin-top: calc(-70px - env(safe-area-inset-top, 0px));
+        padding: calc(112px + env(safe-area-inset-top, 0px)) 18px 56px;
+        overflow: hidden;
     }
-}
 
-/* Responsive */
-@@media (max-width: 968px) {
-    .hero-grid {
-        grid-template-columns: 1fr;
-        gap: 48px;
-        text-align: center;
-    }
-    
-    .hero-left {
-        text-align: center;
-        order: 1;
-    }
-    
-    .hero-right {
-        order: 2;
-    }
-    
-    .hero-subheadline {
-        max-width: 100%;
-    }
-    
-    .trust-badges {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .floating-badge {
-        display: none;
-    }
-    
-    .intl-container {
-        grid-template-columns: 1fr;
-        gap: 48px;
-        text-align: center;
-    }
-    
-    .intl-features {
-        align-items: center;
-    }
-    
-    .pricing-cards {
-        grid-template-columns: 1fr;
-        max-width: 400px;
-        margin: 48px auto 0;
-    }
-}
+    .ag-hero-bg { position: absolute; inset: 0; background: url('/images/hero-queenslander.jpg') center/cover no-repeat; transform: scale(1.02); }
+    .ag-hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 24, 0.58) 0%, rgba(6, 12, 24, 0.46) 48%, var(--lg-bg) 100%); }
 
-@@media (max-width: 768px) {
-    .nav-links {
-        display: none;
-    }
-    
-    .hero-section {
-        padding: 100px 20px 60px;
-    }
-    
-    .hero-headline {
-        font-size: 36px;
-    }
-    
-    .how-steps {
-        grid-template-columns: 1fr;
-        gap: 40px;
-    }
-}
+    .ag-hero-inner { position: relative; z-index: 2; max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 28px; align-items: start; }
+    @@media (min-width: 960px) { .ag-hero-inner { grid-template-columns: 1fr 1.12fr; gap: 36px; } }
 
-/* Stats band — the photo tax in numbers */
-.stats-band {
-    padding: 80px 24px;
-    background: linear-gradient(180deg, #0b0b1a 0%, #1a1a2e 100%);
-    color: white;
-    position: relative;
-    z-index: 2;
-}
-.stats-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    text-align: center;
-}
-.stats-eyebrow {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: #a78bfa;
-    margin-bottom: 40px;
-}
+    .ag-copy { color: #ffffff; padding-top: 8px; }
+    .ag-pill-badge { display: inline-flex; padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; background: rgba(16, 185, 129, 0.34); border: 1px solid rgba(255, 255, 255, 0.42); backdrop-filter: blur(18px); color: #ffffff; }
+    .ag-copy h1 { margin: 16px 0 14px; font-size: clamp(32px, 5vw, 52px); line-height: 1.07; letter-spacing: -0.03em; font-weight: 800; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.42); }
+    .ag-copy p { font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, 0.92); max-width: 520px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); }
+    .ag-trust-row { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .ag-trust-row span { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 9999px; background: rgba(10, 18, 32, 0.46); border: 1px solid rgba(255, 255, 255, 0.28); backdrop-filter: blur(16px); }
+
+    .ag-import-card { border-radius: 30px; padding: 22px; }
+    .ag-import-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .ag-import-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .ag-free-chip { padding: 4px 11px; border-radius: 9999px; font-size: 12px; font-weight: 700; background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .ag-import-sub { margin: 6px 0 14px; font-size: 13px; color: var(--lg-ink-secondary); }
+    .ag-url-row { display: flex; flex-direction: column; gap: 10px; }
+    @@media (min-width: 560px) { .ag-url-row { flex-direction: row; } }
+    .ag-fetch-btn { flex-shrink: 0; white-space: nowrap; }
+
+    .ag-alert { margin-top: 12px; padding: 11px 14px; border-radius: 14px; font-size: 13px; line-height: 1.45; }
+    .ag-alert-error { background: var(--lg-danger-soft); color: var(--lg-danger); }
+    .ag-alert-info { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+
+    .ag-draft-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--lg-border-subtle); display: flex; flex-direction: column; gap: 14px; }
+    .ag-draft-thumb { border-radius: 18px; overflow: hidden; max-height: 170px; }
+    .ag-draft-thumb img { width: 100%; height: 170px; object-fit: cover; display: block; }
+    .ag-form-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @@media (min-width: 560px) { .ag-form-grid { grid-template-columns: 1fr 1fr; } .ag-span-2 { grid-column: 1 / -1; } }
+    .ag-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ag-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .ag-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--lg-ink-secondary); }
+
+    .ag-check { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--lg-ink); cursor: pointer; }
+    .ag-check input { margin-top: 3px; width: 18px; height: 18px; accent-color: #10b981; flex-shrink: 0; }
+    .ag-check small { display: block; color: var(--lg-ink-secondary); font-size: 12px; }
+
+    .ag-publish-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ag-publish-btn { flex: 1; }
+    .ag-published-box { margin-top: 16px; padding: 18px; border-radius: 22px; }
+    .ag-pub-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700; background: var(--lg-emerald-soft); color: var(--lg-emerald); margin-bottom: 8px; }
+    .ag-published-box h3 { margin: 0 0 6px; font-size: 18px; }
+    .ag-published-box p { margin: 0 0 12px; font-size: 13px; color: var(--lg-ink-secondary); }
+    .ag-voice-note { padding: 10px 12px; border-radius: 12px; font-size: 12px; line-height: 1.45; margin-bottom: 12px; }
+    .ag-voice-note.ok { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .ag-voice-note.pending { background: var(--lg-amber-soft); color: var(--lg-amber); }
+    .ag-pub-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .ag-section { max-width: 1180px; margin: 26px auto 0; padding: 0 18px; }
+    .ag-two-col { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    @@media (min-width: 860px) { .ag-two-col { grid-template-columns: 1fr 1fr; } }
+    .ag-panel { border-radius: 30px; padding: 24px; }
+    .ag-eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--lg-emerald); }
+    .ag-panel h2 { margin: 8px 0 10px; font-size: 24px; letter-spacing: -0.02em; }
+    .ag-muted { font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); margin: 0 0 18px; }
+    .ag-slider-group { margin-bottom: 14px; }
+    .ag-slider-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .ag-range { width: 100%; accent-color: #10b981; }
+    .ag-savings-pill { margin-top: 16px; padding: 18px; border-radius: 22px; background: var(--lg-emerald-soft); text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .ag-savings-pill span { font-size: 12px; font-weight: 600; color: var(--lg-emerald); }
+    .ag-savings-pill strong { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; color: var(--lg-emerald); }
+    .ag-savings-pill small { font-size: 12px; color: var(--lg-ink-secondary); }
+    .ag-feature-list { list-style: none; padding: 0; margin: 14px 0 20px; display: grid; gap: 14px; }
+    .ag-feature-list li { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+    .ag-feature-list li span { font-size: 13px; color: var(--lg-ink-secondary); line-height: 1.5; }
+    .ag-panel-cta { display: flex; flex-wrap: wrap; gap: 10px; }
+    .ag-sankey-wrap { border-radius: 30px; padding: 28px 18px; background: #0b101d; color: #ffffff; }
 </style>
 
 @code {
-    private void GoToRegister()
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "link")]
+    public string? QueryLink { get; set; }
+
+    private Guid? _currentUserId;
+    private string _sourceUrl = "";
+    private bool _isImporting;
+    private bool _isPublishing;
+    private bool _draftLoaded;
+    private bool _copied;
+    private string? _importError;
+    private string? _importNotice;
+
+    private string _address = "";
+    private string _suburb = "";
+    private string _state = "QLD";
+    private string _postcode = "";
+    private string _propertyType = "House";
+    private int? _bedrooms;
+    private int? _bathrooms;
+    private int? _carSpaces;
+    private int? _landSize;
+    private decimal? _askingPrice;
+    private string _priceDisplay = "";
+    private string _headline = "";
+    private string _description = "";
+    private string? _heroImageUrl;
+
+    private string _agentName = "";
+    private string _agentPhone = "";
+    private bool _enableVoiceAssistant; // explicit opt-in only
+    private bool _confirmAuthorised;
+
+    private Listing? _publishedListing;
+    private VoiceAssistantProvisionResult? _voiceResult;
+
+    private int _calcListings = 36;
+    private int _calcVpa = 4200;
+
+    private string LoginReturnHref =>
+        string.IsNullOrWhiteSpace(_sourceUrl)
+            ? "/Account/Login?ReturnUrl=%2Fagents"
+            : $"/Account/Login?ReturnUrl={Uri.EscapeDataString($"/agents?link={Uri.EscapeDataString(_sourceUrl)}")}";
+
+    private bool CanPublish =>
+        _currentUserId.HasValue
+        && _confirmAuthorised
+        && !string.IsNullOrWhiteSpace(_address)
+        && !string.IsNullOrWhiteSpace(_suburb)
+        && !string.IsNullOrWhiteSpace(_postcode)
+        && !string.IsNullOrWhiteSpace(_agentName);
+
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/agents/register?type=au");
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var user = state.User;
+            if (user.Identity?.IsAuthenticated == true
+                && Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var uid))
+            {
+                _currentUserId = uid;
+                _agentName = user.FindFirstValue(ClaimTypes.Name) ?? "";
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Pre-fill the input only — never auto-fetch QueryLink during GET/SSR (prevents reflected SSRF).
+        if (!string.IsNullOrWhiteSpace(QueryLink) && string.IsNullOrWhiteSpace(_sourceUrl))
+            _sourceUrl = QueryLink;
+    }
+
+    private async Task HandleUrlKeyup(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && _currentUserId.HasValue)
+            await ImportFromLinkAsync();
+    }
+
+    private async Task ImportFromLinkAsync()
+    {
+        if (!_currentUserId.HasValue || _isImporting) return;
+
+        _importError = null;
+        _importNotice = null;
+        _publishedListing = null;
+        _voiceResult = null;
+        _copied = false;
+
+        if (string.IsNullOrWhiteSpace(_sourceUrl))
+        {
+            _importError = "Paste your listing link first (e.g. https://youragency.com.au/...).";
+            return;
+        }
+
+        _isImporting = true;
+        StateHasChanged();
+
+        try
+        {
+            var draft = await LinkImporter.ImportFromUrlAsync(_sourceUrl);
+            if (!draft.Succeeded)
+            {
+                _importError = draft.Notice ?? "Could not validate that URL.";
+                return;
+            }
+
+            _address = draft.Address ?? "";
+            _suburb = draft.Suburb ?? "";
+            _state = string.IsNullOrWhiteSpace(draft.State) ? "QLD" : draft.State;
+            _postcode = draft.Postcode ?? "";
+            _propertyType = string.IsNullOrWhiteSpace(draft.PropertyType) ? "House" : draft.PropertyType;
+            _bedrooms = draft.Bedrooms;
+            _bathrooms = draft.Bathrooms;
+            _carSpaces = draft.CarSpaces;
+            _landSize = draft.LandSize;
+            _askingPrice = draft.AskingPrice;
+            _priceDisplay = draft.PriceDisplay ?? (draft.AskingPrice.HasValue ? $"${draft.AskingPrice.Value:N0}" : "");
+            _headline = draft.Headline ?? "";
+            _description = draft.Description ?? "";
+            _heroImageUrl = draft.HeroImageUrl;
+            _importNotice = draft.Notice;
+            _draftLoaded = true;
+        }
+        finally
+        {
+            _isImporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PublishImportedListingAsync()
+    {
+        if (!CanPublish || !_currentUserId.HasValue || _isPublishing) return;
+
+        _isPublishing = true;
+        _importError = null;
+        StateHasChanged();
+
+        try
+        {
+            var images = string.IsNullOrWhiteSpace(_heroImageUrl)
+                ? "[]"
+                : JsonSerializer.Serialize(new[] { _heroImageUrl });
+
+            var fullDescription = string.IsNullOrWhiteSpace(_description)
+                ? $"Published via 1-link auto-post from {_sourceUrl}."
+                : _description.Trim();
+
+            var features = new List<string> { "Listed $0 on unrealestate.au (Not-for-profit)" };
+            if (!string.IsNullOrWhiteSpace(_agentPhone))
+                features.Add($"Direct agent contact: {_agentName.Trim()} ({_agentPhone.Trim()})");
+            else
+                features.Add($"Direct agent contact: {_agentName.Trim()}");
+
+            var listing = new Listing
+            {
+                Id = Guid.NewGuid(),
+                Address = _address.Trim(),
+                Suburb = _suburb.Trim(),
+                State = _state.Trim().ToUpperInvariant(),
+                Postcode = _postcode.Trim(),
+                PropertyType = _propertyType,
+                Bedrooms = _bedrooms,
+                Bathrooms = _bathrooms,
+                CarSpaces = _carSpaces,
+                LandSize = _landSize,
+                AskingPrice = _askingPrice,
+                PriceDisplay = string.IsNullOrWhiteSpace(_priceDisplay)
+                    ? (_askingPrice.HasValue ? $"${_askingPrice.Value:N0}" : "Contact Agent")
+                    : _priceDisplay.Trim(),
+                Headline = string.IsNullOrWhiteSpace(_headline) ? $"{_address.Trim()}, {_suburb.Trim()}" : _headline.Trim(),
+                Description = fullDescription,
+                Features = JsonSerializer.Serialize(features),
+                ImageUrls = images,
+                Status = ListingStatus.Active,
+                Mode = ListingMode.Exclusive,
+                AgreementSigned = true,
+                AgreementSignedAt = DateTime.UtcNow,
+                AgreementSignature = _agentName.Trim(),
+                PublishedAt = DateTime.UtcNow
+            };
+
+            _publishedListing = await ListingService.CreateOwnedListingAsync(_currentUserId.Value, listing);
+
+            if (_enableVoiceAssistant)
+            {
+                _voiceResult = await VoiceClient.ProvisionListingAssistantAsync(new ListingVoiceAssistantRequest(
+                    ListingId: _publishedListing.Id,
+                    Address: _publishedListing.Address,
+                    Suburb: _publishedListing.Suburb,
+                    State: _publishedListing.State,
+                    Postcode: _publishedListing.Postcode,
+                    PropertyType: _publishedListing.PropertyType,
+                    PriceDisplay: _publishedListing.PriceDisplay,
+                    Bedrooms: _publishedListing.Bedrooms,
+                    Bathrooms: _publishedListing.Bathrooms,
+                    CarSpaces: _publishedListing.CarSpaces,
+                    LandSize: _publishedListing.LandSize,
+                    Description: _publishedListing.Description,
+                    AgentName: _agentName.Trim(),
+                    AgentPhone: _agentPhone.Trim()));
+            }
+
+            _draftLoaded = false;
+            _importNotice = null;
+        }
+        catch
+        {
+            _importError = "Could not publish listing right now. Please verify required fields and try again.";
+        }
+        finally
+        {
+            _isPublishing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetDraft()
+    {
+        _draftLoaded = false;
+        _importNotice = null;
+        _importError = null;
+        _confirmAuthorised = false;
+    }
+
+    private async Task CopyLiveLink()
+    {
+        if (_publishedListing is null) return;
+        try
+        {
+            var url = $"{Navigation.BaseUri.TrimEnd('/')}/property/{_publishedListing.Id}";
+            _copied = await JS.InvokeAsync<bool>("ueGlass.copyText", url);
+        }
+        catch
+        {
+            _copied = false;
+        }
     }
 }
-
-<script suppress-error="BL9992">
-    (function() {
-        const canvas = document.getElementById('ripple-canvas-agents');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        let ripples = [];
-        let mouseX = 0, mouseY = 0;
-        let lastRippleTime = 0;
-        
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
-        
-        function easeOutCubic(t) {
-            return 1 - Math.pow(1 - t, 3);
-        }
-        
-        document.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-            
-            const now = Date.now();
-            if (now - lastRippleTime > 120) {
-                ripples.push({
-                    x: mouseX,
-                    y: mouseY,
-                    progress: 0,
-                    maxRadius: 150 + Math.random() * 50
-                });
-                lastRippleTime = now;
-            }
-            
-            if (ripples.length > 8) ripples.shift();
-        });
-        
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            ripples.forEach((ripple) => {
-                ripple.progress += 0.006;
-                const eased = easeOutCubic(ripple.progress);
-                const radius = ripple.maxRadius * eased;
-                const opacity = 0.06 * (1 - eased);
-                
-                if (opacity > 0.001) {
-                    ctx.beginPath();
-                    ctx.arc(ripple.x, ripple.y, radius, 0, Math.PI * 2);
-                    ctx.strokeStyle = `rgba(139, 92, 246, ${opacity})`;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                }
-            });
-            
-            ripples = ripples.filter(r => r.progress < 1);
-            requestAnimationFrame(draw);
-        }
-        draw();
-    })();
-</script>

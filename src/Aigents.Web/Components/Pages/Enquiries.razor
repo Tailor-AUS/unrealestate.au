@@ -1,0 +1,515 @@
+@page "/enquiries"
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using System.Security.Claims
+@using Aigents.Domain.Enquiries
+@using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Services.AI
+@using Aigents.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
+@inject IListingService ListingService
+@inject ISovrgnVoiceAssistantClient VoiceClient
+
+<PageTitle>Enquiries &amp; Voice Concierge · unrealestate.au</PageTitle>
+
+<div class="eq-page" data-testid="enquiries-hub">
+    @if (!_authChecked)
+    {
+        <div class="lg-surface-strong eq-empty">Checking your session…</div>
+    }
+    else if (_currentUserId is null)
+    {
+        <div class="lg-surface-strong eq-auth-gate" data-testid="enquiries-auth-required">
+            <span class="eq-eyebrow">Protected Agent &amp; Seller Inbox</span>
+            <h1>Sign in to manage your enquiries</h1>
+            <p>
+                Buyer enquiries contain private contact details and offers. Sign in with your verified
+                unrealestate.au account to view enquiries on your own listings, tap to call or SMS buyers,
+                and provision 24/7 ElevenLabs voice concierges.
+            </p>
+            <div class="eq-auth-actions">
+                <a href="/Account/Login?ReturnUrl=%2Fenquiries" class="lg-btn lg-btn-primary">Sign in</a>
+                <a href="/Account/Register" class="lg-btn lg-btn-secondary">Create free account</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <header class="eq-head">
+            <div>
+                <span class="eq-eyebrow">Phone-native Enquiry Command</span>
+                <h1>Your Buyer Enquiries &amp; 24/7 Voice AI</h1>
+                <p>Call or text prospective buyers on your listings in one tap, track inspections &amp; offers, and provision ElevenLabs voice concierges through <code>api.sovrgn.ai</code>.</p>
+            </div>
+            <div class="eq-head-actions">
+                <a href="/agents#quick-link-post" class="lg-btn lg-btn-primary">+ Paste listing link ($0)</a>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="lg-surface-strong eq-empty" role="alert">@_loadError</div>
+        }
+
+        <section class="eq-stats">
+            <div class="lg-surface-strong eq-stat">
+                <span>Total enquiries</span>
+                <strong>@_enquiries.Count</strong>
+            </div>
+            <div class="lg-surface-strong eq-stat">
+                <span>Awaiting reply</span>
+                <strong>@_enquiries.Count(e => e.Status == InquiryStatus.New)</strong>
+            </div>
+            <div class="lg-surface-strong eq-stat">
+                <span>Calls &amp; Voice AI</span>
+                <strong>@_enquiries.Count(e => e.Channel is EnquiryChannel.CallRequest or EnquiryChannel.VoiceAssistant)</strong>
+            </div>
+            <div class="lg-surface-strong eq-stat">
+                <span>Inspections &amp; Offers</span>
+                <strong>@_enquiries.Count(e => e.Channel is EnquiryChannel.Inspection or EnquiryChannel.Offer)</strong>
+            </div>
+        </section>
+
+        <div class="eq-grid">
+            <section class="eq-inbox">
+                <div class="eq-filter-row" role="tablist" aria-label="Filter enquiries">
+                    @foreach (var tab in _filterTabs)
+                    {
+                        var key = tab.Key;
+                        <button type="button"
+                                class="lg-surface eq-chip @(_activeFilter == key ? "active" : "")"
+                                @onclick="() => _activeFilter = key">
+                            @tab.Label
+                        </button>
+                    }
+                </div>
+
+                @if (_loading)
+                {
+                    <div class="lg-surface-strong eq-empty">Loading enquiries…</div>
+                }
+                else if (FilteredEnquiries.Count == 0)
+                {
+                    <div class="lg-surface-strong eq-empty" data-testid="enquiries-empty">
+                        <h3>No enquiries in this view yet</h3>
+                        <p>When buyers call, text, book inspections, or submit offers on your published listings, they appear here instantly.</p>
+                        <a href="/agents#quick-link-post" class="lg-btn lg-btn-secondary">Auto-post a listing free ($0)</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="eq-list">
+                        @foreach (var eq in FilteredEnquiries)
+                        {
+                            var item = eq;
+                            var telHref = EnquiryRecordCodec.BuildTelHref(item.BuyerPhone);
+                            var smsHref = EnquiryRecordCodec.BuildSmsHref(
+                                item.BuyerPhone,
+                                $"Hi {item.BuyerName}, thanks for your enquiry on {item.ListingAddress} via unrealestate.au — ");
+
+                            <article class="lg-surface-strong eq-card" data-testid="enquiry-card">
+                                <div class="eq-card-top">
+                                    <div class="eq-badges">
+                                        <span class="eq-ch eq-ch-@item.Channel.ToString().ToLowerInvariant()">@ChannelLabel(item.Channel)</span>
+                                        <span class="eq-status eq-st-@item.Status.ToString().ToLowerInvariant()">@StatusLabel(item.Status)</span>
+                                    </div>
+                                    <time class="eq-time">@item.CreatedAt.ToLocalTime().ToString("dd MMM · h:mm tt")</time>
+                                </div>
+
+                                <div class="eq-buyer-row">
+                                    <div>
+                                        <h3>@item.BuyerName</h3>
+                                        <a href="@($"/property/{item.ListingId}")" class="eq-prop-link">
+                                            @(!string.IsNullOrWhiteSpace(item.ListingAddress) ? $"{item.ListingAddress}, {item.ListingSuburb}" : "View listing →")
+                                        </a>
+                                    </div>
+                                    @if (item.OfferAmount.HasValue)
+                                    {
+                                        <div class="eq-offer-pill">$@item.OfferAmount.Value.ToString("N0")</div>
+                                    }
+                                </div>
+
+                                <p class="eq-summary">@item.Summary</p>
+
+                                @if (!string.IsNullOrWhiteSpace(item.BuyerPhone) || !string.IsNullOrWhiteSpace(item.BuyerEmail))
+                                {
+                                    <div class="eq-contact-meta">
+                                        @if (!string.IsNullOrWhiteSpace(item.BuyerPhone))
+                                        {
+                                            <span>📞 @item.BuyerPhone</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.BuyerEmail))
+                                        {
+                                            <span>✉ @item.BuyerEmail</span>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="eq-actions">
+                                    @if (telHref is not null)
+                                    {
+                                        <a href="@telHref" class="lg-btn lg-btn-call eq-btn-sm">📞 Call</a>
+                                    }
+                                    @if (smsHref is not null)
+                                    {
+                                        <a href="@smsHref" class="lg-btn lg-btn-sms eq-btn-sm">💬 Text</a>
+                                    }
+                                    @if (item.Status == InquiryStatus.New)
+                                    {
+                                        <button type="button" class="lg-btn lg-btn-secondary eq-btn-sm" @onclick="() => SetStatusAsync(item.InquiryId, InquiryStatus.Responded)">✓ Mark replied</button>
+                                    }
+                                    @if (item.Status != InquiryStatus.InspectionBooked)
+                                    {
+                                        <button type="button" class="lg-btn lg-btn-secondary eq-btn-sm" @onclick="() => SetStatusAsync(item.InquiryId, InquiryStatus.InspectionBooked)">🗓 Booked</button>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <aside class="eq-voice-col">
+                <div class="lg-surface-strong eq-voice-card" data-testid="voice-concierge-panel">
+                    <div class="eq-voice-head">
+                        <span class="eq-voice-badge">ElevenLabs · api.sovrgn.ai/v1/convai</span>
+                        <span class="eq-conn @(VoiceClient.IsConfigured ? "live" : "unconfigured")">
+                            @(VoiceClient.IsConfigured ? "SOVRGN Ready" : "Key Needed")
+                        </span>
+                    </div>
+                    <h2>24/7 Listing Voice Assistant</h2>
+                    <p>
+                        Provision a dedicated ElevenLabs voice assistant for one of your published listings through Tailor Routing
+                        (<code>api.sovrgn.ai</code>). Zero vendor keys in this app — Sovrgn handles auth &amp; metering.
+                    </p>
+
+                    <div class="eq-voice-form">
+                        <label class="eq-field">
+                            <span>Your published listing</span>
+                            <select class="lg-select" @bind="_selectedListingId">
+                                @if (_listings.Count == 0)
+                                {
+                                    <option value="">No published listings on your account yet</option>
+                                }
+                                @foreach (var l in _listings)
+                                {
+                                    <option value="@l.Id">@l.Address (@l.Suburb)</option>
+                                }
+                            </select>
+                        </label>
+
+                        <label class="eq-field">
+                            <span>Agent name for warm handoff</span>
+                            <input class="lg-input" maxlength="80" @bind="_voiceAgentName" placeholder="Sarah Lawson" />
+                        </label>
+
+                        <label class="eq-field">
+                            <span>Agent mobile (SMS/call escalation)</span>
+                            <input class="lg-input" type="tel" maxlength="24" @bind="_voiceAgentPhone" placeholder="0412 345 678" />
+                        </label>
+
+                        <button type="button"
+                                class="lg-btn lg-btn-primary"
+                                data-testid="provision-voice-btn"
+                                disabled="@(_provisioningVoice || string.IsNullOrWhiteSpace(_selectedListingId))"
+                                @onclick="ProvisionVoiceAsync">
+                            @(_provisioningVoice ? "Provisioning via api.sovrgn.ai…" : "🎙 Provision ElevenLabs Assistant")
+                        </button>
+                    </div>
+
+                    @if (_voiceResult is not null)
+                    {
+                        <div class="eq-voice-result @(_voiceResult.Succeeded ? "ok" : "warn")" data-testid="voice-provision-result">
+                            <strong>@(_voiceResult.Succeeded ? "✓ Assistant Live" : "Ready to activate")</strong>
+                            <p>@_voiceResult.Message</p>
+                            @if (_voiceResult.Succeeded && !string.IsNullOrWhiteSpace(_voiceResult.AgentId))
+                            {
+                                <div class="eq-agent-id">Agent ID: <code>@_voiceResult.AgentId</code></div>
+                            }
+                            <details class="eq-prompt-preview">
+                                <summary>Inspect grounded listing voice script</summary>
+                                <pre>@_voiceResult.SystemPromptPreview</pre>
+                            </details>
+                        </div>
+                    }
+
+                    <p class="eq-voice-footnote">
+                        Honest residency note: ElevenLabs Conversational AI currently runs via Sovrgn's global voice proxy
+                        (<code>/v1/convai/*</code>) — requests pinned to <code>au-only</code> fail closed until an AU-region voice backend is configured.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    }
+
+    @if (_toast is not null)
+    {
+        <div class="eq-toast lg-surface-strong" role="status">@_toast</div>
+    }
+</div>
+
+<style>
+    .eq-page { max-width: 1180px; margin: 0 auto; padding: 18px 16px 56px; }
+    .eq-auth-gate { max-width: 600px; margin: 40px auto; padding: 30px; border-radius: 30px; text-align: center; }
+    .eq-auth-gate h1 { margin: 8px 0 10px; font-size: clamp(24px, 4vw, 32px); letter-spacing: -0.025em; }
+    .eq-auth-gate p { margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); }
+    .eq-auth-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    .eq-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; }
+    .eq-eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--lg-emerald); }
+    .eq-head h1 { margin: 4px 0 6px; font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.03em; }
+    .eq-head p { margin: 0; font-size: 14px; color: var(--lg-ink-secondary); max-width: 660px; }
+
+    .eq-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 22px; }
+    @@media (min-width: 760px) { .eq-stats { grid-template-columns: repeat(4, 1fr); } }
+    .eq-stat { border-radius: 22px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+    .eq-stat span { font-size: 12px; color: var(--lg-ink-secondary); font-weight: 600; }
+    .eq-stat strong { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+
+    .eq-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+    @@media (min-width: 960px) { .eq-grid { grid-template-columns: 1.4fr 1fr; } }
+
+    .eq-filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px; }
+    .eq-chip { padding: 8px 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; color: var(--lg-ink-secondary); cursor: pointer; white-space: nowrap; }
+    .eq-chip.active { background: var(--lg-glass-thumb); color: var(--lg-ink); }
+
+    .eq-list { display: grid; gap: 14px; }
+    .eq-card { border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .eq-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .eq-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .eq-ch, .eq-status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; }
+    .eq-ch { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .eq-ch-offer { background: var(--lg-amber-soft); color: var(--lg-amber); }
+    .eq-status { background: var(--lg-border-subtle); color: var(--lg-ink-secondary); }
+    .eq-st-new { background: var(--lg-amber-soft); color: var(--lg-amber); }
+    .eq-st-responded, .eq-st-inspectionbooked { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+
+    .eq-time { font-size: 12px; color: var(--lg-ink-muted); }
+    .eq-buyer-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .eq-buyer-row h3 { margin: 0; font-size: 17px; font-weight: 700; }
+    .eq-prop-link { font-size: 13px; font-weight: 600; color: var(--lg-accent); text-decoration: none; }
+    .eq-offer-pill { font-size: 16px; font-weight: 800; color: var(--lg-emerald); white-space: nowrap; }
+    .eq-summary { margin: 0; font-size: 14px; line-height: 1.55; color: var(--lg-ink); }
+    .eq-contact-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--lg-ink-secondary); }
+    .eq-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px; border-top: 1px solid var(--lg-border-subtle); }
+    .eq-btn-sm { min-height: 38px; padding: 7px 14px; font-size: 13px; }
+    .eq-empty { border-radius: 26px; padding: 28px; text-align: center; }
+    .eq-empty h3 { margin: 0 0 8px; }
+    .eq-empty p { margin: 0 0 16px; font-size: 14px; color: var(--lg-ink-secondary); }
+
+    .eq-voice-card { border-radius: 28px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+    .eq-voice-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .eq-voice-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .eq-conn { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 9999px; }
+    .eq-conn.live { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .eq-conn.unconfigured { background: var(--lg-amber-soft); color: var(--lg-amber); }
+    .eq-voice-card h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+    .eq-voice-card > p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--lg-ink-secondary); }
+    .eq-voice-form { display: grid; gap: 12px; margin-top: 4px; }
+    .eq-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--lg-ink-secondary); }
+    .eq-voice-result { border-radius: 18px; padding: 14px; font-size: 13px; line-height: 1.5; }
+    .eq-voice-result.ok { background: var(--lg-emerald-soft); color: var(--lg-emerald); }
+    .eq-voice-result.warn { background: var(--lg-amber-soft); color: var(--lg-ink); }
+    .eq-voice-result p { margin: 4px 0 8px; }
+    .eq-agent-id { font-size: 12px; margin-bottom: 8px; }
+    .eq-prompt-preview summary { cursor: pointer; font-weight: 600; font-size: 12px; }
+    .eq-prompt-preview pre { margin: 8px 0 0; padding: 10px; border-radius: 12px; background: var(--lg-input-bg); color: var(--lg-ink); white-space: pre-wrap; font-size: 11px; max-height: 220px; overflow-y: auto; }
+    .eq-voice-footnote { font-size: 12px !important; color: var(--lg-ink-muted) !important; }
+
+    .eq-toast { position: fixed; top: calc(74px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); padding: 10px 18px; border-radius: 9999px; font-size: 13px; font-weight: 600; z-index: 130; }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private readonly (string Key, string Label)[] _filterTabs =
+    [
+        ("all", "All"),
+        ("new", "Needs Reply"),
+        ("voice", "Calls & Voice AI"),
+        ("sms", "Text / SMS"),
+        ("inspection", "Inspections"),
+        ("offer", "Offers")
+    ];
+
+    private bool _authChecked;
+    private Guid? _currentUserId;
+    private bool _loading;
+    private string? _loadError;
+    private string _activeFilter = "all";
+    private List<ParsedEnquiry> _enquiries = [];
+    private List<Listing> _listings = [];
+
+    private string _selectedListingId = "";
+    private string _voiceAgentName = "Listing Representative";
+    private string _voiceAgentPhone = "";
+    private bool _provisioningVoice;
+    private VoiceAssistantProvisionResult? _voiceResult;
+    private string? _toast;
+    private CancellationTokenSource? _toastCts;
+
+    private List<ParsedEnquiry> FilteredEnquiries => _enquiries.Where(e => _activeFilter switch
+    {
+        "new" => e.Status == InquiryStatus.New,
+        "voice" => e.Channel is EnquiryChannel.CallRequest or EnquiryChannel.VoiceAssistant,
+        "sms" => e.Channel == EnquiryChannel.SmsText,
+        "inspection" => e.Channel == EnquiryChannel.Inspection,
+        "offer" => e.Channel == EnquiryChannel.Offer,
+        _ => true
+    }).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var user = state.User;
+            if (user.Identity?.IsAuthenticated == true
+                && Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var uid))
+            {
+                _currentUserId = uid;
+                var displayName = user.FindFirstValue(ClaimTypes.Name);
+                if (!string.IsNullOrWhiteSpace(displayName))
+                    _voiceAgentName = displayName;
+            }
+        }
+        _authChecked = true;
+
+        if (_currentUserId.HasValue)
+            await LoadDataAsync(_currentUserId.Value);
+    }
+
+    private async Task LoadDataAsync(Guid ownerUserId)
+    {
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            _listings = await ListingService.GetPublishedListingsForOwnerAsync(ownerUserId, 100);
+            if (string.IsNullOrWhiteSpace(_selectedListingId) && _listings.Count > 0)
+                _selectedListingId = _listings[0].Id.ToString();
+
+            var raw = await ListingService.GetInquiriesForOwnerAsync(ownerUserId, 100);
+            _enquiries = raw
+                .Select(i => EnquiryRecordCodec.Parse(
+                    i,
+                    i.Listing?.Address ?? "",
+                    i.Listing?.Suburb ?? ""))
+                .ToList();
+        }
+        catch
+        {
+            _loadError = "Unable to load your enquiries right now. Please refresh and try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SetStatusAsync(Guid inquiryId, InquiryStatus status)
+    {
+        if (!_currentUserId.HasValue) return;
+        try
+        {
+            var ok = await ListingService.UpdateInquiryStatusForOwnerAsync(inquiryId, _currentUserId.Value, status);
+            if (ok)
+            {
+                await LoadDataAsync(_currentUserId.Value);
+                ShowToast($"Enquiry marked as {StatusLabel(status)}.");
+            }
+        }
+        catch
+        {
+            ShowToast("Could not update enquiry status right now.");
+        }
+    }
+
+    private async Task ProvisionVoiceAsync()
+    {
+        if (!_currentUserId.HasValue || !Guid.TryParse(_selectedListingId, out var id)) return;
+        var listing = _listings.FirstOrDefault(l => l.Id == id && l.UserId == _currentUserId.Value);
+        if (listing is null) return;
+
+        _provisioningVoice = true;
+        StateHasChanged();
+
+        try
+        {
+            _voiceResult = await VoiceClient.ProvisionListingAssistantAsync(new ListingVoiceAssistantRequest(
+                ListingId: listing.Id,
+                Address: listing.Address,
+                Suburb: listing.Suburb,
+                State: listing.State,
+                Postcode: listing.Postcode,
+                PropertyType: listing.PropertyType,
+                PriceDisplay: listing.PriceDisplay,
+                Bedrooms: listing.Bedrooms,
+                Bathrooms: listing.Bathrooms,
+                CarSpaces: listing.CarSpaces,
+                LandSize: listing.LandSize,
+                Description: listing.Description,
+                AgentName: string.IsNullOrWhiteSpace(_voiceAgentName) ? "Listing Agent" : _voiceAgentName.Trim(),
+                AgentPhone: _voiceAgentPhone.Trim()));
+        }
+        catch
+        {
+            ShowToast("Could not reach the voice assistant service.");
+        }
+        finally
+        {
+            _provisioningVoice = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string ChannelLabel(EnquiryChannel ch) => ch switch
+    {
+        EnquiryChannel.CallRequest => "📞 Call Request",
+        EnquiryChannel.SmsText => "💬 SMS Text",
+        EnquiryChannel.VoiceAssistant => "🎙 Voice AI",
+        EnquiryChannel.Inspection => "🗓 Inspection",
+        EnquiryChannel.Offer => "🏷 Offer",
+        _ => "❓ Question"
+    };
+
+    private static string StatusLabel(InquiryStatus st) => st switch
+    {
+        InquiryStatus.New => "Needs reply",
+        InquiryStatus.Viewed => "Viewed",
+        InquiryStatus.Responded => "Replied",
+        InquiryStatus.InspectionBooked => "Inspection booked",
+        InquiryStatus.OfferMade => "Offer received",
+        _ => st.ToString()
+    };
+
+    private void ShowToast(string msg)
+    {
+        _toastCts?.Cancel();
+        _toastCts?.Dispose();
+        _toastCts = new CancellationTokenSource();
+        var token = _toastCts.Token;
+        _toast = msg;
+        _ = HideToastAsync(token);
+    }
+
+    private async Task HideToastAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(3200, ct);
+            _toast = null;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
+
+    public void Dispose()
+    {
+        _toastCts?.Cancel();
+        _toastCts?.Dispose();
+    }
+}

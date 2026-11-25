@@ -1,0 +1,294 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
+
+@* Desktop / Tablet Floating Liquid Glass Capsule Bar *@
+<header class="lg-topbar" data-testid="liquid-glass-topbar">
+    <div class="lg-topbar-inner">
+        <a href="/" class="lg-brand-pill lg-surface-strong">
+            <span class="lg-brand-mark" aria-hidden="true">u</span>
+            <span>unrealestate.au</span>
+            <span class="lg-nfp-tag">Not-for-profit · $0</span>
+        </a>
+
+        <nav class="lg-nav-capsule lg-surface-strong" aria-label="Primary">
+            <a href="/" class="lg-nav-item @(IsActive("/", "/buy") ? "active" : "")">Buy</a>
+            <a href="/buyer/matches" class="lg-nav-item @(IsActive("/buyer/matches") ? "active" : "")">AI Match</a>
+            <a href="/explore?mode=buy" class="lg-nav-item @(IsActive("/explore") ? "active" : "")">Map</a>
+            <a href="/enquiries" class="lg-nav-item @(IsActive("/enquiries") ? "active" : "")">Enquiries</a>
+            <a href="/agents" class="lg-nav-item @(IsActive("/agents") ? "active" : "")">For Agents</a>
+        </nav>
+
+        <div class="lg-topbar-actions">
+            <button type="button"
+                    class="lg-icon-pill lg-surface-strong lg-desktop-only-pill"
+                    title="Saved homes shortlist (no login required)"
+                    data-testid="open-shortlist-btn"
+                    @onclick="OpenShortlist">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linejoin="round" />
+                </svg>
+                <span class="lg-hide-xs">Saved</span>
+                @if (_shortlist.Count > 0)
+                {
+                    <span class="lg-count-badge" data-testid="shortlist-count">@_shortlist.Count</span>
+                }
+            </button>
+
+            <button type="button"
+                    class="lg-icon-pill lg-surface-strong"
+                    title="Appearance: Auto / Daylight / Midnight"
+                    data-testid="theme-mode-toggle"
+                    @onclick="CycleTheme">
+                <span>@ThemeIcon</span>
+                <span class="lg-hide-xs">@ThemeLabel</span>
+            </button>
+
+            <a href="/agents#quick-link-post" class="lg-cta-pill">
+                <span class="lg-cta-full">Paste Link · $0</span>
+                <span class="lg-cta-short">List $0</span>
+            </a>
+        </div>
+    </div>
+</header>
+
+@* Phone-Native iOS 26 Floating Liquid Glass Bottom Dock + Detached Circular AI Match Orb *@
+<nav class="lg-dock-wrap" aria-label="Mobile navigation" data-testid="liquid-glass-dock">
+    <div class="lg-dock lg-surface-strong">
+        <a href="/" class="lg-dock-tab @(IsActive("/", "/buy") ? "active" : "")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z" stroke-linejoin="round" /></svg>
+            <span>Buy</span>
+        </a>
+        <a href="/explore?mode=buy" class="lg-dock-tab @(IsActive("/explore") ? "active" : "")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" stroke-linejoin="round" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>
+            <span>Map</span>
+        </a>
+        <button type="button" class="lg-dock-tab @(_showShortlist ? "active" : "")" @onclick="OpenShortlist">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linejoin="round" /></svg>
+            <span>Saved@(_shortlist.Count > 0 ? $" ({_shortlist.Count})" : "")</span>
+        </button>
+        <a href="/agents" class="lg-dock-tab @(IsActive("/agents", "/enquiries") ? "active" : "")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            <span>Agents</span>
+        </a>
+    </div>
+
+    <a href="/buyer/matches" class="lg-dock-orb lg-surface-strong" aria-label="AI Buyer Matches" title="AI Buyer Matches">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1.5l2.1 5.4 5.4 2.1-5.4 2.1L10 16.5l-2.1-5.4L2.5 9l5.4-2.1L10 1.5z" /></svg>
+    </a>
+</nav>
+
+@* Zero-Signup Buyer Shortlist Slide-Up Glass Sheet *@
+@if (_showShortlist)
+{
+    <div class="lg-sheet-backdrop" @onclick="CloseShortlist" data-testid="shortlist-sheet">
+        <div class="lg-sheet" @onclick:stopPropagation>
+            <div class="lg-sheet-handle"></div>
+            <div class="sl-head">
+                <div>
+                    <h2>Your Shortlist</h2>
+                    <p>Saved privately on this phone — no account, no tracking, zero spam.</p>
+                </div>
+                <button type="button" class="lg-icon-pill lg-surface" @onclick="CloseShortlist" aria-label="Close shortlist">✕</button>
+            </div>
+
+            @if (_shortlist.Count == 0)
+            {
+                <div class="sl-empty">
+                    <p><strong>No saved homes yet.</strong></p>
+                    <p>Tap the heart on any property while browsing or comparing matches to keep your weekend open-home list here.</p>
+                    <div class="sl-empty-actions">
+                        <a href="/buyer/matches" class="lg-btn lg-btn-primary" @onclick="CloseShortlist">Find buyer matches</a>
+                        <a href="/explore?mode=buy" class="lg-btn lg-btn-secondary" @onclick="CloseShortlist">Explore map</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="sl-list">
+                    @foreach (var item in _shortlist)
+                    {
+                        var savedItem = item;
+                        <div class="sl-card lg-surface">
+                            <div class="sl-card-main">
+                                <a href="@($"/property/{savedItem.Id}")" class="sl-addr" @onclick="CloseShortlist">@savedItem.Address</a>
+                                <div class="sl-sub">@savedItem.Suburb @savedItem.State @savedItem.Postcode · @savedItem.PropertyType</div>
+                                <div class="sl-meta">
+                                    <strong>@savedItem.PriceDisplay</strong>
+                                    @if (savedItem.Bedrooms.HasValue || savedItem.Bathrooms.HasValue)
+                                    {
+                                        <span> · @(savedItem.Bedrooms?.ToString() ?? "—") bd · @(savedItem.Bathrooms?.ToString() ?? "—") ba</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="sl-card-actions">
+                                <a href="@($"/property/{savedItem.Id}")" class="lg-btn lg-btn-primary sl-open" @onclick="CloseShortlist">Open</a>
+                                <button type="button" class="sl-remove" @onclick="() => RemoveSaved(savedItem.Id)" aria-label="Remove @savedItem.Address">Remove</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .lg-hide-xs { display: none; }
+    .lg-desktop-only-pill { display: none; }
+    .lg-cta-full { display: none; }
+    .lg-cta-short { display: inline; }
+    @@media (min-width: 520px) {
+        .lg-cta-full { display: inline; }
+        .lg-cta-short { display: none; }
+    }
+    @@media (min-width: 600px) { .lg-hide-xs { display: inline; } }
+    @@media (min-width: 900px) { .lg-desktop-only-pill { display: inline-flex; } }
+
+    .sl-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .sl-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .sl-head p { margin: 4px 0 0; font-size: 13px; color: var(--lg-ink-secondary); }
+    .sl-empty { padding: 20px 6px 8px; text-align: center; color: var(--lg-ink-secondary); font-size: 14px; line-height: 1.55; }
+    .sl-empty strong { color: var(--lg-ink); }
+    .sl-empty-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+    .sl-list { display: grid; gap: 10px; }
+    .sl-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border-radius: 20px; }
+    .sl-card-main { min-width: 0; }
+    .sl-addr { display: block; font-size: 15px; font-weight: 700; color: var(--lg-ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sl-sub { font-size: 12px; color: var(--lg-ink-secondary); margin-top: 2px; }
+    .sl-meta { font-size: 13px; color: var(--lg-emerald); margin-top: 4px; }
+    .sl-card-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+    .sl-open { min-height: 36px; padding: 6px 14px; font-size: 12px; }
+    .sl-remove { border: none; background: transparent; color: var(--lg-ink-muted); font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+    .sl-remove:hover { color: var(--lg-danger); }
+</style>
+
+@code {
+    private string _themeMode = "auto";
+    private bool _showShortlist;
+    private List<ShortlistItem> _shortlist = [];
+    private readonly string _subId = Guid.NewGuid().ToString("N");
+    private DotNetObjectReference<LiquidGlassChrome>? _dotNetRef;
+
+    private string ThemeIcon => _themeMode switch
+    {
+        "light" => "☀",
+        "dark" => "☾",
+        _ => "◐"
+    };
+
+    private string ThemeLabel => _themeMode switch
+    {
+        "light" => "Daylight",
+        "dark" => "Midnight",
+        _ => "Auto"
+    };
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += HandleLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("ueGlass.subscribeShortlist", _subId, _dotNetRef);
+            }
+            catch { }
+            await RefreshClientStateAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnShortlistChanged()
+    {
+        await RefreshClientStateAsync();
+    }
+
+    private async Task RefreshClientStateAsync()
+    {
+        try
+        {
+            _themeMode = await JS.InvokeAsync<string>("ueGlass.getThemeMode");
+            _shortlist = await JS.InvokeAsync<List<ShortlistItem>>("ueGlass.getShortlist") ?? [];
+            StateHasChanged();
+        }
+        catch
+        {
+            // Ignore during prerender.
+        }
+    }
+
+    private async Task CycleTheme()
+    {
+        try
+        {
+            _themeMode = await JS.InvokeAsync<string>("ueGlass.cycleThemeMode");
+        }
+        catch { }
+    }
+
+    private async Task OpenShortlist()
+    {
+        await RefreshClientStateAsync();
+        _showShortlist = true;
+    }
+
+    private void CloseShortlist() => _showShortlist = false;
+
+    private async Task RemoveSaved(string id)
+    {
+        try
+        {
+            _shortlist = await JS.InvokeAsync<List<ShortlistItem>>("ueGlass.removeShortlist", id) ?? [];
+        }
+        catch { }
+    }
+
+    private bool IsActive(params string[] paths)
+    {
+        var current = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+        if (string.IsNullOrEmpty(current)) current = "/";
+        return paths.Any(p => string.Equals(p.TrimEnd('/') is "" ? "/" : p.TrimEnd('/'), current, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshClientStateAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= HandleLocationChanged;
+        if (_dotNetRef is not null)
+        {
+            try { _ = JS.InvokeVoidAsync("ueGlass.unsubscribeShortlist", _subId); } catch { }
+            _dotNetRef.Dispose();
+        }
+    }
+
+    public sealed class ShortlistItem
+    {
+        public string Id { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Suburb { get; set; } = "";
+        public string State { get; set; } = "QLD";
+        public string Postcode { get; set; } = "";
+        public string PriceDisplay { get; set; } = "";
+        public decimal? AskingPrice { get; set; }
+        public int? Bedrooms { get; set; }
+        public int? Bathrooms { get; set; }
+        public int? CarSpaces { get; set; }
+        public string PropertyType { get; set; } = "House";
+    }
+}

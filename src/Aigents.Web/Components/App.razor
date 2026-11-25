@@ -3,12 +3,20 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#edf1f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#070b13" />
     <base href="/" />
-    <title>unrealestate.au — Free Australian property listings</title>
+    <title>unrealestate.au — Not-for-profit Australian property · $0 forever</title>
+    <script>
+        (function(){try{var t=localStorage.getItem('ue_glass_theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();
+    </script>
     <link rel="stylesheet" href="@Assets["css/app.css"]" />
     <link rel="stylesheet" href="@Assets["css/theme.css"]" />
     <link rel="stylesheet" href="@Assets["css/auth.css"]" />
+    <link rel="stylesheet" href="@Assets["css/liquid-glass.css"]" />
     <link rel="stylesheet" href="@Assets["Aigents.Web.styles.css"]" />
     <HeadOutlet />
 </head>
@@ -16,6 +24,7 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
+    <script src="js/liquid-glass.js"></script>
     <!-- Property Viz Helpers (local-only, no external map/CDN egress) -->
     <script src="js/property-viz.js"></script>
     <script src="js/globe-viz.js"></script>

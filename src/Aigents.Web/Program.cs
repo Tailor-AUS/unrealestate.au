@@ -4,12 +4,15 @@
 
 using Aigents.Domain.Entities;
 using Aigents.Infrastructure.Data;
+using Aigents.Infrastructure.Services.AI;
 using Aigents.Infrastructure.Services.Auth;
+using Aigents.Infrastructure.Services.Import;
 using Aigents.Web.Components;
 using Aigents.Web.Components.Account;
 using Aigents.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Http;
 
 // Expand FOO_FILE env vars (Docker secrets convention used on AloomU).
 foreach (var key in Environment.GetEnvironmentVariables().Keys.Cast<string>().ToList())
@@ -80,6 +83,73 @@ builder.Services.AddScoped(sp =>
 
 // Database-backed listing service (Scoped for EF Core compatibility)
 builder.Services.AddScoped<IListingService, ListingService>();
+
+// Tailor Routing (api.sovrgn.ai) + ElevenLabs Voice Concierge (/v1/convai/*)
+builder.Services.Configure<AzureAiOptions>(
+    builder.Configuration.GetSection(AzureAiOptions.SectionName));
+builder.Services.AddSovrgnRouting(builder.Configuration);
+builder.Services.AddScoped<ISovrgnVoiceAssistantClient, SovrgnVoiceAssistantClient>();
+
+// SSRF-hardened 1-Link Agent Auto-Post Importer (no auto-redirects, no cookies, no proxy bypass, IPv4/IPv6 safe)
+builder.Services.AddHttpClient(ListingLinkImporter.HttpClientName, client =>
+{
+    client.Timeout = ListingLinkImporter.TotalRequestTimeout;
+}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false,
+    UseProxy = false,
+    ConnectCallback = async (context, ct) =>
+    {
+        var addresses = await System.Net.Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+        if (addresses.Length == 0 || addresses.Any(ListingLinkImporter.IsPrivateOrReservedAddress))
+            throw new HttpRequestException("Blocked connection to private or reserved IP address.");
+
+        Exception? lastError = null;
+        foreach (var ip in addresses)
+        {
+            var socket = new System.Net.Sockets.Socket(ip.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp)
+            {
+                NoDelay = true
+            };
+            try
+            {
+                await socket.ConnectAsync(ip, context.DnsEndPoint.Port, ct);
+                return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+            }
+            catch (OperationCanceledException)
+            {
+                socket.Dispose();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                socket.Dispose();
+                lastError = ex;
+            }
+        }
+
+        throw lastError ?? new HttpRequestException("Could not connect to resolved public host.");
+    }
+});
+builder.Services.PostConfigure<HttpClientFactoryOptions>(
+    ListingLinkImporter.HttpClientName,
+    options =>
+    {
+        options.HttpMessageHandlerBuilderActions.Add(hb =>
+        {
+            for (var i = hb.AdditionalHandlers.Count - 1; i >= 0; i--)
+            {
+                var name = hb.AdditionalHandlers[i].GetType().FullName ?? "";
+                if (name.Contains("Resilience", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
+                {
+                    hb.AdditionalHandlers.RemoveAt(i);
+                }
+            }
+        });
+    });
+builder.Services.AddScoped<IListingLinkImporter, ListingLinkImporter>();
 
 // Web Intelligence Service (Scrapes/Searches for property data)
 builder.Services.AddHttpClient<Aigents.Infrastructure.PropertyData.IPropertyIntelligenceService, Aigents.Infrastructure.PropertyData.PropertyIntelligenceService>(client =>
