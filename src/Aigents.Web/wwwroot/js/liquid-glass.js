@@ -171,6 +171,48 @@
         }, { passive: true });
     }
 
+    // Scroll-aware adaptive chrome using data-* attributes on <html> so Blazor DOM diffs never overwrite state.
+    let chromeRaf = false;
+    function applyHeroChromeNow() {
+        const root = document.documentElement;
+        const heroEl = document.querySelector('.ue-hero, .ag-hero, .pd-hero');
+        const homeHeroEl = document.querySelector('.ue-hero');
+
+        const overHero = !!(heroEl && heroEl.getBoundingClientRect().bottom > 64);
+        const dockOverHero = !!(homeHeroEl && homeHeroEl.getBoundingClientRect().bottom > (window.innerHeight - 64));
+
+        root.setAttribute('data-topbar-hero', overHero ? '1' : '0');
+        root.setAttribute('data-dock-content', dockOverHero ? '0' : '1');
+    }
+
+    function syncHeroChrome() {
+        if (!chromeRaf) {
+            chromeRaf = true;
+            requestAnimationFrame(() => {
+                chromeRaf = false;
+                applyHeroChromeNow();
+            });
+        }
+    }
+
+    window.addEventListener('scroll', syncHeroChrome, { passive: true });
+    window.addEventListener('resize', syncHeroChrome, { passive: true });
+
+    function startChromeObserver() {
+        applyHeroChromeNow();
+        const shell = document.querySelector('.lg-app-shell');
+        if (shell && typeof MutationObserver !== 'undefined') {
+            const obs = new MutationObserver(syncHeroChrome);
+            obs.observe(shell, { childList: true, subtree: true });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startChromeObserver, { once: true });
+    } else {
+        startChromeObserver();
+    }
+
     if (media && media.addEventListener) {
         media.addEventListener('change', () => {
             if (getThemeMode() === 'auto') applyTheme('auto');
@@ -189,6 +231,7 @@
         isShortlisted,
         subscribeShortlist,
         unsubscribeShortlist,
-        copyText
+        copyText,
+        syncHeroChrome
     };
 })();
