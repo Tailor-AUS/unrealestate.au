@@ -1,833 +1,825 @@
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using Aigents.Domain.Entities
+@using Aigents.Infrastructure.Services.Import
 @using Aigents.Web.Services
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Nav
-@inject ISiteContext SiteContext
-@inject IJSRuntime JSRuntime
+@inject IListingService ListingService
+@inject IJSRuntime JS
 
-@*
-    unrealestate.au homepage — REA-style utility hero (search first), but
-    Australian-owned, not-for-profit, free, open source. Three audiences
-    on the same page: Sellers, Agents, Buyers. Stats band sits between
-    the search hero and the audience tabs to hammer the "why we exist"
-    message without burying the utility.
-*@
+<div class="ue-home" data-testid="liquid-glass-home">
+    @* ─── Full-bleed Apple Liquid Glass Hero (strictly <= 3 elements) ─── *@
+    <section class="ue-hero">
+        <div class="ue-hero-photo" aria-hidden="true"></div>
+        <div class="ue-hero-scrim" aria-hidden="true"></div>
 
-<div class="rea-page">
-    @* ─── Top nav ─── *@
-    <nav class="rea-nav">
-        <div class="rea-nav-inner">
-            <a href="/" class="rea-logo" @onclick:preventDefault @onclick="GoHome">
-                <span class="logo-mark">◆</span>
-                <span class="logo-text">unreal<span class="logo-au">.estate</span></span>
-                <span class="logo-pill">not-for-profit</span>
-            </a>
-            <div class="rea-nav-links">
-                <a href="/explore?type=buy" class="rea-nav-link">Buy</a>
-                <a href="/explore?type=rent" class="rea-nav-link">Rent</a>
-                <a href="/explore?type=sold" class="rea-nav-link">Sold</a>
-                <a href="/agents" class="rea-nav-link">Find agents</a>
-                <a href="#why-we-exist" class="rea-nav-link">Why we exist</a>
-                <a href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener" class="rea-nav-link">GitHub</a>
+        <div class="ue-hero-inner">
+            @* Element 1: Headline *@
+            <div class="ue-hero-copy">
+                <span class="ue-nfp-pill">Not-for-profit · Australian-owned · Free forever</span>
+                <h1 class="ue-hero-title">Australian homes. $0 to list.</h1>
+                <p class="ue-hero-sub">
+                    Search, match &amp; enquire with zero pay-to-rank clutter — or paste your agency listing link and auto-post for $0.
+                </p>
             </div>
-            <div class="rea-nav-actions">
-                <a href="/agents/register" class="rea-btn-secondary">Sign in</a>
-                <button class="rea-btn-primary" @onclick="GoToAgentRegister">Use it free</button>
-            </div>
-        </div>
-    </nav>
 
-    @* ─── Search hero ─── *@
-    <section class="rea-hero">
-        <div class="rea-hero-bg"></div>
-        <div class="rea-hero-content">
-            <h1 class="rea-hero-title">@GetHeroTitle()</h1>
-
-            <div class="rea-search-card">
-                <div class="rea-tabs">
-                    <button class="rea-tab @(_searchType == "buy" ? "active" : "")" @onclick="@(() => SetSearch("buy"))" type="button">Buy</button>
-                    <button class="rea-tab @(_searchType == "rent" ? "active" : "")" @onclick="@(() => SetSearch("rent"))" type="button">Rent</button>
-                    <button class="rea-tab @(_searchType == "sold" ? "active" : "")" @onclick="@(() => SetSearch("sold"))" type="button">Sold</button>
-                    <button class="rea-tab @(_searchType == "address" ? "active" : "")" @onclick="@(() => SetSearch("address"))" type="button">Address</button>
-                    <button class="rea-tab @(_searchType == "agents" ? "active" : "")" @onclick="@(() => SetSearch("agents"))" type="button">Agents</button>
-                    <button class="rea-tab rea-tab-ai @(_searchType == "ai" ? "active" : "")" @onclick="@(() => SetSearch("ai"))" type="button">✨ Ask AI</button>
+            @* Element 2: Refractive Liquid Glass Search / Buyer Brief / Agent Link Capsule *@
+            <div class="ue-capsule-wrap">
+                <div class="ue-mode-pills" role="tablist" aria-label="Search mode">
+                    <button type="button" class="ue-mode-pill @(_mode == "buy" ? "active" : "")" @onclick='() => _mode = "buy"'>Buy</button>
+                    <button type="button" class="ue-mode-pill @(_mode == "match" ? "active" : "")" @onclick='() => _mode = "match"'>AI Match</button>
+                    <button type="button" class="ue-mode-pill @(_mode == "map" ? "active" : "")" @onclick='() => _mode = "map"'>Map</button>
+                    <button type="button" class="ue-mode-pill @(_mode == "agentlink" ? "active" : "")" @onclick='() => _mode = "agentlink"'>Paste Agent Link</button>
                 </div>
-                <div class="rea-search-row">
-                    <span class="rea-search-icon">🔍</span>
+
+                <div class="ue-search-capsule lg-refract">
+                    <span class="ue-search-icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="11" cy="11" r="7" />
+                            <path d="M21 21l-4.35-4.35" stroke-linecap="round" />
+                        </svg>
+                    </span>
                     <input type="text"
-                           class="rea-search-input"
+                           class="ue-search-input"
+                           data-testid="hero-search-input"
                            placeholder="@GetPlaceholder()"
-                           @bind="_searchQuery"
+                           @bind="_query"
                            @bind:event="oninput"
                            @onkeyup="HandleKeyup" />
-                    <button class="rea-search-filters" type="button" disabled>≡ Filters</button>
-                    <button class="rea-search-submit" @onclick="HandleSearch" type="button">Search</button>
+                    <button type="button"
+                            class="ue-search-go"
+                            data-testid="hero-search-submit"
+                            @onclick="HandleSearch">
+                        <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path d="M10 1.5l2.1 5.4 5.4 2.1-5.4 2.1L10 16.5l-2.1-5.4L2.5 9l5.4-2.1L10 1.5z" />
+                        </svg>
+                        <span>@(_mode == "agentlink" ? "Auto-Post" : "Match")</span>
+                    </button>
                 </div>
             </div>
 
-            @* Trust strip — woven Aussie / non-profit values *@
-            <div class="rea-trust-strip">
-                <span class="rea-trust-item">🇦🇺 Australian-owned · by Tailor</span>
-                <span class="rea-trust-item">💚 Not-for-profit · no margin</span>
-                <span class="rea-trust-item">📖 Open source · Apache 2.0</span>
-                <span class="rea-trust-item">🏠 Hosted in Australia</span>
-            </div>
-        </div>
-    </section>
-
-    @* ─── REA-style "explore all things property" — audience tabs as helper cards ─── *@
-    <section class="audience-section">
-        <div class="audience-container">
-            <h2 class="audience-title">Built for Australians, by Australians</h2>
-            <p class="audience-subtitle">unreal.estate serves all three sides of the housing market — for free. No subscriptions. No upsells. No offshore middlemen. We're a not-for-profit community project by <strong>Tailor</strong> — the team behind the open Australian fuel-price app already used by 50,000+ Aussies.</p>
-
-            <div class="audience-tabs">
-                <button class="audience-tab @(_audience == "sellers" ? "active" : "")" @onclick="@(() => _audience = "sellers")" type="button">Sellers</button>
-                <button class="audience-tab @(_audience == "agents" ? "active" : "")" @onclick="@(() => _audience = "agents")" type="button">Agents</button>
-                <button class="audience-tab @(_audience == "buyers" ? "active" : "")" @onclick="@(() => _audience = "buyers")" type="button">Buyers</button>
-            </div>
-
-            <div class="audience-cards">
-                @if (_audience == "sellers")
+            @* Element 3: Floating Liquid Glass Property Preview Cards over pool reflections *@
+            <div class="ue-preview-strip" data-testid="hero-preview-cards">
+                @if (_featured.Count > 0)
                 {
-                    @* One consolidated seller pitch (was 3 tiles): list free in 3
-                       min → see what AI staging does → choose open vs exclusive
-                       once real buyer interest lands. Valuation tile dropped —
-                       that's a generic action available anywhere. *@
-                    <div class="seller-pitch">
-                        <div class="seller-pitch-copy">
-                            <div class="seller-pitch-eyebrow">Free AI for sellers</div>
-                            <h3 class="seller-pitch-headline">List your home free in 3 minutes</h3>
-                            <p class="seller-pitch-sub">
-                                Drop your address, snap your photos on your phone. Our AI writes
-                                the listing copy and stages every room in seconds — the kind of
-                                marketing agencies charge $300+ a room for. No marketing tax,
-                                no Premiere upsell, no $3,000 cheque to a US company.
-                            </p>
-                            <p class="seller-pitch-sub">
-                                Once it's live and buyers start showing interest, it's your call:
-                                keep it open and let agents compete for the sale, or lock in one
-                                exclusive agent. You decide <em>after</em> you've seen real demand —
-                                not before.
-                            </p>
-                            <div class="seller-pitch-cta">
-                                <a class="rea-btn-primary seller-pitch-primary" href="/list">Start a free listing →</a>
-                                <a class="seller-pitch-secondary" href="/sell/manage">Open vs. exclusive — how it works →</a>
+                    @foreach (var item in _featured)
+                    {
+                        var l = item;
+                        var isSaved = _savedIds.Contains(l.Id.ToString());
+                        <article class="ue-glass-card lg-refract">
+                            <a href="@($"/property/{l.Id}")" class="ue-card-thumb" aria-label="View @l.Address">
+                                <img src="@ResolveCardImage(l)" alt="@l.Address" referrerpolicy="no-referrer" />
+                            </a>
+                            <div class="ue-card-body">
+                                <div class="ue-card-top">
+                                    <span class="ue-card-pill">$0 VPA · Free</span>
+                                    <button type="button"
+                                            class="ue-heart @(isSaved ? "saved" : "")"
+                                            aria-label="@(isSaved ? "Remove from shortlist" : "Save to shortlist")"
+                                            @onclick="() => ToggleSaveAsync(l)">
+                                        @(isSaved ? "♥" : "♡")
+                                    </button>
+                                </div>
+                                <a href="@($"/property/{l.Id}")" class="ue-card-price">@FormatPrice(l)</a>
+                                <div class="ue-card-suburb">@l.Suburb @l.State @l.Postcode</div>
+                                <div class="ue-card-specs">@FormatSpecs(l)</div>
                             </div>
-                        </div>
-                        <div class="seller-pitch-slider">
-                            <BeforeAfterSlider Items="_stagingDemo"
-                                               BeforeLabel="Phone snap"
-                                               AfterLabel="AI-staged ✨"
-                                               Caption="Drag the divider — same room, AI-restyled in seconds." />
-                        </div>
-                    </div>
-                }
-                else if (_audience == "agents")
-                {
-                    <div class="audience-card">
-                        <div class="audience-card-icon">🚪</div>
-                        <h3>Migrate off REA / Domain in one click</h3>
-                        <p>You own your photos. You own your listing copy. We just help you move them. Cancel REA Premiere. Save thousands per listing. No lock-in.</p>
-                        <a class="audience-card-cta" href="/agents/register">Try unreal.estate free →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">⚡</div>
-                        <h3>Free AI listing tools</h3>
-                        <p>Listing copy, valuation, buyer Q&amp;A, offer analysis — all generated by AI in seconds. You pay only the literal token cost (no margin), itemised to the cent.</p>
-                        <a class="audience-card-cta" href="/agents#how-it-works">See how it works →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">🎯</div>
-                        <h3>Live buyer demand</h3>
-                        <p>Buyers chatting with the unreal.estate AI get matched to your listings in real time. No competing for clicks on a foreign-owned portal.</p>
-                        <a class="audience-card-cta" href="/agents">Read more →</a>
-                    </div>
+                        </article>
+                    }
                 }
                 else
                 {
-                    <div class="audience-card">
-                        <div class="audience-card-icon">✨</div>
-                        <h3>Talk to our AI buyer agent</h3>
-                        <p>Tell the AI what you're looking for in plain English. Budget, suburbs, school zones, dealbreakers. It searches Australian listings and pings you when a real match appears.</p>
-                        <a class="audience-card-cta" href="/chat?mode=buy">Start chatting →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">🗺️</div>
-                        <h3>Browse Australian listings</h3>
-                        <p>On-market, off-market, and migrated-from-REA. Filter by suburb, postcode, budget, beds. No login. No ads. No US tracking pixels.</p>
-                        <a class="audience-card-cta" href="/explore?type=buy">Browse listings →</a>
-                    </div>
-                    <div class="audience-card">
-                        <div class="audience-card-icon">🏘️</div>
-                        <h3>Get suburb intel</h3>
-                        <p>Free suburb reports — schools, crime, growth, demographics. Built on open Australian government data, not paywalled comparables.</p>
-                        <a class="audience-card-cta" href="/explore?type=suburbs">Explore suburbs →</a>
-                    </div>
+                    <a href="/buyer/matches" class="ue-glass-card ue-empty-card lg-refract">
+                        <div class="ue-card-body">
+                            <span class="ue-card-pill">For Buyers</span>
+                            <div class="ue-card-price">Explainable AI Match</div>
+                            <div class="ue-card-suburb">Ranked by your brief — never by who paid $4,000 for Premiere+.</div>
+                        </div>
+                    </a>
+                    <a href="/agents#quick-link-post" class="ue-glass-card ue-empty-card lg-refract">
+                        <div class="ue-card-body">
+                            <span class="ue-card-pill">For Agents · $0</span>
+                            <div class="ue-card-price">Paste 1 Listing Link</div>
+                            <div class="ue-card-suburb">Auto-post free forever with Call, SMS &amp; 24/7 Voice AI enquiries.</div>
+                        </div>
+                    </a>
+                    <a href="/explore?mode=buy" class="ue-glass-card ue-empty-card lg-refract">
+                        <div class="ue-card-body">
+                            <span class="ue-card-pill">Australian-Owned</span>
+                            <div class="ue-card-price">Explore Spatial Map</div>
+                            <div class="ue-card-suburb">No login wall. No US ad trackers. Open source (Apache 2.0).</div>
+                        </div>
+                    </a>
                 }
             </div>
         </div>
     </section>
 
-    @* ─── Stats band — the funds-flow hero. Self-contained SVG (its own       *@
-    @* eyebrow + headline). Sits just before the footer as the "why this       *@
-    @* exists" closer; #why-we-exist anchor kept for the footer link.         *@
-    <section class="stats-band" id="why-we-exist">
-        <div class="stats-container">
+    @* ─── Re-imagined Phone-Native Buyer Pillars ─── *@
+    <section class="ue-section">
+        <div class="ue-section-head">
+            <span class="ue-eyebrow">Re-imagining Australian Property Sales</span>
+            <h2>Built for your phone. Free for everyone.</h2>
+            <p>
+                A$1.7 billion leaves Australia every year to US-owned listing portals (News Corp's REA and CoStar's Domain).
+                unrealestate.au is a <strong>not-for-profit</strong> open-source alternative built by Tailor.
+            </p>
+        </div>
+
+        <div class="ue-pillars">
+            <article class="lg-surface-strong ue-pillar">
+                <div class="ue-pillar-icon" aria-hidden="true">🎯</div>
+                <h3>Honest buyer matching</h3>
+                <p>Tell us your suburbs, budget, and rooms. Every match explains <em>why</em> it fits — missing details stay marked unknown, and paid bumps don't exist.</p>
+                <a href="/buyer/matches" class="ue-link">Start your buyer brief →</a>
+            </article>
+
+            <article class="lg-surface-strong ue-pillar">
+                <div class="ue-pillar-icon" aria-hidden="true">📱</div>
+                <h3>True cost &amp; zero-signup shortlist</h3>
+                <p>See estimated monthly repayments and state stamp duty right on each home, and heart properties into your phone shortlist without creating an account.</p>
+                <a href="/explore?mode=buy" class="ue-link">Explore homes on map →</a>
+            </article>
+
+            <article class="lg-surface-strong ue-pillar">
+                <div class="ue-pillar-icon" aria-hidden="true">🎙</div>
+                <h3>Call, text or 24/7 AI voice</h3>
+                <p>Tap to call, text, book an inspection, or ask the property's ElevenLabs voice concierge (via <code>api.sovrgn.ai</code>) — straight to the listing agent.</p>
+                <a href="/enquiries" class="ue-link">See enquiry &amp; voice hub →</a>
+            </article>
+        </div>
+    </section>
+
+    @* ─── Agent 1-Link Auto-Post Quick Strip ─── *@
+    <section class="ue-section">
+        <div class="lg-surface-strong ue-agent-banner">
+            <div class="ue-agent-copy">
+                <span class="ue-eyebrow">For Australian Real Estate Agents</span>
+                <h2>Just give us your listing link. We auto-post it for $0.</h2>
+                <p>
+                    Stop asking vendors for $4,000 upfront VPA just to test the market. Paste your agency listing URL — we pull the specs,
+                    publish free forever, and handle buyer calls, texts &amp; voice AI enquiries.
+                </p>
+            </div>
+            <div class="ue-agent-form">
+                <input type="url"
+                       class="lg-input"
+                       placeholder="https://youragency.com.au/listing/..."
+                       @bind="_quickAgentUrl"
+                       @bind:event="oninput" />
+                <button type="button" class="lg-btn lg-btn-primary" @onclick="GoToAgentImport">
+                    Auto-Post Free ($0) →
+                </button>
+            </div>
+        </div>
+    </section>
+
+    @* ─── Why we exist: funds flow ─── *@
+    <section class="ue-section" id="why-we-exist">
+        <div class="lg-surface-strong ue-sankey-card">
             <PhotoTaxSankey />
         </div>
     </section>
 
-    @* ─── Footer (Aussie-ownership statement, REA-mirror) ─── *@
-    <footer class="rea-footer">
-        <div class="rea-footer-inner">
-            <div class="rea-footer-brand">
-                <div class="rea-logo">
-                    <span class="logo-mark">◆</span>
-                    <span class="logo-text">unreal<span class="logo-au">.estate</span></span>
-                </div>
-                <p class="rea-footer-statement">
-                    unrealestate.au is owned and operated by <strong>Tailor</strong> — a not-for-profit
-                    community project run by the same team behind the open Australian fuel-price
-                    app used by 50,000+ Aussies. Built on the open-source <em>Aigents</em> platform —
-                    source code Apache 2.0 on
-                    <a href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener">GitHub</a>.
-                    Hosted in Australia East. We charge no margin and hold no equity.
-                </p>
+    @* ─── Clean Not-for-Profit Footer ─── *@
+    <footer class="ue-footer">
+        <div class="ue-footer-inner lg-surface-strong">
+            <div>
+                <strong>unrealestate.au</strong> · Not-for-profit community project by Tailor · Apache 2.0 · Hosted in Australia.
+                <div class="ue-footer-sub">No profit margin. No equity. Listings, search &amp; buyer enquiries are free — always.</div>
             </div>
-            <div class="rea-footer-col">
-                <h4>unreal.estate</h4>
-                <a href="/list">List your home</a>
-                <a href="/agents/register">For agents</a>
-                <a href="/explore?type=buy">Browse listings</a>
-                <a href="/chat?mode=buy">AI buyer agent</a>
+            <div class="ue-footer-links">
+                <a href="/buyer/matches">AI Match</a>
+                <a href="/explore?mode=buy">Map</a>
+                <a href="/agents">For Agents ($0)</a>
+                <a href="/enquiries">Enquiries</a>
+                <a href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener">GitHub</a>
             </div>
-            <div class="rea-footer-col">
-                <h4>Why we exist</h4>
-                <a href="#why-we-exist">The A$1.7B drain</a>
-                <a href="https://github.com/Tailor-AUS/unrealestate.au/blob/main/docs/VISION.md" target="_blank" rel="noopener">Read the thesis</a>
-                <a href="https://github.com/Tailor-AUS/unrealestate.au/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribute</a>
-            </div>
-            <div class="rea-footer-col">
-                <h4>Australian by design</h4>
-                <a href="https://github.com/Tailor-AUS/unrealestate.au" target="_blank" rel="noopener">Open source</a>
-                <a href="https://github.com/TailorAU/pact" target="_blank" rel="noopener">Built on PACT</a>
-                <a href="#">Tailor (parent org)</a>
-            </div>
-        </div>
-        <div class="rea-footer-bottom">
-            <p>© @DateTime.Now.Year unreal.estate · Apache License 2.0 · Built in Australia, hosted in Australia, governed by Australian law</p>
         </div>
     </footer>
 </div>
 
-
 <style>
-    /* ═══════════════════════════════════════════════════════════════
-       AIGENTS HOMEPAGE — REA-style utility, Aussie non-profit ethos
-    ═══════════════════════════════════════════════════════════════ */
-
-    .rea-page {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #1a1a2e;
-        background: white;
-        min-height: 100vh;
-        -webkit-font-smoothing: antialiased;
-    }
-
-    /* ─── Nav ─── */
-    .rea-nav {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        background: white;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    }
-    .rea-nav-inner {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 14px 24px;
-        display: flex;
-        align-items: center;
-        gap: 32px;
-    }
-    .rea-logo {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        text-decoration: none;
-        color: inherit;
-        cursor: pointer;
-    }
-    .rea-logo .logo-mark { font-size: 20px; color: #6366f1; }
-    .rea-logo .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
-    .rea-logo .logo-au { color: #6366f1; }
-    .rea-logo .logo-pill {
-        margin-left: 10px;
-        padding: 3px 8px;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #047857;
-        background: #d1fae5;
-        border-radius: 4px;
-    }
-    .rea-nav-links {
-        display: flex;
-        gap: 24px;
-        flex: 1;
-        margin-left: 8px;
-    }
-    .rea-nav-link {
-        font-size: 14px;
-        font-weight: 600;
-        color: #1a1a2e;
-        text-decoration: none;
-        padding: 6px 2px;
-        border-bottom: 2px solid transparent;
-        transition: border-color 0.15s;
-    }
-    .rea-nav-link:hover { border-bottom-color: #6366f1; }
-    .rea-nav-actions { display: flex; gap: 12px; align-items: center; }
-    .rea-btn-secondary {
-        font-size: 14px;
-        font-weight: 600;
-        color: #1a1a2e;
-        text-decoration: none;
-        padding: 8px 14px;
-    }
-    .rea-btn-primary {
-        font-size: 14px;
-        font-weight: 700;
-        color: white;
-        background: #ef4444;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
-    }
-    .rea-btn-primary:hover { background: #dc2626; }
-    .rea-btn-primary:active { transform: translateY(1px); }
-
-    /* ─── Hero (search-first) ─── */
-    .rea-hero {
-        position: relative;
-        min-height: 360px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 44px 24px;
-        overflow: hidden;
-    }
-    .rea-hero-bg {
-        position: absolute;
-        inset: 0;
-        /* Placeholder hero photo: the Outdoor "after" shot we already have on
-           disk, darkened to a level where the white H1 and trust pills read
-           cleanly. Replace with a curated Australian-suburb aerial when one
-           lands at /wwwroot/images/hero/. The Unsplash URL that used to live
-           here was being blocked / lazy / served the empty gray fallback. */
-        background:
-            linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.65) 100%),
-            url('/images/staging/ue-outdoor-after.jpg') center/cover no-repeat;
-        z-index: 0;
-    }
-    .rea-hero-content {
-        position: relative;
-        z-index: 1;
-        text-align: center;
-        max-width: 880px;
+    .ue-home {
         width: 100%;
     }
-    .rea-hero-title {
-        font-size: clamp(28px, 4vw, 40px);
-        font-weight: 800;
-        color: white;
-        margin: 0 0 32px 0;
-        text-shadow: 0 2px 12px rgba(0,0,0,0.35);
-        letter-spacing: -0.02em;
-    }
-    .rea-search-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+
+    .ue-hero {
+        position: relative;
+        margin-top: calc(-70px - env(safe-area-inset-top, 0px));
+        min-height: 610px;
+        padding: calc(112px + env(safe-area-inset-top, 0px)) 16px 38px;
+        display: flex;
+        align-items: flex-end;
         overflow: hidden;
-        text-align: left;
-    }
-    .rea-tabs {
-        display: flex;
-        border-bottom: 1px solid rgba(0,0,0,0.08);
-        background: #fafafa;
-        overflow-x: auto;
-    }
-    .rea-tab {
-        flex: 1;
-        min-width: max-content;
-        background: none;
-        border: none;
-        padding: 14px 20px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #6b7280;
-        cursor: pointer;
-        border-bottom: 3px solid transparent;
-        transition: color 0.15s, border-color 0.15s, background 0.15s;
-        white-space: nowrap;
-    }
-    .rea-tab:hover { color: #1a1a2e; background: #f3f4f6; }
-    .rea-tab.active {
-        color: #ef4444;
-        border-bottom-color: #ef4444;
-        background: white;
-    }
-    .rea-tab-ai.active {
-        color: #6366f1;
-        border-bottom-color: #6366f1;
-    }
-    .rea-search-row {
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        gap: 8px;
-    }
-    .rea-search-icon {
-        font-size: 18px;
-        margin-left: 4px;
-    }
-    .rea-search-input {
-        flex: 1;
-        border: none;
-        outline: none;
-        padding: 14px 12px;
-        font-size: 15px;
-        font-family: inherit;
-        background: transparent;
-    }
-    .rea-search-filters {
-        background: white;
-        border: 1px solid rgba(0,0,0,0.12);
-        border-radius: 8px;
-        padding: 10px 16px;
-        font-size: 13px;
-        font-weight: 600;
-        color: #6b7280;
-        cursor: pointer;
-    }
-    .rea-search-filters:disabled { opacity: 0.5; cursor: not-allowed; }
-    .rea-search-submit {
-        background: #ef4444;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-    .rea-search-submit:hover { background: #dc2626; }
-
-    .rea-trust-strip {
-        margin-top: 28px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        max-width: 980px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .rea-trust-item {
-        font-size: 13px;
-        font-weight: 600;
-        color: white;
-        background: rgba(0,0,0,0.35);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        padding: 7px 13px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.18);
-        white-space: nowrap;
     }
 
-    /* ─── Stats band ─── */
-    .stats-band {
-        padding: 80px 24px;
-        background: linear-gradient(180deg, #0b0b1a 0%, #1a1a2e 100%);
-        color: white;
+    .ue-hero-photo {
+        position: absolute;
+        inset: 0;
+        background: url('/images/hero-queenslander.jpg') center 45%/cover no-repeat;
+        transform: scale(1.015);
+    }
+
+    .ue-hero-scrim {
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(ellipse 75% 48% at 50% 42%, rgba(6, 12, 24, 0.56) 0%, transparent 74%),
+            linear-gradient(
+                180deg,
+                rgba(7, 13, 25, 0.46) 0%,
+                rgba(7, 13, 25, 0.28) 38%,
+                rgba(7, 13, 25, 0.54) 72%,
+                rgba(7, 13, 25, 0.78) 100%
+            );
+    }
+
+    .ue-hero-inner {
         position: relative;
         z-index: 2;
-    }
-    .stats-container {
-        max-width: 1200px;
+        max-width: 1160px;
+        width: 100%;
         margin: 0 auto;
-        text-align: center;
-    }
-    .stats-eyebrow {
-        font-size: 13px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: #a78bfa;
-        margin-bottom: 16px;
-    }
-    .stats-headline {
-        font-size: clamp(20px, 2.6vw, 30px);
-        font-weight: 700;
-        line-height: 1.3;
-        max-width: 880px;
-        margin: 0 auto 40px auto;
-        color: white;
-        letter-spacing: -0.01em;
-    }
-
-    /* ─── Audience section ─── */
-    .audience-section {
-        padding: 80px 24px;
-        background: #fafafa;
-    }
-    .audience-container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    .audience-title {
-        font-size: clamp(28px, 3.5vw, 40px);
-        font-weight: 800;
-        text-align: center;
-        margin: 0 0 16px 0;
-        letter-spacing: -0.02em;
-    }
-    .audience-subtitle {
-        font-size: 16px;
-        line-height: 1.6;
-        color: #6b7280;
-        text-align: center;
-        max-width: 720px;
-        margin: 0 auto 40px auto;
-    }
-    .audience-tabs {
         display: flex;
-        gap: 8px;
-        justify-content: center;
-        margin-bottom: 40px;
-        flex-wrap: wrap;
-    }
-    .audience-tab {
-        background: white;
-        border: 1.5px solid rgba(0,0,0,0.08);
-        border-radius: 999px;
-        padding: 12px 28px;
-        font-size: 15px;
-        font-weight: 700;
-        color: #1a1a2e;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .audience-tab:hover {
-        border-color: #6366f1;
-        color: #6366f1;
-    }
-    .audience-tab.active {
-        background: #1a1a2e;
-        color: white;
-        border-color: #1a1a2e;
-    }
-    .audience-cards {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        flex-direction: column;
+        align-items: center;
         gap: 24px;
     }
-    .audience-card {
-        background: white;
-        border: 1px solid rgba(0,0,0,0.06);
-        border-radius: 16px;
-        padding: 32px;
-        transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .audience-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.08);
-    }
-    .audience-card-icon {
-        font-size: 36px;
-        margin-bottom: 16px;
-    }
-    .audience-card h3 {
-        font-size: 19px;
-        font-weight: 800;
-        margin: 0 0 12px 0;
-        letter-spacing: -0.01em;
-    }
-    .audience-card p {
-        font-size: 14px;
-        line-height: 1.6;
-        color: #6b7280;
-        margin: 0 0 18px 0;
-    }
-    .audience-card-cta {
-        font-size: 14px;
-        font-weight: 700;
-        color: #6366f1;
-        text-decoration: none;
-    }
-    .audience-card-cta:hover {
-        color: #4f46e5;
+
+    .ue-hero-copy {
+        text-align: center;
+        max-width: 760px;
+        color: #ffffff;
     }
 
-    /* ─── Seller pitch (consolidated single card, spans full grid) ─── */
-    .seller-pitch {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: 1fr 1.1fr;
-        gap: 44px;
-        align-items: center;
-        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
-        border: 1px solid rgba(99, 102, 241, 0.14);
-        border-radius: 20px;
-        padding: 44px;
-    }
-    .seller-pitch-eyebrow {
-        font-size: 13px;
+    .ue-nfp-pill {
+        display: inline-flex;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 12px;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: #6366f1;
-        margin-bottom: 14px;
+        color: #ffffff;
+        background: rgba(16, 185, 129, 0.34);
+        border: 1px solid rgba(255, 255, 255, 0.46);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
-    .seller-pitch-headline {
-        font-size: clamp(26px, 3vw, 36px);
-        font-weight: 800;
-        margin: 0 0 16px 0;
-        letter-spacing: -0.02em;
-        color: #1a1a2e;
+
+    .ue-hero-title {
+        margin: 14px 0 8px;
+        font-size: clamp(34px, 6.2vw, 60px);
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        color: #ffffff;
+        text-shadow: 0 6px 32px rgba(6, 14, 28, 0.46);
     }
-    .seller-pitch-sub {
-        font-size: 15px;
-        line-height: 1.65;
-        color: #4b5563;
-        margin: 0 0 16px 0;
+
+    .ue-hero-sub {
+        margin: 0 auto;
+        max-width: 580px;
+        font-size: clamp(14px, 2vw, 17px);
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.92);
+        text-shadow: 0 2px 14px rgba(6, 14, 28, 0.5);
     }
-    .seller-pitch-cta {
+
+    .ue-capsule-wrap {
+        width: 100%;
+        max-width: 720px;
         display: flex;
-        gap: 16px;
+        flex-direction: column;
         align-items: center;
-        flex-wrap: wrap;
-        margin-top: 24px;
+        gap: 10px;
     }
-    .seller-pitch-primary {
-        text-decoration: none;
+
+    .ue-mode-pills {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .ue-mode-pill {
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.92);
+        background: rgba(12, 20, 36, 0.38);
+        border: 1px solid rgba(255, 255, 255, 0.30);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        cursor: pointer;
+        transition: all 0.2s var(--lg-ease);
+    }
+
+    .ue-mode-pill.active {
+        background: rgba(255, 255, 255, 0.92);
+        color: #0b1220;
+        border-color: #ffffff;
+    }
+
+    .ue-search-capsule {
+        width: 100%;
+        border-radius: 9999px;
+        padding: 7px 7px 7px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ue-search-icon {
+        color: rgba(255, 255, 255, 0.9);
+        display: inline-flex;
+        flex-shrink: 0;
+    }
+
+    .ue-search-input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: #ffffff;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 9px 4px;
+    }
+
+    .ue-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .ue-search-go {
         display: inline-flex;
         align-items: center;
-        padding: 14px 28px;
-        font-size: 15px;
-    }
-    .seller-pitch-secondary {
-        font-size: 14px;
+        gap: 6px;
+        min-height: 42px;
+        padding: 0 18px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.92);
+        color: #0b1220;
+        font-family: inherit;
+        font-size: 13px;
         font-weight: 700;
-        color: #6366f1;
-        text-decoration: none;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+        transition: transform 0.2s var(--lg-ease);
     }
-    .seller-pitch-secondary:hover { color: #4f46e5; }
-    .seller-pitch-slider { width: 100%; }
-    @@media (max-width: 968px) {
-        .seller-pitch {
-            grid-template-columns: 1fr;
-            gap: 28px;
-            padding: 28px;
+
+    .ue-search-go:hover {
+        transform: scale(1.02);
+        background: #ffffff;
+    }
+
+    .ue-search-go svg { color: #059669; }
+
+    /* Floating Glass Preview Cards over pool water */
+    .ue-preview-strip {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    @@media (min-width: 720px) {
+        .ue-preview-strip {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
         }
     }
 
-    /* ─── Footer ─── */
-    .rea-footer {
-        background: #0b0b1a;
-        color: rgba(255,255,255,0.7);
-        padding: 60px 24px 32px;
-    }
-    .rea-footer-inner {
-        max-width: 1280px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: 40px;
-    }
-    .rea-footer-brand .rea-logo {
-        margin-bottom: 16px;
-    }
-    .rea-footer-brand .rea-logo .logo-text { color: white; }
-    .rea-footer-brand .rea-logo .logo-au { color: #818cf8; }
-    .rea-footer-statement {
-        font-size: 13px;
-        line-height: 1.7;
-        color: rgba(255,255,255,0.65);
-        max-width: 420px;
-        margin: 0;
-    }
-    .rea-footer-statement a {
-        color: #a78bfa;
+    .ue-glass-card {
+        border-radius: 26px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #ffffff;
         text-decoration: none;
+        transition: transform 0.28s var(--lg-ease);
     }
-    .rea-footer-statement a:hover { color: white; }
-    .rea-footer-col h4 {
+
+    .ue-glass-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .ue-empty-card {
+        padding: 16px 18px;
+    }
+
+    .ue-card-thumb {
+        width: 84px;
+        height: 84px;
+        border-radius: 18px;
+        overflow: hidden;
+        flex-shrink: 0;
+        display: block;
+    }
+
+    .ue-card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .ue-card-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ue-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .ue-card-pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 700;
+        background: rgba(16, 185, 129, 0.72);
+        color: #ffffff;
+    }
+
+    .ue-heart {
+        border: none;
+        background: rgba(12, 20, 36, 0.35);
+        color: #ffffff;
+        width: 30px;
+        height: 30px;
+        border-radius: 9999px;
+        font-size: 15px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ue-heart.saved {
+        background: rgba(239, 68, 68, 0.85);
+    }
+
+    .ue-card-price {
+        display: block;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ue-card-suburb {
         font-size: 13px;
+        color: rgba(255, 255, 255, 0.86);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ue-card-specs {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.76);
+        margin-top: 2px;
+    }
+
+    /* Sections below hero */
+    .ue-section {
+        max-width: 1160px;
+        margin: 34px auto 0;
+        padding: 0 16px;
+    }
+
+    .ue-section-head {
+        text-align: center;
+        max-width: 680px;
+        margin: 0 auto 24px;
+    }
+
+    .ue-eyebrow {
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: white;
-        margin: 0 0 16px 0;
-    }
-    .rea-footer-col a {
-        display: block;
-        font-size: 14px;
-        color: rgba(255,255,255,0.65);
-        text-decoration: none;
-        padding: 4px 0;
-    }
-    .rea-footer-col a:hover { color: white; }
-    .rea-footer-bottom {
-        max-width: 1280px;
-        margin: 40px auto 0;
-        padding-top: 24px;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        text-align: center;
-        font-size: 12px;
-        color: rgba(255,255,255,0.42);
+        color: var(--lg-emerald);
     }
 
-    /* ─── Responsive ─── */
-    @@media (max-width: 968px) {
-        .rea-nav-links { display: none; }
-        .audience-cards { grid-template-columns: 1fr; }
-        .rea-footer-inner { grid-template-columns: 1fr; gap: 32px; }
+    .ue-section-head h2 {
+        margin: 6px 0 8px;
+        font-size: clamp(24px, 4vw, 36px);
+        letter-spacing: -0.03em;
     }
-    @@media (max-width: 640px) {
-        .rea-search-row { flex-wrap: wrap; }
-        .rea-search-input { min-width: 0; width: 100%; padding: 12px; }
-        .rea-search-filters { display: none; }
-        .rea-search-submit { width: 100%; }
-        .rea-hero-title { font-size: 24px; }
-        .rea-trust-strip { gap: 8px; }
-        .rea-trust-item { font-size: 11px; padding: 6px 10px; }
+
+    .ue-section-head p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--lg-ink-secondary);
     }
+
+    .ue-pillars {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    @@media (min-width: 820px) {
+        .ue-pillars { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .ue-pillar {
+        border-radius: 28px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .ue-pillar-icon { font-size: 28px; }
+    .ue-pillar h3 { margin: 0; font-size: 18px; letter-spacing: -0.02em; }
+    .ue-pillar p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); flex: 1; }
+    .ue-link { font-size: 14px; font-weight: 700; color: var(--lg-emerald); text-decoration: none; }
+
+    .ue-agent-banner {
+        border-radius: 30px;
+        padding: 26px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+        align-items: center;
+    }
+
+    @@media (min-width: 860px) {
+        .ue-agent-banner { grid-template-columns: 1.25fr 1fr; padding: 30px; }
+    }
+
+    .ue-agent-copy h2 { margin: 6px 0 8px; font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.02em; }
+    .ue-agent-copy p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--lg-ink-secondary); }
+    .ue-agent-form { display: flex; flex-direction: column; gap: 10px; }
+
+    .ue-sankey-card {
+        border-radius: 30px;
+        padding: 26px 16px;
+        background: #0b101d;
+        color: #ffffff;
+    }
+
+    .ue-footer {
+        max-width: 1160px;
+        margin: 32px auto 12px;
+        padding: 0 16px;
+    }
+
+    .ue-footer-inner {
+        border-radius: 24px;
+        padding: 18px 22px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        font-size: 13px;
+    }
+
+    .ue-footer-sub { font-size: 12px; color: var(--lg-ink-secondary); margin-top: 3px; }
+    .ue-footer-links { display: flex; flex-wrap: wrap; gap: 14px; }
+    .ue-footer-links a { font-weight: 600; color: var(--lg-ink-secondary); text-decoration: none; }
+    .ue-footer-links a:hover { color: var(--lg-ink); }
 </style>
-
 
 @code {
     [Parameter]
     public EventCallback<string> OnGetStarted { get; set; }
 
-    private string _searchType = "buy";
-    private string _searchQuery = "";
-    private string _audience = "sellers";
+    private string _mode = "buy";
+    private string _query = "";
+    private string _quickAgentUrl = "";
+    private List<Listing> _featured = [];
+    private HashSet<string> _savedIds = new(StringComparer.OrdinalIgnoreCase);
 
-    // Demo image pairs for the AI staging slider in the Sellers tab.
-    // Outdoor is a real before/after; remaining rooms are Picsum placeholders
-    // until real photos land in /wwwroot/images/staging/.
-    private readonly List<BeforeAfterSlider.SliderItem> _stagingDemo = new()
-    {
-        new BeforeAfterSlider.SliderItem(
-            "Outdoor living",
-            "/images/staging/ue-outdoor-before.jpg",
-            "/images/staging/ue-outdoor-after.jpg",
-            Icon: "🌿"),
-        // TODO: drop real photos at /wwwroot/images/staging/ue-lounge-{before,after}.jpg and swap below.
-        new BeforeAfterSlider.SliderItem(
-            "Lounge",
-            "https://picsum.photos/seed/ue-lounge-before/1400/900",
-            "https://picsum.photos/seed/ue-lounge-after/1400/900",
-            Icon: "🛋️"),
-        new BeforeAfterSlider.SliderItem(
-            "Kitchen",
-            "https://picsum.photos/seed/ue-kitchen-before/1400/900",
-            "https://picsum.photos/seed/ue-kitchen-after/1400/900",
-            Icon: "🍳"),
-        new BeforeAfterSlider.SliderItem(
-            "Bedroom",
-            "https://picsum.photos/seed/ue-bedroom-before/1400/900",
-            "https://picsum.photos/seed/ue-bedroom-after/1400/900",
-            Icon: "🛏️")
-    };
-
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
-        switch (path)
+        _mode = path switch
         {
-            case "/sell":
-                _audience = "sellers";
-                _searchType = "address";
-                break;
-            case "/buy":
-                _audience = "buyers";
-                _searchType = "buy";
-                break;
-            case "/rent":
-                _audience = "buyers";
-                _searchType = "rent";
-                break;
-            case "/agent":
-            case "/agents":
-                _audience = "agents";
-                _searchType = "agents";
-                break;
+            "/agent" or "/agents" => "agentlink",
+            "/rent" => "map",
+            _ => "buy"
+        };
+
+        try
+        {
+            _featured = await ListingService.GetPublishedListingsAsync(3);
+        }
+        catch
+        {
+            _featured = [];
         }
     }
 
-    private string GetHeroTitle() => _searchType switch
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        "buy" => "Search Australian properties for sale",
-        "rent" => "Search Australian rentals",
-        "sold" => "Browse recently sold Australian properties",
-        "address" => "Look up any Australian address",
-        "agents" => "Find an Australian agent",
-        "ai" => "Talk to your AI buyer agent",
-        _ => "Search Australian properties"
-    };
-
-    private string GetPlaceholder() => _searchType switch
-    {
-        "buy" => "Search suburb, postcode or state",
-        "rent" => "Search rental suburb, postcode or state",
-        "sold" => "Search sold properties by suburb",
-        "address" => "Enter a full address (e.g. 67 Northview Outlook, Moorooka)",
-        "agents" => "Find an Australian agent by suburb or name",
-        "ai" => "Tell the AI what you're looking for…",
-        _ => "Search"
-    };
-
-    private void SetSearch(string type)
-    {
-        _searchType = type;
+        if (firstRender)
+        {
+            try
+            {
+                var items = await JS.InvokeAsync<List<LiquidGlassChrome.ShortlistItem>>("ueGlass.getShortlist");
+                if (items is not null)
+                {
+                    _savedIds = items.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
     }
+
+    private string GetPlaceholder() => _mode switch
+    {
+        "agentlink" => "Paste your listing URL (https://agency.com.au/...)",
+        "match" => "e.g. Paddington 3 bed under $1.2M",
+        "map" => "Explore suburb or postcode on map...",
+        _ => "Search Paddington, New Farm, Burleigh — or describe your brief..."
+    };
 
     private void HandleKeyup(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-        {
             HandleSearch();
-        }
     }
 
     private void HandleSearch()
     {
-        var q = Uri.EscapeDataString(_searchQuery ?? "");
-        var url = _searchType switch
+        var q = _query.Trim();
+
+        if (_mode == "agentlink" || q.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || q.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            "ai" => $"/chat?mode=buy&q={q}",
-            "agents" => $"/agents?q={q}",
-            "address" => $"/explore?type=address&q={q}",
-            _ => $"/explore?type={_searchType}&q={q}"
-        };
-        Nav.NavigateTo(url);
+            var target = string.IsNullOrEmpty(q)
+                ? "/agents#quick-link-post"
+                : $"/agents?link={Uri.EscapeDataString(q)}#quick-link-post";
+            Nav.NavigateTo(target);
+            return;
+        }
+
+        if (_mode == "map")
+        {
+            var loc = string.IsNullOrEmpty(q) ? "Brisbane" : q;
+            Nav.NavigateTo($"/explore?mode=buy&location={Uri.EscapeDataString(loc)}");
+            return;
+        }
+
+        // Parse simple phone natural-language brief into explainable /buyer/matches query params
+        var qs = BuildBriefQuery(q);
+        Nav.NavigateTo(string.IsNullOrEmpty(qs) ? "/buyer/matches" : $"/buyer/matches?{qs}");
     }
 
-    private void GoHome()
+    private void GoToAgentImport()
     {
-        Nav.NavigateTo("/", forceLoad: true);
+        var q = _quickAgentUrl.Trim();
+        Nav.NavigateTo(string.IsNullOrEmpty(q)
+            ? "/agents#quick-link-post"
+            : $"/agents?link={Uri.EscapeDataString(q)}#quick-link-post");
     }
 
-    private void GoToAgentRegister()
+    private async Task ToggleSaveAsync(Listing l)
     {
-        Nav.NavigateTo("/agents/register");
+        try
+        {
+            var saved = await JS.InvokeAsync<bool>("ueGlass.toggleShortlist", new
+            {
+                id = l.Id.ToString(),
+                address = l.Address,
+                suburb = l.Suburb,
+                state = string.IsNullOrWhiteSpace(l.State) ? "QLD" : l.State,
+                postcode = l.Postcode,
+                priceDisplay = FormatPrice(l),
+                askingPrice = l.AskingPrice ?? l.EstimatedValue,
+                bedrooms = l.Bedrooms,
+                bathrooms = l.Bathrooms,
+                carSpaces = l.CarSpaces,
+                propertyType = l.PropertyType
+            });
+
+            if (saved) _savedIds.Add(l.Id.ToString());
+            else _savedIds.Remove(l.Id.ToString());
+        }
+        catch { }
+    }
+
+    private static string BuildBriefQuery(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "";
+
+        var parts = new List<string>();
+        var working = raw;
+
+        var bedMatch = Regex.Match(working, @"\b(\d)\s*\+?\s*bed(?:room)?s?\b", RegexOptions.IgnoreCase);
+        if (bedMatch.Success)
+        {
+            parts.Add($"beds={bedMatch.Groups[1].Value}");
+            working = working.Remove(bedMatch.Index, bedMatch.Length);
+        }
+
+        var maxMill = Regex.Match(working, @"(?:under|max|<|up to)\s*\$?(\d+(?:\.\d+)?)\s*m\b", RegexOptions.IgnoreCase);
+        if (maxMill.Success
+            && decimal.TryParse(maxMill.Groups[1].Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var m)
+            && m > 0m && m <= 100m)
+        {
+            parts.Add($"maxPrice={(long)Math.Round(m * 1_000_000m)}");
+            working = working.Remove(maxMill.Index, maxMill.Length);
+        }
+        else
+        {
+            var maxK = Regex.Match(working, @"(?:under|max|<|up to)?\s*\$(\d{3,4})\s*k\b", RegexOptions.IgnoreCase);
+            if (maxK.Success
+                && decimal.TryParse(maxK.Groups[1].Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var k)
+                && k >= 100m && k <= 9999m)
+            {
+                parts.Add($"maxPrice={(long)Math.Round(k * 1_000m)}");
+                working = working.Remove(maxK.Index, maxK.Length);
+            }
+            else
+            {
+                var maxDollars = Regex.Match(working, @"(?:under|max|<|up to)?\s*\$([1-9]\d{2}(?:,\d{3})+|\d{6,8})\b", RegexOptions.IgnoreCase);
+                if (maxDollars.Success
+                    && decimal.TryParse(maxDollars.Groups[1].Value.Replace(",", ""), NumberStyles.Number, CultureInfo.InvariantCulture, out var d)
+                    && d >= 100_000m && d <= 100_000_000m)
+                {
+                    parts.Add($"maxPrice={(long)Math.Round(d)}");
+                    working = working.Remove(maxDollars.Index, maxDollars.Length);
+                }
+            }
+        }
+
+        var cleanSuburbs = Regex.Replace(working, @"\b(house|houses|unit|units|apartment|townhouse|in|near|under|for|sale)\b", " ", RegexOptions.IgnoreCase);
+        cleanSuburbs = Regex.Replace(cleanSuburbs, @"\s+", " ").Trim(' ', ',');
+        if (!string.IsNullOrWhiteSpace(cleanSuburbs))
+            parts.Add($"suburbs={Uri.EscapeDataString(cleanSuburbs)}");
+
+        if (Regex.IsMatch(raw, @"\bhouse(?:s)?\b", RegexOptions.IgnoreCase))
+            parts.Add("type=House");
+        else if (Regex.IsMatch(raw, @"\b(?:unit|apartment)s?\b", RegexOptions.IgnoreCase))
+            parts.Add("type=Unit");
+        else if (Regex.IsMatch(raw, @"\btownhouse(?:s)?\b", RegexOptions.IgnoreCase))
+            parts.Add("type=Townhouse");
+
+        return string.Join("&", parts);
+    }
+
+    private static string ResolveCardImage(Listing l)
+    {
+        if (!string.IsNullOrWhiteSpace(l.ImageUrls) && l.ImageUrls.StartsWith('['))
+        {
+            try
+            {
+                var urls = JsonSerializer.Deserialize<string[]>(l.ImageUrls);
+                var first = urls?.Select(u =>
+                {
+                    if (string.IsNullOrWhiteSpace(u)) return null;
+                    var t = u.Trim();
+                    if (t.StartsWith('/')
+                        && !t.StartsWith("//", StringComparison.Ordinal)
+                        && !t.StartsWith("/\\", StringComparison.Ordinal)) return t;
+                    return ListingLinkImporter.SanitizeImageUrl(t, new Uri("https://unrealestate.au/"));
+                }).FirstOrDefault(u => u is not null);
+                if (!string.IsNullOrWhiteSpace(first)) return first;
+            }
+            catch { }
+        }
+        return "/images/hero-queenslander.jpg";
+    }
+
+    private static string FormatPrice(Listing l)
+    {
+        if (!string.IsNullOrWhiteSpace(l.PriceDisplay)) return l.PriceDisplay;
+        if (l.AskingPrice is decimal a && a > 0) return a >= 1_000_000m ? $"${a / 1_000_000m:0.##}M" : $"${a:N0}";
+        if (l.EstimatedValue is decimal e && e > 0) return $"~${e:N0} (est.)";
+        return "Contact Agent";
+    }
+
+    private static string FormatSpecs(Listing l)
+    {
+        var specs = new List<string>();
+        if (l.Bedrooms.HasValue) specs.Add($"{l.Bedrooms} bd");
+        if (l.Bathrooms.HasValue) specs.Add($"{l.Bathrooms} ba");
+        if (l.CarSpaces.HasValue) specs.Add($"{l.CarSpaces} car");
+        if (specs.Count == 0) specs.Add(string.IsNullOrWhiteSpace(l.PropertyType) ? "Property" : l.PropertyType);
+        return string.Join(" · ", specs);
     }
 }

@@ -72,6 +72,48 @@ public static class LocalFixtureDb
             L(Guid.Parse("00000000-0000-0000-0000-000000000004"), "4 Placeholder Cres", "Paddington", "House", 4, 2, null, 900_000m),
             L(Guid.Parse("00000000-0000-0000-0000-000000000005"), "5 Missing Data Ln", "Paddington", "House", null, null, null, null),
             L(Guid.Parse("00000000-0000-0000-0000-000000000006"), "6 Draft Only St", "Paddington", "House", 3, 2, 950_000m, null, ListingStatus.Draft));
+
+        var syntheticBuyer = new Agent
+        {
+            Id = Guid.NewGuid(),
+            Name = $"{Marker} Buyer Contact",
+            Email = "synthetic-buyer@example.test",
+            Phone = "0400000001"
+        };
+        db.Set<Agent>().Add(syntheticBuyer);
+
+        db.Set<ListingInquiry>().AddRange(
+            new ListingInquiry
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                ListingId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                AgentId = syntheticBuyer.Id,
+                Agent = syntheticBuyer,
+                Message = Aigents.Domain.Enquiries.EnquiryRecordCodec.Encode(
+                    Aigents.Domain.Enquiries.EnquiryChannel.SmsText,
+                    $"{Marker} Is there a Saturday morning open home?",
+                    $"{Marker} Alex Buyer",
+                    buyerPhone: "0400 000 001",
+                    buyerEmail: "synthetic-buyer@example.test"),
+                Status = InquiryStatus.New,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-25)
+            },
+            new ListingInquiry
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000002"),
+                ListingId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
+                AgentId = syntheticBuyer.Id,
+                Agent = syntheticBuyer,
+                Message = Aigents.Domain.Enquiries.EnquiryRecordCodec.Encode(
+                    Aigents.Domain.Enquiries.EnquiryChannel.VoiceAssistant,
+                    $"{Marker} Captured via Voice AI — pre-approved buyer requesting private walkthrough",
+                    $"{Marker} Jordan Buyer",
+                    buyerPhone: "0400 000 002",
+                    preferredSlot: "Sat 10:00 am"),
+                Status = InquiryStatus.InspectionBooked,
+                CreatedAt = DateTime.UtcNow.AddHours(-2)
+            });
+
         await db.SaveChangesAsync();
     }
 }
